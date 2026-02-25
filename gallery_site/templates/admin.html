@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>后台管理 · GALLERY</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f0f13;--s1:#1a1a22;--s2:#22222e;--s3:#2a2a38;--bd:#2e2e3e;--ac:#c8a97e;--ac2:#7c6af5;--tx:#e8e6f0;--mu:#6b6880;--err:#e05c5c;--ok:#5cb85c;--warn:#f0a030}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
+.sb{width:220px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;padding:20px 0;position:fixed;height:100vh;top:0;left:0;overflow-y:auto}
+.sb-logo{padding:0 20px 22px;font-size:16px;font-weight:600;letter-spacing:.1em;color:var(--ac)}
+.sb-logo span{color:var(--mu);font-size:10px;display:block;font-weight:300;margin-top:2px}
+.sg{padding:7px 20px 3px;font-size:10px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 20px;font-size:13px;color:var(--mu);cursor:pointer;transition:all .2s;border-left:3px solid transparent;user-select:none}
+.ni:hover{color:var(--tx);background:var(--s2)}.ni.active{color:var(--ac);border-left-color:var(--ac);background:rgba(200,169,126,.08)}
+.ni .ic{font-size:14px;width:18px;text-align:center}
+.sb-foot{margin-top:auto;padding:14px 20px}
+.back{display:block;text-align:center;padding:8px;background:var(--s2);border-radius:8px;color:var(--mu);text-decoration:none;font-size:12px;transition:all .2s}
+.back:hover{color:var(--ac)}
+.main{margin-left:220px;flex:1;padding:26px;overflow-y:auto}
+.page{display:none}.page.active{display:block}
+.pt{font-size:21px;font-weight:600;margin-bottom:3px}.ps{color:var(--mu);font-size:12px;margin-bottom:22px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:20px;margin-bottom:16px}
+.ct{font-size:12px;font-weight:600;color:var(--ac);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:11px;padding:15px}
+.sv{font-size:26px;font-weight:600;color:var(--ac)}.sl{font-size:12px;color:var(--mu);margin-top:2px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;color:var(--mu);letter-spacing:.05em}
+.inp{padding:8px 11px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s;width:100%}
+.inp:focus{border-color:var(--ac)}
+select.inp option{background:var(--s2)}
+textarea.inp{resize:vertical}
+.btn{padding:8px 18px;border-radius:7px;font-size:13px;cursor:pointer;border:none;font-family:inherit;transition:all .2s;font-weight:500}
+.btn-p{background:var(--ac);color:#1a0f00}.btn-p:hover{background:#d4b890}
+.btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}.btn-s:hover{border-color:var(--ac);color:var(--ac)}
+.btn-d{background:rgba(224,92,92,.12);color:var(--err);border:1px solid rgba(224,92,92,.25)}.btn-d:hover{background:rgba(224,92,92,.22)}
+.btn-sm{padding:5px 11px;font-size:12px}.btn-xs{padding:3px 8px;font-size:11px}
+.dz{border:2px dashed var(--bd);border-radius:11px;padding:26px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.dz:hover,.dz.drag{border-color:var(--ac);background:rgba(200,169,126,.04)}
+.dz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.dz-icon{font-size:28px;margin-bottom:6px}.dz-text{font-size:13px;color:var(--mu)}.dz-hint{font-size:11px;color:var(--mu);margin-top:2px;opacity:.6}
+.pb{height:3px;background:var(--bd);border-radius:2px;margin-top:8px;overflow:hidden;display:none}
+.pf{height:100%;background:var(--ac);border-radius:2px;transition:width .3s;width:0}
+.tw{background:var(--s1);border:1px solid var(--bd);border-radius:13px;overflow:hidden}
+.th{padding:12px 15px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.th h3{font-size:13px;font-weight:500}
+table{width:100%;border-collapse:collapse}
+th{padding:9px 12px;text-align:left;font-size:10px;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;background:var(--s2);border-bottom:1px solid var(--bd)}
+td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.012)}
+.thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--s2)}
+.thumb-ph{width:44px;height:44px;border-radius:6px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500}
+.bi{background:rgba(124,106,245,.15);color:var(--ac2)}.bv{background:rgba(200,169,126,.15);color:var(--ac)}
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--s2);border-radius:20px;font-size:12px;border:1px solid var(--bd)}
+.tag-rm{color:var(--err);cursor:pointer;font-size:13px;line-height:1}.tag-add{display:flex;gap:7px}
+/* SLIDE EDITOR */
+.slide-list{display:flex;flex-direction:column;gap:11px;margin-bottom:14px}
+.slide-item{background:var(--s2);border:1px solid var(--bd);border-radius:11px;padding:14px}
+.sih{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
+.sih span{color:var(--mu);font-size:12px;font-weight:500}
+.sif{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sif .full{grid-column:1/-1}
+.bg-tabs{display:flex;gap:5px;margin-bottom:6px}
+.bg-tab{padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer;border:1px solid var(--bd);background:transparent;color:var(--mu);transition:all .2s}
+.bg-tab.active{background:var(--ac);color:#1a0f00;border-color:var(--ac)}
+/* LINK EDITOR */
+.link-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.link-row{display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:center;background:var(--s2);padding:8px 10px;border-radius:7px;border:1px solid var(--bd)}
+.link-row input{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12px;outline:none;width:100%}
+.link-row input::placeholder{color:var(--mu)}
+/* COL EDITOR */
+.col-list{display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
+.col-item{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px}
+.cih{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.col-links{display:flex;flex-direction:column;gap:5px}
+.clr{display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center}
+.clr input{background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:5px 8px;color:var(--tx);font-family:inherit;font-size:11px;outline:none}
+.clr input:focus{border-color:var(--ac)}
+/* CONTACT EDITOR */
+.contact-list{display:flex;flex-direction:column;gap:8px;margin-bottom:11px}
+.contact-row{display:grid;grid-template-columns:52px 1fr 1fr auto;gap:6px;align-items:center;background:var(--s2);padding:8px 10px;border-radius:7px;border:1px solid var(--bd)}
+.contact-row input{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12px;outline:none;width:100%}
+/* ABOUT EDITOR */
+.about-skill-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
+.skill-row{display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center;background:var(--s2);padding:8px 10px;border-radius:7px;border:1px solid var(--bd)}
+.skill-row input{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12px;outline:none;width:100%}
+.img-upload-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.img-thumb{width:72px;height:56px;border-radius:7px;object-fit:cover;border:1px solid var(--bd);flex-shrink:0}
+.img-thumb-ph{width:72px;height:56px;border-radius:7px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+/* OVERLAY */
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay.open{opacity:1;pointer-events:all}
+.mbox{background:var(--s1);border:1px solid var(--bd);border-radius:15px;padding:24px;width:560px;max-width:95vw;max-height:88vh;overflow-y:auto}
+.mbox h3{font-size:16px;margin-bottom:16px}
+.mact{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.replace-row{display:flex;gap:8px;align-items:center;margin-top:6px}
+.file-prev{width:76px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--bd);flex-shrink:0}
+.file-prev-ph{width:76px;height:54px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+/* VISITORS */
+.vis-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.chart-bar-wrap{display:flex;flex-direction:column;gap:0;margin-bottom:18px}
+.chart-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.chart-label{font-size:11px;color:var(--mu);width:40px;text-align:right;flex-shrink:0}
+.chart-bar-bg{flex:1;height:18px;background:var(--s2);border-radius:3px;overflow:hidden}
+.chart-bar-fill{height:100%;background:linear-gradient(90deg,var(--ac),#e8c99a);border-radius:3px;transition:width .6s ease;min-width:2px}
+.chart-count{font-size:11px;color:var(--mu);width:30px}
+.vis-table{max-height:400px;overflow-y:auto}
+/* MSG */
+.ma{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px 15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.mm{font-size:11px;color:var(--mu);margin-bottom:3px}
+.mb{font-size:13px;line-height:1.6}
+/* LIKE EDIT */
+.like-edit{display:flex;align-items:center;gap:6px}
+.like-edit input{width:70px}
+/* FAVICON */
+.favicon-row{display:flex;gap:12px;align-items:center;margin-top:8px}
+.favicon-prev{width:38px;height:38px;border-radius:7px;object-fit:cover;border:1px solid var(--bd)}
+/* DIVIDER */
+.div{height:1px;background:var(--bd);margin:14px 0}
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;z-index:999;background:var(--s1);border:1px solid var(--bd);border-radius:9px;padding:10px 16px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.4);transform:translateY(65px);opacity:0;transition:all .3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-color:var(--ok);color:var(--ok)}.toast.err{border-color:var(--err);color:var(--err)}
+</style>
+</head>
+<body>
+<aside class="sb">
+  <div class="sb-logo">GALLERY<span>管理后台</span></div>
+  <div class="sg">内容</div>
+  <div class="ni active" onclick="showPage('dashboard',this)"><span class="ic">📊</span>仪表盘</div>
+  <div class="ni" onclick="showPage('upload',this)"><span class="ic">⬆️</span>上传内容</div>
+  <div class="ni" onclick="showPage('manage',this)"><span class="ic">🖼️</span>内容管理</div>
+  <div class="ni" onclick="showPage('categories',this)"><span class="ic">🏷️</span>分类管理</div>
+  <div class="sg">外观</div>
+  <div class="ni" onclick="showPage('basic',this)"><span class="ic">⚙️</span>网站基本设置</div>
+  <div class="ni" onclick="showPage('hero',this)"><span class="ic">🎠</span>轮播海报</div>
+  <div class="ni" onclick="showPage('nav',this)"><span class="ic">🔗</span>导航菜单</div>
+  <div class="ni" onclick="showPage('about',this)"><span class="ic">👤</span>关于我页面</div>
+  <div class="ni" onclick="showPage('contact',this)"><span class="ic">📞</span>联系方式</div>
+  <div class="ni" onclick="showPage('footer',this)"><span class="ic">📋</span>底部内容</div>
+  <div class="sg">数据</div>
+  <div class="ni" onclick="showPage('visitors',this)"><span class="ic">👥</span>访客记录</div>
+  <div class="ni" onclick="showPage('messages',this)"><span class="ic">💬</span>留言管理</div>
+  <div class="sb-foot"><a class="back" href="/">← 返回前台</a></div>
+</aside>
+
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="pt">仪表盘</div><div class="ps">网站数据概览</div>
+  <div class="stats">
+    <div class="stat"><div class="sv" id="sTotal">-</div><div class="sl">作品总数</div></div>
+    <div class="stat"><div class="sv" id="sImg">-</div><div class="sl">图片</div></div>
+    <div class="stat"><div class="sv" id="sVid">-</div><div class="sl">视频</div></div>
+    <div class="stat"><div class="sv" id="sMsg">-</div><div class="sl">留言</div></div>
+  </div>
+  <div class="tw"><div class="th"><h3>最近上传</h3></div>
+    <table><thead><tr><th>封面</th><th>标题</th><th>分类</th><th>类型</th><th>日期</th></tr></thead>
+    <tbody id="recentTb"></tbody></table></div>
+</div>
+
+<!-- UPLOAD -->
+<div class="page" id="page-upload">
+  <div class="pt">上传内容</div><div class="ps">支持图片与视频</div>
+  <div class="card"><div class="ct">📁 选择文件</div>
+    <div class="dz" id="dz">
+      <input type="file" id="fileInp" accept="image/*,video/*" onchange="handleFile(this)">
+      <div class="dz-icon" id="dzIcon">📁</div>
+      <div class="dz-text" id="dzText">点击或拖拽文件到此处</div>
+      <div class="dz-hint">JPG PNG GIF WEBP MP4 MOV WEBM</div>
+    </div>
+    <div class="pb" id="pb"><div class="pf" id="pf"></div></div>
+  </div>
+  <div class="card"><div class="ct">📝 作品信息</div>
+    <div class="fr">
+      <div class="fg"><label>标题（不填则前端不显示）</label><input class="inp" type="text" id="upTitle" placeholder="留空则不显示标题"></div>
+      <div class="fg"><label>分类</label><select class="inp" id="upCat"></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>宽度(px)</label><input class="inp" type="number" id="upW" value="800"></div>
+      <div class="fg"><label>高度(px)</label><input class="inp" type="number" id="upH" value="600"></div>
+    </div>
+    <div class="fg" style="margin-bottom:11px"><label>描述</label><textarea class="inp" id="upDesc" rows="2" placeholder="简短描述..."></textarea></div>
+    <div class="fg" style="margin-bottom:16px"><label>封面图（可选，不选则自动使用原文件）</label><input class="inp" type="file" id="coverInp" accept="image/*" style="padding:6px"></div>
+    <button class="btn btn-p" onclick="submitUpload()">上传发布 →</button>
+  </div>
+</div>
+
+<!-- MANAGE -->
+<div class="page" id="page-manage">
+  <div class="pt">内容管理</div><div class="ps">编辑或删除已上传内容</div>
+  <div class="tw"><div class="th"><h3>全部内容</h3><span id="manCount" style="font-size:11px;color:var(--mu)"></span></div>
+    <table><thead><tr><th>封面</th><th>标题</th><th>分类</th><th>类型</th><th>❤️</th><th>日期</th><th>操作</th></tr></thead>
+    <tbody id="manTb"></tbody></table></div>
+</div>
+
+<!-- CATEGORIES -->
+<div class="page" id="page-categories">
+  <div class="pt">分类管理</div><div class="ps">管理内容分类</div>
+  <div class="card"><div class="ct">🏷️ 当前分类</div>
+    <div class="tags" id="catTags"></div>
+    <div class="tag-add"><input class="inp" type="text" id="newCatInp" placeholder="新分类..." style="flex:1"><button class="btn btn-p" onclick="addCat()">添加</button></div>
+  </div>
+</div>
+
+<!-- BASIC -->
+<div class="page" id="page-basic">
+  <div class="pt">网站基本设置</div><div class="ps">标题、副标题与图标</div>
+  <div class="card"><div class="ct">🌐 基本信息</div>
+    <div class="fg" style="margin-bottom:11px"><label>网站标题</label><input class="inp" type="text" id="siteTitle" placeholder="GALLERY · 视觉创作集"></div>
+    <div class="fg" style="margin-bottom:16px"><label>副标题</label><input class="inp" type="text" id="siteSub" placeholder="记录生活之美..."></div>
+    <button class="btn btn-p" onclick="saveBasic()">保存</button>
+  </div>
+  <div class="card"><div class="ct">🎨 网站图标 (Favicon)</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">建议 32×32 或 64×64 PNG</p>
+    <div class="favicon-row">
+      <img id="faviconPrev" class="favicon-prev" src="data:," alt="" onerror="this.style.display='none'">
+      <div><input class="inp" type="file" id="faviconInp" accept="image/*" style="padding:6px;margin-bottom:7px"><br>
+        <button class="btn btn-p btn-sm" onclick="uploadFavicon()">上传图标</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="page" id="page-hero">
+  <div class="pt">轮播海报</div><div class="ps">管理首页轮播</div>
+  <div class="card"><div class="ct">📐 高度</div>
+    <div class="fr">
+      <div class="fg"><label>高度（px，200~900）</label><input class="inp" type="number" id="heroH" value="540" min="200" max="900"></div>
+      <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn btn-p" onclick="saveHero()">保存</button></div>
+    </div>
+  </div>
+  <div class="card"><div class="ct">🎠 海报列表 <button class="btn btn-s btn-sm" onclick="addSlide()" style="margin-left:auto">+ 新增</button></div>
+    <div class="slide-list" id="slideList"></div>
+    <button class="btn btn-p" onclick="saveHero()">保存所有海报</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="page" id="page-nav">
+  <div class="pt">导航菜单</div><div class="ps">自定义顶部导航</div>
+  <div class="card"><div class="ct">🏷️ Logo 文字</div>
+    <div class="fg" style="margin-bottom:16px"><label>名称</label><input class="inp" type="text" id="navLogo" placeholder="GAL·LERY"></div>
+    <div class="ct" style="margin-bottom:9px">🔗 导航链接 <button class="btn btn-s btn-xs" onclick="addNavLink()" style="margin-left:auto">+ 添加</button></div>
+    <div class="link-list" id="navLinkList"></div>
+    <button class="btn btn-p" onclick="saveNav()">保存导航</button>
+  </div>
+</div>
+
+<!-- ABOUT PAGE EDITOR -->
+<div class="page" id="page-about">
+  <div class="pt">关于我页面</div><div class="ps">编辑 /about 页面的所有内容</div>
+
+  <div class="card"><div class="ct">🖼️ 页面横幅背景图</div>
+    <div class="img-upload-row">
+      <div id="heroBgPreview" class="img-thumb-ph">🌄</div>
+      <div style="flex:1">
+        <input class="inp" type="file" id="heroBgInp" accept="image/*" style="padding:6px;margin-bottom:6px" onchange="previewImg(this,'heroBgPreview')">
+        <button class="btn btn-s btn-sm" onclick="uploadAboutImg('heroBgInp','heroImage')">上传横幅图</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><div class="ct">👤 头像与基本信息</div>
+    <div class="fr">
+      <div class="fg"><label>姓名 / 昵称</label><input class="inp" type="text" id="aboutName" placeholder="创作者"></div>
+      <div class="fg"><label>一句话标语</label><input class="inp" type="text" id="aboutTagline" placeholder="用镜头记录世界的美好"></div>
+    </div>
+    <div class="fg" style="margin-bottom:12px"><label>头像 Emoji（无头像图时显示）</label><input class="inp" type="text" id="aboutEmoji" placeholder="🎨" style="width:80px"></div>
+    <div class="fg"><label>头像图片（上传后覆盖 Emoji）</label>
+      <div class="img-upload-row">
+        <div id="avatarImgPreview" class="img-thumb-ph" style="border-radius:50%">👤</div>
+        <div style="flex:1">
+          <input class="inp" type="file" id="avatarImgInp" accept="image/*" style="padding:6px;margin-bottom:6px" onchange="previewImg(this,'avatarImgPreview')">
+          <button class="btn btn-s btn-sm" onclick="uploadAboutImg('avatarImgInp','avatarImage')">上传头像</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><div class="ct">📖 个人简介段落</div>
+    <div id="paragraphList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+    <button class="btn btn-s btn-sm" onclick="addParagraph()">+ 添加段落</button>
+  </div>
+
+  <div class="card"><div class="ct">📊 技能条 <button class="btn btn-s btn-xs" onclick="addSkill()" style="margin-left:auto">+ 添加</button></div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">留空则技能区不显示</p>
+    <div class="about-skill-list" id="skillList"></div>
+    <p style="font-size:11px;color:var(--mu)">值为 0~100 的数字</p>
+  </div>
+
+  <div class="card"><div class="ct">🔗 社交链接 <button class="btn btn-s btn-xs" onclick="addSocial()" style="margin-left:auto">+ 添加</button></div>
+    <div class="link-list" id="socialLinkList"></div>
+  </div>
+
+  <button class="btn btn-p" onclick="saveAbout()" style="margin-top:4px">保存关于我页面</button>
+</div>
+
+<!-- CONTACT -->
+<div class="page" id="page-contact">
+  <div class="pt">联系方式</div><div class="ps">编辑联系方式卡片</div>
+  <div class="card"><div class="ct">📞 联系信息 <button class="btn btn-s btn-xs" onclick="addContact()" style="margin-left:auto">+ 添加</button></div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:11px">图标列支持 Emoji：📮 💬 🌐 📍 📱 🐦</p>
+    <div class="contact-list" id="contactList"></div>
+    <button class="btn btn-p" onclick="saveContact()">保存</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="page" id="page-footer">
+  <div class="pt">底部内容</div><div class="ps">编辑网站底部信息</div>
+  <div class="card"><div class="ct">🏢 品牌信息</div>
+    <div class="fg" style="margin-bottom:10px"><label>Logo</label><input class="inp" type="text" id="ftLogo" placeholder="GAL·LERY"></div>
+    <div class="fg" style="margin-bottom:10px"><label>描述</label><textarea class="inp" id="ftDesc" rows="2"></textarea></div>
+    <div class="fg" style="margin-bottom:16px"><label>版权文字</label><input class="inp" type="text" id="ftCopy"></div>
+    <div class="ct" style="margin-bottom:9px">📂 链接栏目 <button class="btn btn-s btn-xs" onclick="addFtCol()" style="margin-left:auto">+ 栏目</button></div>
+    <div class="col-list" id="ftColList"></div>
+    <button class="btn btn-p" onclick="saveFooter()">保存底部</button>
+  </div>
+</div>
+
+<!-- VISITORS -->
+<div class="page" id="page-visitors">
+  <div class="pt">访客记录</div><div class="ps">查看网站访问数据</div>
+  <div class="stats vis-stats" id="visStats">
+    <div class="stat"><div class="sv" id="visTotal">-</div><div class="sl">总访问次数</div></div>
+    <div class="stat"><div class="sv" id="visToday">-</div><div class="sl">今日访问</div></div>
+    <div class="stat"><div class="sv" id="visUniqueIp">-</div><div class="sl">独立 IP 数</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="card"><div class="ct">📈 近14天访问量</div><div class="chart-bar-wrap" id="dailyChart"></div></div>
+    <div class="card"><div class="ct">📄 热门页面</div><div id="topPages"></div></div>
+  </div>
+  <div class="tw">
+    <div class="th"><h3>访问日志</h3>
+      <button class="btn btn-d btn-sm" onclick="clearVisitors()">清空记录</button>
+    </div>
+    <div class="vis-table">
+      <table><thead><tr><th>时间</th><th>IP</th><th>页面</th><th>来源</th><th>设备信息</th></tr></thead>
+      <tbody id="visTb"></tbody></table>
+    </div>
+  </div>
+  <div style="text-align:center;padding:16px" id="visLoadMore" style="display:none">
+    <button class="btn btn-s btn-sm" onclick="loadMoreVisitors()">加载更多</button>
+  </div>
+</div>
+
+<!-- MESSAGES -->
+<div class="page" id="page-messages">
+  <div class="pt">留言管理</div><div class="ps">查看和删除访客留言</div>
+  <div id="adminMsgs"></div>
+</div>
+
+</main>
+
+<!-- EDIT ITEM MODAL -->
+<div class="overlay" id="editOverlay" onclick="closeEditIfBg(event)">
+  <div class="mbox">
+    <h3>编辑作品</h3>
+    <input type="hidden" id="editId">
+    <div class="fg" style="margin-bottom:10px"><label>标题（留空则前端不显示）</label><input class="inp" type="text" id="editTitle" placeholder="留空则不显示"></div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg"><label>分类</label><select class="inp" id="editCat"></select></div>
+      <div class="fg"><label>宽×高 (px)</label>
+        <div style="display:flex;gap:5px"><input class="inp" type="number" id="editW"><input class="inp" type="number" id="editH"></div>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label>描述</label><textarea class="inp" id="editDesc" rows="2"></textarea></div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>❤️ 点赞数量</label>
+      <div class="like-edit"><input class="inp" type="number" id="editLikes" min="0" placeholder="0"><span style="font-size:12px;color:var(--mu)">可手动调整</span></div>
+    </div>
+    <div class="div"></div>
+    <div class="fg" style="margin-bottom:6px"><label style="font-size:12px;font-weight:600;color:var(--tx)">替换主文件</label></div>
+    <div class="replace-row">
+      <div id="editFilePrev"></div>
+      <div style="flex:1">
+        <input class="inp" type="file" id="editFileInp" accept="image/*,video/*" style="padding:5px;margin-bottom:5px" onchange="prevEditFile(this)">
+        <button class="btn btn-s btn-sm" onclick="replaceFile()">上传替换</button>
+      </div>
+    </div>
+    <div class="div"></div>
+    <div class="fg" style="margin-bottom:6px"><label style="font-size:12px;font-weight:600;color:var(--tx)">替换封面图</label></div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:7px">未设置则自动使用原文件（视频必须设置封面）</p>
+    <div class="replace-row">
+      <div id="editCoverPrev"></div>
+      <div style="flex:1">
+        <input class="inp" type="file" id="editCoverInp" accept="image/*" style="padding:5px;margin-bottom:5px" onchange="prevEditCover(this)">
+        <button class="btn btn-s btn-sm" onclick="replaceCover()">上传替换</button>
+      </div>
+    </div>
+    <div class="mact">
+      <button class="btn btn-s" onclick="closeEdit()">关闭</button>
+      <button class="btn btn-p" onclick="saveEdit()">保存信息</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allItems=[], categories=[], siteData={}, visPage=1;
+
+async function init(){
+  const [ir,cr,mr,sr]=await Promise.all([
+    fetch('/api/items?per_page=1000').then(r=>r.json()),
+    fetch('/api/categories').then(r=>r.json()),
+    fetch('/api/messages').then(r=>r.json()),
+    fetch('/api/site').then(r=>r.json())
+  ]);
+  allItems=ir.items; categories=cr; siteData=sr;
+  document.getElementById('sTotal').textContent=allItems.length;
+  document.getElementById('sImg').textContent=allItems.filter(i=>i.type==='image').length;
+  document.getElementById('sVid').textContent=allItems.filter(i=>i.type==='video').length;
+  document.getElementById('sMsg').textContent=mr.length;
+  renderRecentTable(allItems.slice(0,6));
+  populateCatSelects();
+}
+
+function showPage(p,el){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  if(el)el.classList.add('active');
+  const a={manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages};
+  if(a[p])a[p]();
+}
+
+function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),3000);}
+function esc(s){return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// DASHBOARD
+function renderRecentTable(items){
+  document.getElementById('recentTb').innerHTML=items.map(i=>`<tr>
+    <td>${thumbHtml(i)}</td><td>${esc(i.title||'(无标题)')}</td><td>${esc(i.category||'—')}</td>
+    <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图片':'视频'}</span></td>
+    <td style="color:var(--mu)">${(i.created_at||'').split(' ')[0]||'—'}</td>
+  </tr>`).join('');
+}
+function thumbHtml(i){const src=i.cover||(!i.type||i.type==='image'?i.filename:null);return src?`<img class="thumb" src="/static/uploads/${src}" onerror="this.style.display='none'">`:`<div class="thumb-ph">🎬</div>`;}
+
+// UPLOAD
+function populateCatSelects(){
+  ['upCat','editCat'].forEach(id=>{const s=document.getElementById(id);if(s)s.innerHTML=categories.map(c=>`<option>${c}</option>`).join('');});
+}
+function handleFile(inp){const f=inp.files[0];if(f){document.getElementById('dzIcon').textContent=f.type.startsWith('video')?'🎬':'🖼️';document.getElementById('dzText').textContent=f.name;}}
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');document.getElementById('fileInp').files=e.dataTransfer.files;handleFile(document.getElementById('fileInp'));});
+
+async function submitUpload(){
+  const f=document.getElementById('fileInp');
+  if(!f.files[0]){toast('请选择文件','err');return;}
+  const fd=new FormData();
+  fd.append('file',f.files[0]);
+  fd.append('title',document.getElementById('upTitle').value);
+  fd.append('category',document.getElementById('upCat').value);
+  fd.append('description',document.getElementById('upDesc').value);
+  fd.append('width',document.getElementById('upW').value||800);
+  fd.append('height',document.getElementById('upH').value||600);
+  const cv=document.getElementById('coverInp');if(cv.files[0])fd.append('cover',cv.files[0]);
+  document.getElementById('pb').style.display='block';document.getElementById('pf').style.width='40%';
+  const res=await fetch('/admin/upload',{method:'POST',body:fd});
+  document.getElementById('pf').style.width='100%';
+  if(res.ok){
+    const d=await res.json();allItems.unshift(d.item);document.getElementById('sTotal').textContent=allItems.length;
+    setTimeout(()=>{document.getElementById('pb').style.display='none';document.getElementById('pf').style.width='0';},500);
+    toast('✓ 上传成功！');f.value='';cv.value='';document.getElementById('dzIcon').textContent='📁';document.getElementById('dzText').textContent='点击或拖拽文件到此处';document.getElementById('upTitle').value='';document.getElementById('upDesc').value='';
+  }else{toast('上传失败','err');document.getElementById('pb').style.display='none';}
+}
+
+// MANAGE
+function loadManage(){
+  document.getElementById('manCount').textContent=`共 ${allItems.length} 件`;
+  document.getElementById('manTb').innerHTML=allItems.map(i=>`<tr id="row-${i.id}">
+    <td>${thumbHtml(i)}</td>
+    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.title||'(无标题)')}</td>
+    <td>${esc(i.category||'—')}</td>
+    <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图':'视'}</span></td>
+    <td style="color:var(--ac)">❤️ ${i.likes||0}</td>
+    <td style="color:var(--mu);font-size:11px">${(i.created_at||'').split(' ')[0]}</td>
+    <td style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn btn-s btn-sm" onclick='openEdit(${JSON.stringify(i).replace(/'/g,"&#39;")})'>编辑</button>
+      <button class="btn btn-d btn-sm" onclick="deleteItem('${i.id}')">删除</button>
+    </td>
+  </tr>`).join('');
+}
+
+function openEdit(item){
+  document.getElementById('editId').value=item.id;
+  document.getElementById('editTitle').value=item.title||'';
+  document.getElementById('editDesc').value=item.description||'';
+  document.getElementById('editW').value=item.width||800;
+  document.getElementById('editH').value=item.height||600;
+  document.getElementById('editLikes').value=item.likes||0;
+  const sel=document.getElementById('editCat');
+  sel.innerHTML=categories.map(c=>`<option${c===item.category?' selected':''}>${c}</option>`).join('');
+  const fWrap=document.getElementById('editFilePrev');
+  const src=item.type==='image'?item.filename:null;
+  fWrap.innerHTML=src?`<img class="file-prev" src="/static/uploads/${src}">`:`<div class="file-prev-ph">🎬</div>`;
+  const cWrap=document.getElementById('editCoverPrev');
+  const cvSrc=item.cover||(item.type==='image'?item.filename:null);
+  cWrap.innerHTML=cvSrc?`<img class="file-prev" src="/static/uploads/${cvSrc}">`:`<div class="file-prev-ph">📷</div>`;
+  document.getElementById('editFileInp').value='';document.getElementById('editCoverInp').value='';
+  document.getElementById('editOverlay').classList.add('open');
+}
+function prevEditFile(inp){if(inp.files[0]&&inp.files[0].type.startsWith('image')){document.getElementById('editFilePrev').innerHTML=`<img class="file-prev" src="${URL.createObjectURL(inp.files[0])}">`}}
+function prevEditCover(inp){if(inp.files[0]){document.getElementById('editCoverPrev').innerHTML=`<img class="file-prev" src="${URL.createObjectURL(inp.files[0])}">`}}
+function closeEdit(){document.getElementById('editOverlay').classList.remove('open');}
+function closeEditIfBg(e){if(e.target===document.getElementById('editOverlay'))closeEdit();}
+
+async function saveEdit(){
+  const id=document.getElementById('editId').value;
+  const body={title:document.getElementById('editTitle').value,category:document.getElementById('editCat').value,description:document.getElementById('editDesc').value,width:parseInt(document.getElementById('editW').value)||800,height:parseInt(document.getElementById('editH').value)||600,likes:parseInt(document.getElementById('editLikes').value)||0};
+  const res=await fetch(`/admin/item/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok){const item=allItems.find(i=>i.id===id);if(item)Object.assign(item,body);loadManage();toast('已保存');}else toast('保存失败','err');
+}
+
+async function replaceFile(){
+  const id=document.getElementById('editId').value;const inp=document.getElementById('editFileInp');
+  if(!inp.files[0]){toast('请选择文件','err');return;}
+  const fd=new FormData();fd.append('file',inp.files[0]);
+  const res=await fetch(`/admin/item/${id}/replace-file`,{method:'POST',body:fd});
+  if(res.ok){const d=await res.json();const item=allItems.find(i=>i.id===id);if(item){item.filename=d.filename;item.type=d.type||item.type;}loadManage();toast('主文件已替换');}else toast('替换失败','err');
+}
+
+async function replaceCover(){
+  const id=document.getElementById('editId').value;const inp=document.getElementById('editCoverInp');
+  if(!inp.files[0]){toast('请选择封面','err');return;}
+  const fd=new FormData();fd.append('file',inp.files[0]);
+  const res=await fetch(`/admin/item/${id}/replace-cover`,{method:'POST',body:fd});
+  if(res.ok){const d=await res.json();const item=allItems.find(i=>i.id===id);if(item)item.cover=d.cover;loadManage();toast('封面已更新');}else toast('失败','err');
+}
+
+async function deleteItem(id){
+  if(!confirm('确定删除？'))return;
+  const res=await fetch(`/admin/delete/${id}`,{method:'DELETE'});
+  if(res.ok){allItems=allItems.filter(i=>i.id!==id);loadManage();document.getElementById('sTotal').textContent=allItems.length;toast('已删除');}
+}
+
+// CATEGORIES
+function loadCats(){document.getElementById('catTags').innerHTML=categories.map(c=>`<span class="tag">${c}<span class="tag-rm" onclick="removeCat('${c}')">×</span></span>`).join('');}
+async function addCat(){const v=document.getElementById('newCatInp').value.trim();if(!v)return;await fetch('/admin/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',category:v})});categories.push(v);document.getElementById('newCatInp').value='';loadCats();populateCatSelects();toast('已添加');}
+async function removeCat(cat){await fetch('/admin/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',category:cat})});categories=categories.filter(c=>c!==cat);loadCats();populateCatSelects();toast('已删除');}
+
+// BASIC
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
+async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;toast('已保存');}else toast('失败','err');}
+async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;const p=document.getElementById('faviconPrev');p.src=d.url;p.style.display='block';toast('图标已上传');}else toast('失败','err');}
+
+// HERO
+function loadHero(){const h=siteData.hero||{};document.getElementById('heroH').value=h.height||540;renderSlideList(h.slides||[]);}
+function renderSlideList(slides){document.getElementById('slideList').innerHTML=slides.map((s,i)=>slideHtml(s,i)).join('');}
+function slideHtml(s,i){const isImg=s.bgType==='image';return `<div class="slide-item" id="si-${s.id}">
+  <div class="sih"><span>海报 ${i+1}</span><button class="btn btn-d btn-xs" onclick="removeSlide('${s.id}')">删除</button></div>
+  <div class="sif">
+    <div class="fg"><label>标签</label><input class="inp" data-sid="${s.id}" data-field="tag" value="${esc(s.tag||'')}"></div>
+    <div class="fg"><label>按钮文字</label><input class="inp" data-sid="${s.id}" data-field="btnText" value="${esc(s.btnText||'')}"></div>
+    <div class="fg full"><label>主标题</label><input class="inp" data-sid="${s.id}" data-field="title" value="${esc(s.title||'')}"></div>
+    <div class="fg full"><label>副标题</label><input class="inp" data-sid="${s.id}" data-field="subtitle" value="${esc(s.subtitle||'')}"></div>
+    <div class="fg"><label>按钮链接</label><input class="inp" data-sid="${s.id}" data-field="btnHref" value="${esc(s.btnHref||'')}"></div>
+    <div class="fg"><label>背景类型</label>
+      <div class="bg-tabs"><button class="bg-tab${!isImg?' active':''}" onclick="setBgType('${s.id}','gradient')">渐变</button><button class="bg-tab${isImg?' active':''}" onclick="setBgType('${s.id}','image')">图片</button></div>
+    </div>
+    <div class="fg full" id="bg-g-${s.id}" style="${isImg?'display:none':''}"><label>渐变CSS</label><input class="inp" data-sid="${s.id}" data-field="bgValue" value="${esc(isImg?'':s.bgValue||'')}"></div>
+    <div class="fg full" id="bg-i-${s.id}" style="${!isImg?'display:none':''}"><label>背景图片</label>
+      <div style="display:flex;gap:7px;align-items:center">
+        <input class="inp" type="file" accept="image/*" onchange="uploadSlideBg('${s.id}',this)" style="padding:5px;flex:1">
+        ${isImg&&s.bgValue?`<img src="/static/uploads/${s.bgValue}" style="height:44px;border-radius:5px;object-fit:cover;border:1px solid var(--bd)" onerror="this.style.display='none'">`:``}
+      </div>
+    </div>
+  </div></div>`;}
+function setBgType(sid,type){const s=siteData.hero?.slides?.find(s=>s.id===sid);if(!s)return;s.bgType=type;document.getElementById('bg-g-'+sid).style.display=type==='gradient'?'':'none';document.getElementById('bg-i-'+sid).style.display=type==='image'?'':'none';document.querySelectorAll(`#si-${sid} .bg-tab`).forEach((b,i)=>b.classList.toggle('active',(i===0&&type==='gradient')||(i===1&&type==='image')));}
+async function uploadSlideBg(sid,input){const f=input.files[0];if(!f)return;const fd=new FormData();fd.append('file',f);const res=await fetch('/admin/site/hero/upload-bg',{method:'POST',body:fd});if(res.ok){const d=await res.json();const s=siteData.hero?.slides?.find(s=>s.id===sid);if(s)s.bgValue=d.filename;toast('已上传，记得保存');}else toast('失败','err');}
+function addSlide(){if(!siteData.hero)siteData.hero={height:540,slides:[]};siteData.hero.slides.push({id:'s'+Date.now(),tag:'New',title:'标题',subtitle:'副标题',btnText:'查看',btnHref:'#gallery',bgType:'gradient',bgValue:'linear-gradient(135deg,#1a1a2e,#0f3460)'});renderSlideList(siteData.hero.slides);}
+function removeSlide(sid){if(!confirm('删除？'))return;siteData.hero.slides=siteData.hero.slides.filter(s=>s.id!==sid);renderSlideList(siteData.hero.slides);}
+function collectSlides(){(siteData.hero?.slides||[]).forEach(s=>document.querySelectorAll(`[data-sid="${s.id}"]`).forEach(inp=>{if(inp.dataset.field)s[inp.dataset.field]=inp.value;}));}
+async function saveHero(){collectSlides();const height=parseInt(document.getElementById('heroH').value)||540;if(!siteData.hero)siteData.hero={};siteData.hero.height=height;const res=await fetch('/admin/site/hero',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({height,slides:siteData.hero.slides})});if(res.ok)toast('已保存');else toast('失败','err');}
+
+// NAV
+function loadNav(){const nav=siteData.nav||{};document.getElementById('navLogo').value=nav.logo||'';renderNavLinks(nav.links||[]);}
+function renderNavLinks(links){document.getElementById('navLinkList').innerHTML=links.map((l,i)=>`<div class="link-row"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.nav.links[${i}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.nav.links[${i}].href=this.value"><button class="btn btn-d btn-xs" onclick="removeNavLink(${i})">删除</button></div>`).join('');}
+function addNavLink(){if(!siteData.nav)siteData.nav={logo:'',links:[]};siteData.nav.links.push({label:'新链接',href:'#'});renderNavLinks(siteData.nav.links);}
+function removeNavLink(i){siteData.nav.links.splice(i,1);renderNavLinks(siteData.nav.links);}
+async function saveNav(){const logo=document.getElementById('navLogo').value;siteData.nav.logo=logo;const links=Array.from(document.querySelectorAll('#navLinkList .link-row')).map(el=>{const ins=el.querySelectorAll('input');return{label:ins[0].value,href:ins[1].value};});siteData.nav.links=links;const res=await fetch('/admin/site/nav',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({logo,links})});if(res.ok)toast('已保存');else toast('失败','err');}
+
+// ABOUT
+function loadAbout(){
+  const ab=siteData.about||{};
+  document.getElementById('aboutName').value=ab.name||'';
+  document.getElementById('aboutTagline').value=ab.tagline||'';
+  document.getElementById('aboutEmoji').value=ab.emoji||'🎨';
+  if(ab.heroImage){document.getElementById('heroBgPreview').innerHTML=`<img class="img-thumb" src="/static/uploads/${ab.heroImage}">`;}
+  if(ab.avatarImage){document.getElementById('avatarImgPreview').innerHTML=`<img class="img-thumb" src="/static/uploads/${ab.avatarImage}" style="border-radius:50%">`;}
+  renderParagraphs(ab.paragraphs||[]);
+  renderSkills(ab.skills||[]);
+  renderSocialLinks(ab.socials||[]);
+}
+function renderParagraphs(paras){document.getElementById('paragraphList').innerHTML=paras.map((p,i)=>`<div style="display:flex;gap:6px;align-items:flex-start"><textarea class="inp" rows="2" oninput="siteData.about.paragraphs[${i}]=this.value">${esc(p)}</textarea><button class="btn btn-d btn-xs" style="flex-shrink:0" onclick="removePara(${i})">×</button></div>`).join('');}
+function addParagraph(){if(!siteData.about)siteData.about={};if(!siteData.about.paragraphs)siteData.about.paragraphs=[];siteData.about.paragraphs.push('');renderParagraphs(siteData.about.paragraphs);}
+function removePara(i){siteData.about.paragraphs.splice(i,1);renderParagraphs(siteData.about.paragraphs);}
+function renderSkills(skills){document.getElementById('skillList').innerHTML=skills.map((s,i)=>`<div class="skill-row"><input placeholder="技能名称" value="${esc(s.label||'')}" oninput="siteData.about.skills[${i}].label=this.value"><input type="number" min="0" max="100" value="${s.value||0}" oninput="siteData.about.skills[${i}].value=parseInt(this.value)||0"><button class="btn btn-d btn-xs" onclick="removeSkill(${i})">×</button></div>`).join('');}
+function addSkill(){if(!siteData.about)siteData.about={};if(!siteData.about.skills)siteData.about.skills=[];siteData.about.skills.push({label:'新技能',value:80});renderSkills(siteData.about.skills);}
+function removeSkill(i){siteData.about.skills.splice(i,1);renderSkills(siteData.about.skills);}
+function renderSocialLinks(links){document.getElementById('socialLinkList').innerHTML=links.map((l,i)=>`<div class="link-row"><input placeholder="显示文字" value="${esc(l.label||'')}" oninput="siteData.about.socials[${i}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.about.socials[${i}].href=this.value"><button class="btn btn-d btn-xs" onclick="removeSocial(${i})">×</button></div>`).join('');}
+function addSocial(){if(!siteData.about)siteData.about={};if(!siteData.about.socials)siteData.about.socials=[];siteData.about.socials.push({label:'新链接',href:'#'});renderSocialLinks(siteData.about.socials);}
+function removeSocial(i){siteData.about.socials.splice(i,1);renderSocialLinks(siteData.about.socials);}
+function previewImg(inp,previewId){if(inp.files[0]){const el=document.getElementById(previewId);el.innerHTML=`<img class="img-thumb" src="${URL.createObjectURL(inp.files[0])}" style="border-radius:inherit">`;}}
+async function uploadAboutImg(inputId,field){
+  const inp=document.getElementById(inputId);if(!inp.files[0]){toast('请选择图片','err');return;}
+  const fd=new FormData();fd.append('file',inp.files[0]);
+  const res=await fetch('/admin/site/about/upload-image',{method:'POST',body:fd});
+  if(res.ok){const d=await res.json();if(!siteData.about)siteData.about={};siteData.about[field]=d.filename;toast('图片已上传');}else toast('上传失败','err');
+}
+async function saveAbout(){
+  if(!siteData.about)siteData.about={};
+  siteData.about.name=document.getElementById('aboutName').value;
+  siteData.about.tagline=document.getElementById('aboutTagline').value;
+  siteData.about.emoji=document.getElementById('aboutEmoji').value;
+  // Collect paragraphs from textareas
+  const paras=Array.from(document.querySelectorAll('#paragraphList textarea')).map(t=>t.value);
+  siteData.about.paragraphs=paras;
+  const res=await fetch('/admin/site/about',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.about)});
+  if(res.ok)toast('关于我页面已保存');else toast('保存失败','err');
+}
+
+// CONTACT
+function loadContact(){renderContactList(siteData.contact||[]);}
+function renderContactList(items){document.getElementById('contactList').innerHTML=items.map((c,i)=>`<div class="contact-row"><input placeholder="图标" value="${esc(c.icon||'')}" oninput="siteData.contact[${i}].icon=this.value" style="text-align:center;font-size:17px"><input placeholder="标题" value="${esc(c.title||'')}" oninput="siteData.contact[${i}].title=this.value"><input placeholder="内容" value="${esc(c.value||'')}" oninput="siteData.contact[${i}].value=this.value"><button class="btn btn-d btn-xs" onclick="removeContact(${i})">×</button></div>`).join('');}
+function addContact(){if(!siteData.contact)siteData.contact=[];siteData.contact.push({icon:'📌',title:'',value:''});renderContactList(siteData.contact);}
+function removeContact(i){siteData.contact.splice(i,1);renderContactList(siteData.contact);}
+async function saveContact(){const rows=document.querySelectorAll('#contactList .contact-row');const contact=Array.from(rows).map(r=>{const ins=r.querySelectorAll('input');return{icon:ins[0].value,title:ins[1].value,value:ins[2].value};});siteData.contact=contact;const res=await fetch('/admin/site/contact',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact})});if(res.ok)toast('已保存');else toast('失败','err');}
+
+// FOOTER
+function loadFooter(){const ft=siteData.footer||{};document.getElementById('ftLogo').value=ft.brand?.logo||'';document.getElementById('ftDesc').value=ft.brand?.desc||'';document.getElementById('ftCopy').value=ft.copyright||'';renderFtCols(ft.columns||[]);}
+function renderFtCols(cols){document.getElementById('ftColList').innerHTML=cols.map((col,ci)=>`<div class="col-item"><div class="cih"><input class="inp" value="${esc(col.title||'')}" placeholder="栏目标题" style="flex:1;margin-right:7px" oninput="siteData.footer.columns[${ci}].title=this.value"><button class="btn btn-s btn-xs" onclick="addFtLink(${ci})">+ 链接</button><button class="btn btn-d btn-xs" onclick="removeFtCol(${ci})" style="margin-left:4px">删除</button></div><div class="col-links">${(col.links||[]).map((l,li)=>`<div class="clr"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].href=this.value"><button class="btn btn-d btn-xs" onclick="removeFtLink(${ci},${li})">×</button></div>`).join('')}</div></div>`).join('');}
+function addFtCol(){if(!siteData.footer)siteData.footer={columns:[]};siteData.footer.columns.push({title:'新栏目',links:[]});renderFtCols(siteData.footer.columns);}
+function removeFtCol(ci){siteData.footer.columns.splice(ci,1);renderFtCols(siteData.footer.columns);}
+function addFtLink(ci){siteData.footer.columns[ci].links.push({label:'链接',href:'#'});renderFtCols(siteData.footer.columns);}
+function removeFtLink(ci,li){siteData.footer.columns[ci].links.splice(li,1);renderFtCols(siteData.footer.columns);}
+async function saveFooter(){const logo=document.getElementById('ftLogo').value,desc=document.getElementById('ftDesc').value,copyright=document.getElementById('ftCopy').value;if(!siteData.footer)siteData.footer={};siteData.footer.brand={logo,desc};siteData.footer.copyright=copyright;const res=await fetch('/admin/site/footer',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.footer)});if(res.ok)toast('已保存');else toast('失败','err');}
+
+// VISITORS
+async function loadVisitors(){
+  visPage=1;
+  const d=await fetch('/admin/visitors?page=1').then(r=>r.json());
+  const today=new Date().toISOString().slice(0,10);
+  const todayCount=d.visitors.filter(v=>v.time&&v.time.startsWith(today)).length;
+  // Count across all (already fetched first page)
+  document.getElementById('visTotal').textContent=d.total;
+  document.getElementById('visToday').textContent=d.daily?.find(([k])=>k===today.slice(5))?.[1]||0;
+  document.getElementById('visUniqueIp').textContent=d.top_ips?.length||0;
+  // Daily chart
+  const maxVal=Math.max(...(d.daily||[]).map(([,v])=>v),1);
+  document.getElementById('dailyChart').innerHTML=(d.daily||[]).map(([label,val])=>`
+    <div class="chart-row">
+      <span class="chart-label">${label}</span>
+      <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(val/maxVal*100).toFixed(1)}%"></div></div>
+      <span class="chart-count">${val}</span>
+    </div>`).join('');
+  // Top pages
+  document.getElementById('topPages').innerHTML=(d.top_pages||[]).slice(0,8).map(([path,count])=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px">
+      <span style="color:var(--tx)">${esc(path)}</span>
+      <span style="color:var(--ac);font-weight:600">${count}</span>
+    </div>`).join('');
+  // Log table
+  renderVisitorTable(d.visitors);
+  document.getElementById('visLoadMore').style.display=d.has_more?'block':'none';
+}
+function renderVisitorTable(visitors){
+  document.getElementById('visTb').innerHTML=visitors.map(v=>`<tr>
+    <td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td>
+    <td><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code></td>
+    <td style="font-size:11px">${esc(v.path||'')}</td>
+    <td style="font-size:11px;color:var(--mu);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.referer||'')}">${esc(v.referer||'-')}</td>
+    <td style="font-size:10px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.ua||'')}">${esc(v.ua||'').slice(0,60)}</td>
+  </tr>`).join('');
+}
+async function loadMoreVisitors(){
+  visPage++;
+  const d=await fetch(`/admin/visitors?page=${visPage}`).then(r=>r.json());
+  const tbody=document.getElementById('visTb');
+  d.visitors.forEach(v=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--mu);font-size:11px">${v.time||''}</td><td><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code></td><td style="font-size:11px">${esc(v.path||'')}</td><td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td><td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;tbody.appendChild(tr);});
+  if(!d.has_more)document.getElementById('visLoadMore').style.display='none';
+}
+async function clearVisitors(){if(!confirm('清空所有访客记录？'))return;await fetch('/admin/visitors/clear',{method:'DELETE'});toast('记录已清空');loadVisitors();}
+
+// MESSAGES
+async function loadMessages(){
+  const msgs=await fetch('/admin/messages').then(r=>r.json());
+  document.getElementById('adminMsgs').innerHTML=msgs.length?msgs.map(m=>`<div class="ma" id="amsg-${m.id}"><div><div class="mm">✦ ${esc(m.name)} · ${m.time}</div><div class="mb">${esc(m.content)}</div></div><button class="btn btn-d btn-sm" onclick="deleteMsg('${m.id}')">删除</button></div>`).join(''):'<p style="color:var(--mu);font-size:13px">暂无留言</p>';
+}
+async function deleteMsg(id){await fetch(`/admin/messages/delete/${id}`,{method:'DELETE'});document.getElementById('amsg-'+id)?.remove();toast('已删除');}
+
+init();
+</script>
+</body>
+</html>

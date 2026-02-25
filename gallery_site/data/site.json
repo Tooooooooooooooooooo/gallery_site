@@ -1,0 +1,212 @@
+{
+  "nav": {
+    "logo": "GAL·LERY",
+    "links": [
+      {
+        "label": "联系方式",
+        "href": "#contact"
+      },
+      {
+        "label": "自我介绍",
+        "href": "/about"
+      },
+      {
+        "label": "留言板",
+        "href": "/messages"
+      }
+    ]
+  },
+  "hero": {
+    "height": 900,
+    "slides": [
+      {
+        "bgType": "image",
+        "bgValue": "",
+        "btnHref": "#gallery",
+        "btnText": "查看最新",
+        "id": "s2",
+        "subtitle": "每一张照片都是一次与世界的亲密相遇",
+        "tag": "New Arrivals",
+        "title": "自然之美<br>无处不在"
+      },
+      {
+        "bgType": "gradient",
+        "bgValue": "",
+        "btnHref": "/messages",
+        "btnText": "留下足迹",
+        "id": "s3",
+        "subtitle": "分享你看见的世界，让创作连接彼此",
+        "tag": "Creative Space",
+        "title": "创意无界<br>灵感涌现"
+      },
+      {
+        "bgType": "gradient",
+        "bgValue": "linear-gradient(135deg,#1a1a2e,#0f3460)",
+        "btnHref": "#gallery",
+        "btnText": "查看",
+        "id": "s1772008468257",
+        "subtitle": "副标题",
+        "tag": "New",
+        "title": "标题"
+      }
+    ]
+  },
+  "about": {
+    "emoji": "🎨",
+    "heroImage": "about_a7b0ccac-d111-47d8-a759-6efe85901049.png",
+    "name": "创作者",
+    "paragraphs": [
+      "你好，我是这个画廊的主人。我热爱用镜头和画笔记录生活中的美好瞬间，每一件作品都承载着我对这个世界独特的感知与思考。",
+      "这里汇聚了我在建模、渲染、AI设计等领域的探索与实践。希望这些作品能给你带来灵感，让我们在视觉的世界里相遇。",
+      "我相信，美无处不在，关键在于是否有一双发现美的眼睛。"
+    ],
+    "skills": [
+      {
+        "label": "建模",
+        "value": 90
+      },
+      {
+        "label": "渲染",
+        "value": 90
+      },
+      {
+        "label": "AI[Gemini Nano banana] [即梦] [豆包]",
+        "value": 80
+      },
+      {
+        "label": "Cinema 4D",
+        "value": 90
+      },
+      {
+        "label": "SOLIDWORKS",
+        "value": 70
+      },
+      {
+        "label": "After Effects",
+        "value": 60
+      },
+      {
+        "label": "Photoshop",
+        "value": 90
+      },
+      {
+        "label": "Illustrator",
+        "value": 70
+      },
+      {
+        "label": "Gaea",
+        "value": 60
+      },
+      {
+        "label": "Substance 3D Painter",
+        "value": 60
+      },
+      {
+        "label": "RizomUV ",
+        "value": 60
+      }
+    ],
+    "socials": [
+      {
+        "href": "#",
+        "label": "微博"
+      },
+      {
+        "href": "#",
+        "label": "Instagram"
+      },
+      {
+        "href": "#",
+        "label": "小红书"
+      },
+      {
+        "href": "#",
+        "label": "邮件联系"
+      }
+    ],
+    "tagline": "用镜头记录世界的美好",
+    "avatarImage": "about_d4eca9cb-e99a-47ec-ab9c-ec56ddb7a8b2.png"
+  },
+  "contact": [
+    {
+      "icon": "📮",
+      "title": "电子邮件",
+      "value": "hello@gallery.example.com"
+    },
+    {
+      "icon": "💬",
+      "title": "微信",
+      "value": "gallery_artist"
+    },
+    {
+      "icon": "🌐",
+      "title": "社交媒体",
+      "value": "@gallery_art 各大平台"
+    },
+    {
+      "icon": "📍",
+      "title": "所在地",
+      "value": "中国 · 上海"
+    }
+  ],
+  "footer": {
+    "brand": {
+      "logo": "GAL·LERY",
+      "desc": "记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。"
+    },
+    "columns": [
+      {
+        "links": [
+          {
+            "href": "#gallery",
+            "label": "作品集"
+          },
+          {
+            "href": "/about",
+            "label": "关于我"
+          },
+          {
+            "href": "#contact",
+            "label": "联系方式"
+          },
+          {
+            "href": "/messages",
+            "label": "留言板"
+          },
+          {
+            "href": "/admin",
+            "label": "管理后台"
+          }
+        ],
+        "title": "导航"
+      },
+      {
+        "links": [
+          {
+            "href": "#",
+            "label": "隐私政策"
+          },
+          {
+            "href": "#",
+            "label": "版权声明"
+          },
+          {
+            "href": "#",
+            "label": "使用条款"
+          },
+          {
+            "href": "#",
+            "label": "RSS 订阅"
+          }
+        ],
+        "title": "关于"
+      }
+    ],
+    "copyright": "© 2024 GALLERY · 视觉创作集. All Rights Reserved. · Made with ♥"
+  },
+  "site": {
+    "title": "GALLERY · 视觉创作集",
+    "subtitle": "记录生活之美，分享视觉灵感",
+    "favicon": "favicon_95e86daf-e101-4298-afd6-931e56d7cd14.png"
+  }
+}
