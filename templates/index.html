@@ -53,6 +53,33 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .hero-arr:hover{background:rgba(255,255,255,.28)}
 .hero-arr.prev{left:20px}.hero-arr.next{right:20px}
 
+
+/* ── SHOWCASE ── */
+.showcase-section{padding:32px 24px 8px;max-width:100%}
+.showcase-header{display:flex;align-items:baseline;gap:12px;margin-bottom:20px}
+.showcase-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tx)}
+.showcase-sub{font-size:12px;color:var(--mu);letter-spacing:.06em}
+.showcase-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:900px){.showcase-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.showcase-row{grid-template-columns:1fr 1fr}}
+.sc-card{border-radius:14px;overflow:hidden;background:var(--s);box-shadow:0 1px 8px rgba(0,0,0,.07);cursor:pointer;position:relative;transition:transform .3s,box-shadow .3s}
+.sc-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.14)}
+.sc-thumb{position:relative;padding-top:56.25%;overflow:hidden;background:#111}
+.sc-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
+.sc-card:hover .sc-thumb img{transform:scale(1.04)}
+.sc-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;z-index:3;pointer-events:none;transition:all .3s}
+.sc-card:hover .sc-play{background:rgba(255,255,255,.36);transform:translate(-50%,-50%) scale(1.1)}
+.sc-play svg{margin-left:3px}
+.sc-like{position:absolute;top:9px;right:9px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:2px}
+.sc-like-btn{width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .22s;padding:0}
+.sc-like-btn:hover{background:rgba(220,50,80,.5);transform:scale(1.1)}
+.sc-like-btn.liked{background:rgba(220,50,80,.4);border-color:rgba(220,50,80,.8)}
+.sc-like-cnt{font-size:9px;font-weight:600;color:#fff;background:rgba(0,0,0,.5);padding:1px 4px;border-radius:6px;backdrop-filter:blur(4px);white-space:nowrap;opacity:0;transition:opacity .2s}
+.sc-card:hover .sc-like-cnt,.sc-like-btn.liked~.sc-like-cnt{opacity:1}
+.sc-info{padding:10px 12px 12px}
+.sc-info h4{font-size:13px;font-weight:500;color:var(--tx);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-info p{font-size:11px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 /* TOOLBAR */
 .toolbar{padding:13px 24px;display:flex;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--bd);background:var(--s)}
 .toolbar::-webkit-scrollbar{display:none}
@@ -143,6 +170,17 @@ footer ul li a:hover{color:var(--ac)}
   <div class="hero-dots" id="heroDots"></div>
 </section>
 
+<section id="showcase-section" style="display:none">
+  <div class="showcase-section">
+    <div class="showcase-header">
+      <span class="showcase-title" id="showcaseTitle">橱窗精选</span>
+      <span class="showcase-sub" id="showcaseSub">SHOWCASE</span>
+    </div>
+    <div class="showcase-row" id="showcaseRow"></div>
+  </div>
+  <div style="height:1px;background:var(--bd);margin:0 24px 0"></div>
+</section>
+
 <div id="gallery">
   <div class="toolbar" id="toolbar">
     <button class="cat-btn active" data-cat="" onclick="filterCat('',this)">全部</button>
@@ -204,6 +242,7 @@ async function init(){
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
   renderFooter(site.footer||{});
   loadCats();
+  loadShowcase();
   loadMore();
 }
 
@@ -241,6 +280,75 @@ function renderFooter(ft){
   document.getElementById('footerInner').innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
   document.getElementById('ftCopy').textContent=ft.copyright||'';
 }
+
+// ── 橱窗 ──
+const scLiked = new Set(JSON.parse(localStorage.getItem('g_sc_liked') || '[]'));
+const scMap = {};
+
+async function loadShowcase() {
+  const res = await fetch('/api/showcase').then(r => r.json());
+  const cfg = res.config || {};
+  const items = res.items || [];
+  // 未开启或无内容则隐藏
+  if (!cfg.enabled || !items.length) return;
+  items.forEach(i => scMap[i.id] = i);
+  // 应用 config
+  document.getElementById('showcaseTitle').textContent = cfg.title || '橱窗精选';
+  document.getElementById('showcaseSub').textContent = cfg.subtitle || 'SHOWCASE';
+  const cols = Math.min(Math.max(parseInt(cfg.columns)||4, 1), 4);
+  const row = document.getElementById('showcaseRow');
+  row.style.gridTemplateColumns = `repeat(${cols},1fr)`;
+  row.innerHTML = items.slice(0, cols).map(item => {
+    const cover = item.cover || item.filename;
+    const isLiked = scLiked.has(item.id);
+    return `<div class="sc-card" onclick="openScModal('${item.id}')">
+      <div class="sc-thumb">
+        <img src="/static/uploads/${cover}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">
+        <div class="sc-play">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,.95)"><polygon points="5,3 19,12 5,21"/></svg>
+        </div>
+      </div>
+      <div class="sc-like">
+        <button class="sc-like-btn${isLiked?' liked':''}" onclick="scDoLike(event,'${item.id}',this)" title="${isLiked?'取消':'点赞'}">${isLiked?'❤️':'🤍'}</button>
+        <span class="sc-like-cnt">${item.likes||0}</span>
+      </div>
+      <div class="sc-info">
+        <h4>${esc(item.title||'')}</h4>
+        <p>${esc(item.description||'')}</p>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('showcase-section').style.display = 'block';
+}
+
+async function scDoLike(e, id, btn) {
+  e.stopPropagation();
+  const cnt = btn.nextElementSibling;
+  if (scLiked.has(id)) {
+    scLiked.delete(id); btn.classList.remove('liked'); btn.textContent='🤍';
+    cnt.textContent = Math.max(0, parseInt(cnt.textContent||'0') - 1);
+  } else {
+    scLiked.add(id); btn.classList.add('liked'); btn.textContent='❤️';
+    const r = await fetch('/api/showcase/like/' + id, {method:'POST'});
+    if (r.ok) { const d = await r.json(); cnt.textContent = d.likes; if(scMap[id]) scMap[id].likes=d.likes; }
+  }
+  localStorage.setItem('g_sc_liked', JSON.stringify([...scLiked]));
+}
+
+function openScModal(id) {
+  const item = scMap[id]; if (!item) return;
+  const src = '/static/uploads/' + item.filename;
+  const isVid = item.type === 'video';
+  document.getElementById('modalBody').innerHTML = isVid
+    ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
+    : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+  document.getElementById('modalTitle').textContent = item.title || '';
+  document.getElementById('modalDesc').textContent = item.description || '';
+  const bigBtn = document.getElementById('modalBigBtn');
+  if (bigBtn) { bigBtn.style.display = isVid ? 'none' : 'flex'; bigBtn.onclick = () => window.open(src,'_blank'); }
+  document.getElementById('modal').classList.add('open');
+}
+
 
 async function loadCats(){
   const cats=await fetch('/api/categories').then(r=>r.json());

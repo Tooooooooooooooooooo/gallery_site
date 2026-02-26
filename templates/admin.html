@@ -135,6 +135,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .toast{position:fixed;bottom:18px;right:18px;z-index:999;background:var(--s1);border:1px solid var(--bd);border-radius:9px;padding:10px 16px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.4);transform:translateY(65px);opacity:0;transition:all .3s}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-color:var(--ok);color:var(--ok)}.toast.err{border-color:var(--err);color:var(--err)}
+
+.sc-col-btn{padding:5px 13px;border-radius:7px;font-size:13px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;font-family:inherit;transition:all .2s}
+.sc-col-btn:hover{border-color:var(--ac);color:var(--ac)}
+.sc-col-btn.active{background:var(--tx);color:var(--bg);border-color:var(--tx)}
 </style>
 </head>
 <body>
@@ -145,6 +149,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="ni" onclick="showPage('upload',this)"><span class="ic">⬆️</span>上传内容</div>
   <div class="ni" onclick="showPage('manage',this)"><span class="ic">🖼️</span>内容管理</div>
   <div class="ni" onclick="showPage('media',this)"><span class="ic">📁</span>媒体库</div>
+  <div class="ni" onclick="showPage('showcase',this)"><span class="ic">🎬</span>橱窗管理</div>
   <div class="ni" onclick="showPage('categories',this)"><span class="ic">🏷️</span>分类管理</div>
   <div class="sg">外观</div>
   <div class="ni" onclick="showPage('basic',this)"><span class="ic">⚙️</span>网站基本设置</div>
@@ -206,6 +211,138 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="fg" style="margin-bottom:11px"><label>描述</label><textarea class="inp" id="upDesc" rows="2" placeholder="简短描述..."></textarea></div>
     <div class="fg" style="margin-bottom:16px"><label>封面图（可选，不选则自动使用原文件）</label><input class="inp" type="file" id="coverInp" accept="image/*" style="padding:6px"></div>
     <button class="btn btn-p" onclick="submitUpload()">上传发布 →</button>
+  </div>
+</div>
+
+<!-- SHOWCASE -->
+<div class="page" id="page-showcase">
+  <div class="pt">橱窗管理</div>
+  <div class="ps">管理首页橱窗板块，可开关显示、自由编辑标题与列数</div>
+
+  <!-- 基本设置 -->
+  <div class="card">
+    <div class="ct">⚙️ 橱窗设置</div>
+    <div class="fr" style="align-items:center;margin-bottom:14px">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500;color:var(--tx);margin-bottom:3px">是否显示橱窗板块</div>
+        <div style="font-size:11px;color:var(--mu)">关闭后前台首页将不显示橱窗区域</div>
+      </div>
+      <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+        <input type="checkbox" id="scEnabled" style="opacity:0;width:0;height:0" onchange="scToggleEnabled()">
+        <span id="scEnabledSlider" style="position:absolute;cursor:pointer;inset:0;border-radius:24px;background:var(--bd);transition:.3s">
+          <span id="scEnabledKnob" style="position:absolute;content:'';height:18px;width:18px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></span>
+        </span>
+      </label>
+    </div>
+    <div class="fr" style="margin-bottom:11px">
+      <div class="fg">
+        <label>板块标题</label>
+        <input class="inp" id="scCfgTitle" placeholder="橱窗精选">
+      </div>
+      <div class="fg">
+        <label>副标题 / 英文标签</label>
+        <input class="inp" id="scCfgSubtitle" placeholder="SHOWCASE">
+      </div>
+    </div>
+    <div class="fr" style="margin-bottom:14px">
+      <div class="fg" style="max-width:180px">
+        <label>展示列数（1~4）</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="sc-col-btn" data-col="1" onclick="scSetCols(1)">1</button>
+          <button class="sc-col-btn" data-col="2" onclick="scSetCols(2)">2</button>
+          <button class="sc-col-btn" data-col="3" onclick="scSetCols(3)">3</button>
+          <button class="sc-col-btn active" data-col="4" onclick="scSetCols(4)">4</button>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-p btn-sm" onclick="scSaveConfig()">保存设置</button>
+  </div>
+
+  <!-- 上传区 -->
+  <div class="card">
+    <div class="ct">➕ 添加橱窗内容</div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg">
+        <label>标题</label>
+        <input class="inp" id="scUpTitle" placeholder="橱窗标题">
+      </div>
+      <div class="fg">
+        <label>跳转链接（可选）</label>
+        <input class="inp" id="scUpLink" placeholder="https://...">
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>描述（可选）</label>
+      <input class="inp" id="scUpDesc" placeholder="简短描述">
+    </div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg">
+        <label>封面图 / 主文件 *</label>
+        <div class="dz" id="scDz" onclick="document.getElementById('scFile').click()" style="min-height:80px;font-size:13px">
+          <span id="scDzIcon">📁</span>
+          <span id="scDzText" style="margin-left:6px">点击选择图片或视频</span>
+        </div>
+        <input type="file" id="scFile" accept="image/*,video/*" style="display:none" onchange="scFileChange(this)">
+      </div>
+      <div class="fg">
+        <label>视频封面图（视频时必填）</label>
+        <div class="dz" id="scCoverDz" onclick="document.getElementById('scCover').click()" style="min-height:80px;font-size:13px">
+          <span id="scCoverIcon">🖼️</span>
+          <span id="scCoverText" style="margin-left:6px">可选封面图</span>
+        </div>
+        <input type="file" id="scCover" accept="image/*" style="display:none" onchange="scCoverChange(this)">
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="scUpload()">上传到橱窗</button>
+  </div>
+
+  <!-- 列表 -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">📋 橱窗内容 <span style="font-size:11px;color:var(--mu)">(拖拽排序)</span></div>
+      <button class="btn btn-s btn-sm" onclick="scSaveOrder()">💾 保存排序</button>
+    </div>
+    <div id="scList"></div>
+  </div>
+</div>
+
+<!-- 橱窗编辑 overlay -->
+<div class="overlay" id="scEditOverlay" onclick="if(event.target===this)closeScEdit()">
+  <div class="mbox" style="max-width:480px">
+    <h3>编辑橱窗项目</h3>
+    <input type="hidden" id="scEditId">
+    <div class="fg" style="margin-bottom:10px">
+      <label>标题</label>
+      <input class="inp" id="scEditTitle">
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>描述</label>
+      <input class="inp" id="scEditDesc">
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>跳转链接</label>
+      <input class="inp" id="scEditLink">
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>点赞数</label>
+      <input class="inp" type="number" id="scEditLikes" min="0">
+    </div>
+    <div class="div"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:8px">替换文件（可选）</div>
+    <div class="fr" style="margin-bottom:4px">
+      <div class="fg">
+        <label>主文件</label>
+        <input class="inp" type="file" id="scEditFile" accept="image/*,video/*" style="padding:5px">
+      </div>
+      <div class="fg">
+        <label>封面图</label>
+        <input class="inp" type="file" id="scEditCover" accept="image/*" style="padding:5px">
+      </div>
+    </div>
+    <div class="mact" style="margin-top:14px">
+      <button class="btn btn-p" onclick="scSaveEdit()">保存修改</button>
+      <button class="btn btn-s" onclick="closeScEdit()">取消</button>
+    </div>
   </div>
 </div>
 
@@ -598,7 +735,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={account:()=>{},msgpage:loadMsgPage,media:loadMedia,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
+  const a={account:()=>{},msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
   if(a[p])a[p]();
 }
 
@@ -1126,6 +1263,214 @@ async function changePassword(){
   }else{const d=await res.json();toast(d.error||'修改失败','err');}
 }
 
+
+// ═══════════════════════════════════════════════════
+// SHOWCASE ADMIN
+// ═══════════════════════════════════════════════════
+let scItems = [], scDragId = '', scCfg = {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4};
+
+async function loadShowcaseAdmin() {
+  const d = await fetch('/admin/showcase').then(r => r.json());
+  scItems = d.items || d;  // backward compat
+  scCfg = d.config || {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4};
+  renderScCfg();
+  renderScList();
+}
+
+function renderScCfg() {
+  // Toggle
+  const chk = document.getElementById('scEnabled');
+  const slider = document.getElementById('scEnabledSlider');
+  const knob = document.getElementById('scEnabledKnob');
+  if (chk) {
+    chk.checked = scCfg.enabled !== false;
+    slider.style.background = chk.checked ? 'var(--ac)' : 'var(--bd)';
+    knob.style.transform = chk.checked ? 'translateX(20px)' : 'translateX(0)';
+  }
+  // Text fields
+  const t = document.getElementById('scCfgTitle');
+  const s = document.getElementById('scCfgSubtitle');
+  if (t) t.value = scCfg.title || '橱窗精选';
+  if (s) s.value = scCfg.subtitle || 'SHOWCASE';
+  // Columns
+  scSetCols(scCfg.columns || 4, false);
+}
+
+function scToggleEnabled() {
+  const chk = document.getElementById('scEnabled');
+  const slider = document.getElementById('scEnabledSlider');
+  const knob = document.getElementById('scEnabledKnob');
+  slider.style.background = chk.checked ? 'var(--ac)' : 'var(--bd)';
+  knob.style.transform = chk.checked ? 'translateX(20px)' : 'translateX(0)';
+}
+
+function scSetCols(n, updateModel=true) {
+  document.querySelectorAll('.sc-col-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.col) === n);
+  });
+  if (updateModel) scCfg.columns = n;
+}
+
+async function scSaveConfig() {
+  const body = {
+    enabled: document.getElementById('scEnabled').checked,
+    title: document.getElementById('scCfgTitle').value || '橱窗精选',
+    subtitle: document.getElementById('scCfgSubtitle').value || 'SHOWCASE',
+    columns: scCfg.columns || 4,
+  };
+  const res = await fetch('/admin/showcase/config', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  if (res.ok) { scCfg = body; toast('设置已保存'); }
+  else toast('保存失败', 'err');
+}
+
+function renderScList() {
+  const el = document.getElementById('scList');
+  if (!scItems.length) {
+    el.innerHTML = '<p style="color:var(--mu);font-size:13px;padding:12px 0">暂无橱窗内容</p>';
+    return;
+  }
+  el.innerHTML = scItems.map((item, idx) => {
+    const cover = item.cover || item.filename;
+    const thumb = cover
+      ? `<img src="/static/uploads/${cover}" style="width:72px;height:48px;object-fit:cover;border-radius:7px;flex-shrink:0" onerror="this.style.display='none'">`
+      : `<div style="width:72px;height:48px;border-radius:7px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">${item.type==='video'?'🎬':'🖼️'}</div>`;
+    return `<div draggable="true"
+      ondragstart="scDragStart(event,'${item.id}')"
+      ondragover="scDragOver(event)"
+      ondragleave="scDragLeave(event)"
+      ondrop="scDrop(event,'${item.id}')"
+      ondragend="scDragEnd()"
+      style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;margin-bottom:8px;transition:border-color .2s" id="sc-row-${item.id}">
+      <span style="color:var(--mu);cursor:grab;font-size:18px;flex-shrink:0">⠿</span>
+      ${thumb}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.title||'(无标题)')}</div>
+        <div style="font-size:11px;color:var(--mu)">❤️ ${item.likes||0} &nbsp;·&nbsp; ${item.type==='video'?'视频':'图片'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-s btn-sm" onclick="openScEdit('${item.id}')">编辑</button>
+        <button class="btn btn-d btn-sm" onclick="scDelete('${item.id}')">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function scDragStart(e, id) { scDragId = id; e.currentTarget.style.opacity = '.4'; }
+function scDragOver(e) { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--ac)'; }
+function scDragLeave(e) { e.currentTarget.style.borderColor = 'var(--bd)'; }
+function scDrop(e, toId) {
+  e.preventDefault(); e.currentTarget.style.borderColor = 'var(--bd)';
+  if (!scDragId || scDragId === toId) return;
+  const fi = scItems.findIndex(i => i.id === scDragId);
+  const ti = scItems.findIndex(i => i.id === toId);
+  if (fi < 0 || ti < 0) return;
+  const [item] = scItems.splice(fi, 1);
+  scItems.splice(ti, 0, item);
+  renderScList();
+}
+function scDragEnd() {
+  document.querySelectorAll('[id^="sc-row-"]').forEach(el => {
+    el.style.opacity = '1'; el.style.borderColor = 'var(--bd)';
+  });
+  scDragId = '';
+}
+
+async function scSaveOrder() {
+  const order = scItems.map(i => i.id);
+  const res = await fetch('/admin/showcase/reorder', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({order})
+  });
+  if (res.ok) toast('排序已保存'); else toast('保存失败','err');
+}
+
+function scFileChange(inp) {
+  if (!inp.files[0]) return;
+  document.getElementById('scDzIcon').textContent = inp.files[0].type.startsWith('video') ? '🎬' : '🖼️';
+  document.getElementById('scDzText').textContent = inp.files[0].name;
+}
+function scCoverChange(inp) {
+  if (!inp.files[0]) return;
+  document.getElementById('scCoverIcon').textContent = '✅';
+  document.getElementById('scCoverText').textContent = inp.files[0].name;
+}
+
+async function scUpload() {
+  const file = document.getElementById('scFile').files[0];
+  if (!file) { toast('请选择文件', 'err'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('title', document.getElementById('scUpTitle').value);
+  fd.append('description', document.getElementById('scUpDesc').value);
+  fd.append('link', document.getElementById('scUpLink').value);
+  const cover = document.getElementById('scCover').files[0];
+  if (cover) fd.append('cover', cover);
+  const res = await fetch('/admin/showcase/upload', {method:'POST', body:fd});
+  if (res.ok) {
+    // Reset form
+    document.getElementById('scFile').value = '';
+    document.getElementById('scCover').value = '';
+    document.getElementById('scUpTitle').value = '';
+    document.getElementById('scUpDesc').value = '';
+    document.getElementById('scUpLink').value = '';
+    document.getElementById('scDzIcon').textContent = '📁';
+    document.getElementById('scDzText').textContent = '点击选择图片或视频';
+    document.getElementById('scCoverIcon').textContent = '🖼️';
+    document.getElementById('scCoverText').textContent = '可选封面图';
+    await loadShowcaseAdmin();
+    toast('上传成功');
+  } else toast('上传失败','err');
+}
+
+function openScEdit(id) {
+  const item = scItems.find(i => i.id === id);
+  if (!item) return;
+  document.getElementById('scEditId').value = id;
+  document.getElementById('scEditTitle').value = item.title || '';
+  document.getElementById('scEditDesc').value = item.description || '';
+  document.getElementById('scEditLink').value = item.link || '';
+  document.getElementById('scEditLikes').value = item.likes || 0;
+  document.getElementById('scEditFile').value = '';
+  document.getElementById('scEditCover').value = '';
+  document.getElementById('scEditOverlay').classList.add('open');
+}
+function closeScEdit() { document.getElementById('scEditOverlay').classList.remove('open'); }
+
+async function scSaveEdit() {
+  const id = document.getElementById('scEditId').value;
+  // Save text fields
+  const body = {
+    title: document.getElementById('scEditTitle').value,
+    description: document.getElementById('scEditDesc').value,
+    link: document.getElementById('scEditLink').value,
+    likes: parseInt(document.getElementById('scEditLikes').value) || 0
+  };
+  const r1 = await fetch('/admin/showcase/' + id, {
+    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+  });
+  // Replace files if provided
+  const fileInp = document.getElementById('scEditFile');
+  const coverInp = document.getElementById('scEditCover');
+  if (fileInp.files[0] || coverInp.files[0]) {
+    const fd = new FormData();
+    if (fileInp.files[0]) fd.append('file', fileInp.files[0]);
+    if (coverInp.files[0]) fd.append('cover', coverInp.files[0]);
+    await fetch('/admin/showcase/' + id + '/replace', {method:'POST', body:fd});
+  }
+  if (r1.ok) { closeScEdit(); await loadShowcaseAdmin(); toast('保存成功'); }
+  else toast('保存失败','err');
+}
+
+async function scDelete(id) {
+  if (!confirm('确定删除该橱窗项目？')) return;
+  const res = await fetch('/admin/showcase/' + id, {method:'DELETE'});
+  if (res.ok) { await loadShowcaseAdmin(); toast('已删除'); }
+  else toast('删除失败','err');
+}
+
 // MEDIA LIBRARY
 let allMediaFiles=[], curMediaFile=null, mediaSelected=new Set(), mediaFiltered=[];
 
@@ -1217,8 +1562,7 @@ async function mediaBatchDelete(){
   const names=[...mediaSelected];
   if(!names.length)return;
   const hasRef=names.some(fn=>{ const f=allMediaFiles.find(f=>f.filename===fn); return f&&f.refs.length>0; });
-  const warn=hasRef?'
-⚠️ 部分文件已被引用，删除后相关内容可能显示异常。':'';
+  const warn=hasRef?'\n⚠️ 部分文件已被引用，删除后相关内容可能显示异常。':'';
   if(!confirm(`确定删除选中的 ${names.length} 个文件？${warn}`))return;
   let ok=0, fail=0;
   for(const fn of names){
