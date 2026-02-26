@@ -3,7 +3,9 @@ from functools import wraps
 import json, os, uuid, hashlib
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_folder='static',      # 静态文件文件夹
+            static_url_path='/static')   # 静态文件访问路径
 app.secret_key = 'gallery-secret-key-2024-x9z'
 
 UPLOAD_FOLDER = 'static/uploads'
