@@ -3,9 +3,7 @@ from functools import wraps
 import json, os, uuid, hashlib
 from datetime import datetime
 
-app = Flask(__name__, 
-            static_folder='static',      # 静态文件文件夹
-            static_url_path='/static')   # 静态文件访问路径
+app = Flask(__name__)
 app.secret_key = 'gallery-secret-key-2024-x9z'
 
 UPLOAD_FOLDER = 'static/uploads'
@@ -148,13 +146,6 @@ def record_visitor():
     if len(visitors) > 2000: visitors = visitors[:2000]
     save_visitors(visitors)
 
-# 添加测试路由
-@app.route('/ac')
-def test_page():
-    """测试页面，用于验证 JavaScript 是否正常"""
-    return render_template('ac.html')
-# 添加测试路由结束
-
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -167,13 +158,6 @@ def admin_login():
         return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
     if session.get('logged_in'): return redirect('/admin')
     return render_template('login.html')
-            
-# 添加测试路由开始
-@app.route('/test')
-def test():
-    return render_template('test.html')
-# 添加测试路由结束
-
 
 @app.route('/admin/logout', methods=['POST'])
 def admin_logout():
@@ -708,6 +692,151 @@ def admin_media_replace(filename):
     if os.path.exists(old_fp):
         os.remove(old_fp)
     return jsonify({'success': True, 'new_filename': new_filename, 'url': '/static/uploads/' + new_filename})
+
+
+# ═══════════════════════════════════════════════════
+# 橱窗 API
+# ═══════════════════════════════════════════════════
+SHOWCASE_FILE = 'data/showcase.json'
+
+def load_showcase():
+    d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
+    if "config" not in d:
+        d["config"] = {}
+    cfg = d["config"]
+    cfg.setdefault("enabled", True)
+    cfg.setdefault("title", "橱窗精选")
+    cfg.setdefault("subtitle", "SHOWCASE")
+    cfg.setdefault("columns", 4)
+    return d
+
+def save_showcase(d):
+    save_json(SHOWCASE_FILE, d)
+
+@app.route('/api/showcase')
+def api_showcase():
+    """公开接口：返回橱窗内容（含点赞数）+ config"""
+    data = load_showcase()
+    likes = load_likes()
+    items = [dict(i) for i in data['items']]
+    for item in items:
+        item['likes'] = likes.get('sc_' + item['id'], 0)
+    return jsonify({"items": items, "config": data["config"]})
+
+@app.route('/api/showcase/like/<item_id>', methods=['POST'])
+def api_showcase_like(item_id):
+    likes = load_likes()
+    key = 'sc_' + item_id
+    likes[key] = likes.get(key, 0) + 1
+    save_likes(likes)
+    return jsonify({'success': True, 'likes': likes[key]})
+
+@app.route('/admin/showcase')
+@login_required
+def admin_showcase_list():
+    data = load_showcase()
+    likes = load_likes()
+    items = [dict(i) for i in data['items']]
+    for item in items:
+        item['likes'] = likes.get('sc_' + item['id'], 0)
+    return jsonify({"items": items, "config": data["config"]})
+
+@app.route('/admin/showcase/config', methods=['PUT'])
+@login_required
+def admin_showcase_config():
+    data = load_showcase()
+    body = request.json or {}
+    data["config"]["enabled"] = bool(body.get("enabled", True))
+    data["config"]["title"] = body.get("title", "橱窗精选")
+    data["config"]["subtitle"] = body.get("subtitle", "SHOWCASE")
+    data["config"]["columns"] = int(body.get("columns", 4))
+    save_showcase(data)
+    return jsonify({"success": True})
+
+@app.route('/admin/showcase/upload', methods=['POST'])
+@login_required
+def admin_showcase_upload():
+    data = load_showcase()
+    file = request.files.get('file')
+    cover = request.files.get('cover')
+    if not file or not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': '无效文件'}), 400
+    filename = save_upload(file)
+    cover_filename = None
+    if cover and allowed_img(cover.filename):
+        cover_filename = save_upload(cover, 'sc_cover_')
+    likes = load_likes()
+    item_id = str(uuid.uuid4())
+    item = {
+        'id': item_id,
+        'title': request.form.get('title', ''),
+        'description': request.form.get('description', ''),
+        'link': request.form.get('link', ''),
+        'filename': filename,
+        'cover': cover_filename,
+        'type': 'video' if is_video(filename) else 'image',
+        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'width': int(request.form.get('width', 16)),
+        'height': int(request.form.get('height', 9)),
+    }
+    likes['sc_' + item_id] = 0
+    save_likes(likes)
+    data['items'].append(item)
+    save_showcase(data)
+    return jsonify({'success': True, 'item': item})
+
+@app.route('/admin/showcase/<item_id>', methods=['PUT'])
+@login_required
+def admin_showcase_edit(item_id):
+    data = load_showcase()
+    body = request.json or {}
+    for item in data['items']:
+        if item['id'] == item_id:
+            item['title'] = body.get('title', item.get('title', ''))
+            item['description'] = body.get('description', item.get('description', ''))
+            item['link'] = body.get('link', item.get('link', ''))
+            if 'likes' in body:
+                likes = load_likes()
+                likes['sc_' + item_id] = max(0, int(body['likes']))
+                save_likes(likes)
+            break
+    save_showcase(data)
+    return jsonify({'success': True})
+
+@app.route('/admin/showcase/<item_id>/replace', methods=['POST'])
+@login_required
+def admin_showcase_replace(item_id):
+    data = load_showcase()
+    file = request.files.get('file')
+    cover = request.files.get('cover')
+    for item in data['items']:
+        if item['id'] == item_id:
+            if file and allowed_file(file.filename):
+                item['filename'] = save_upload(file)
+                item['type'] = 'video' if is_video(item['filename']) else 'image'
+            if cover and allowed_img(cover.filename):
+                item['cover'] = save_upload(cover, 'sc_cover_')
+            break
+    save_showcase(data)
+    return jsonify({'success': True})
+
+@app.route('/admin/showcase/<item_id>', methods=['DELETE'])
+@login_required
+def admin_showcase_delete(item_id):
+    data = load_showcase()
+    data['items'] = [i for i in data['items'] if i['id'] != item_id]
+    save_showcase(data)
+    return jsonify({'success': True})
+
+@app.route('/admin/showcase/reorder', methods=['PUT'])
+@login_required
+def admin_showcase_reorder():
+    data = load_showcase()
+    order = request.json.get('order', [])
+    id_map = {i['id']: i for i in data['items']}
+    data['items'] = [id_map[oid] for oid in order if oid in id_map]
+    save_showcase(data)
+    return jsonify({'success': True})
 
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
