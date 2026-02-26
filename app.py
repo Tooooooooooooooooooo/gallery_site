@@ -8,13 +8,6 @@ app = Flask(__name__,
             static_url_path='/static')   # 静态文件访问路径
 app.secret_key = 'gallery-secret-key-2024-x9z'
 
-# 添加测试路由
-@app.route('/ac')
-def test_page():
-    """测试页面，用于验证 JavaScript 是否正常"""
-    return render_template('ac.html')
-# 如果你有 admin 蓝图，也可以这样
-
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -154,6 +147,13 @@ def record_visitor():
     visitors.insert(0, v)
     if len(visitors) > 2000: visitors = visitors[:2000]
     save_visitors(visitors)
+
+# 添加测试路由
+@app.route('/ac')
+def test_page():
+    """测试页面，用于验证 JavaScript 是否正常"""
+    return render_template('ac.html')
+# 如果你有 admin 蓝图，也可以这样
 
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
