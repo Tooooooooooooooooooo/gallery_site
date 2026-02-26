@@ -153,7 +153,7 @@ def record_visitor():
 def test_page():
     """测试页面，用于验证 JavaScript 是否正常"""
     return render_template('ac.html')
-# 如果你有 admin 蓝图，也可以这样
+# 添加测试路由结束
 
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -167,6 +167,13 @@ def admin_login():
         return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
     if session.get('logged_in'): return redirect('/admin')
     return render_template('login.html')
+            
+# 添加测试路由开始
+@app.route('/test')
+def test():
+    return render_template('test.html')
+# 添加测试路由结束
+
 
 @app.route('/admin/logout', methods=['POST'])
 def admin_logout():
