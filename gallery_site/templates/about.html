@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>关于我 · GALLERY</title>
+<link rel="icon" id="faviconLink" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#faf9f7;--s:#fff;--tx:#1a1a1a;--mu:#8a8680;--ac:#c8a97e;--bd:#e8e4df;--nh:64px}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:100;height:var(--nh);background:rgba(250,249,247,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 32px}
+  .nav-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:.15em;color:var(--tx);text-decoration:none;margin-right:auto}
+  .nav-links{display:flex;gap:8px}
+  .nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:8px 14px;border-radius:20px;transition:all .2s}
+  .nav-links a:hover{color:var(--tx);background:var(--bd)}
+
+  /* HERO SECTION */
+  .about-hero{
+    position:relative;
+    min-height:420px;
+    display:flex;align-items:flex-end;
+    overflow:hidden;
+    background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%);
+  }
+  .about-hero-bg{
+    position:absolute;inset:0;
+    background-size:cover;background-position:center;
+    filter:brightness(.45);
+    transition:opacity .5s;
+  }
+  .about-hero-content{
+    position:relative;z-index:2;
+    max-width:900px;margin:0 auto;width:100%;
+    padding:60px 40px 48px;
+    display:flex;align-items:flex-end;gap:36px;
+  }
+  .about-avatar{
+    width:140px;height:140px;border-radius:50%;
+    background:linear-gradient(135deg,var(--ac),#e8c99a);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    font-size:52px;border:4px solid rgba(255,255,255,.25);
+    box-shadow:0 8px 32px rgba(0,0,0,.3);
+    overflow:hidden;
+  }
+  .about-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+  .about-hero-text h1{
+    font-family:'Playfair Display',serif;
+    font-size:clamp(28px,5vw,52px);font-weight:700;color:#fff;
+    margin-bottom:10px;
+  }
+  .about-hero-text .tagline{
+    font-size:16px;font-weight:300;color:rgba(255,255,255,.75);
+    font-style:italic;font-family:'Cormorant Garamond',serif;font-size:20px;
+  }
+
+  /* MAIN CONTENT */
+  .about-main{max-width:900px;margin:0 auto;padding:52px 40px 80px}
+
+  .about-section{margin-bottom:52px}
+  .sec-label{
+    font-size:10px;letter-spacing:.25em;text-transform:uppercase;
+    color:var(--ac);margin-bottom:14px;
+  }
+  .sec-title{font-family:'Playfair Display',serif;font-size:28px;margin-bottom:20px}
+  .sec-title span{color:var(--ac)}
+
+  /* STORY */
+  .story-text p{font-size:15px;line-height:1.9;color:#555;margin-bottom:14px;font-weight:300}
+
+  /* SKILLS / STATS */
+  .skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  .skill-item{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:20px}
+  .skill-name{font-size:13px;font-weight:500;margin-bottom:10px;display:flex;justify-content:space-between}
+  .skill-bar{height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
+  .skill-fill{height:100%;background:linear-gradient(90deg,var(--ac),#e8c99a);border-radius:2px;transition:width 1s ease}
+
+  /* SOCIALS */
+  .social-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .social-link{padding:10px 22px;border-radius:24px;border:1px solid var(--bd);font-size:13px;color:var(--mu);text-decoration:none;transition:all .2s;display:flex;align-items:center;gap:6px}
+  .social-link:hover{border-color:var(--ac);color:var(--ac);background:rgba(200,169,126,.06)}
+
+  /* GALLERY PREVIEW */
+  .gallery-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+  .gallery-preview-item{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--bd);cursor:pointer;position:relative}
+  .gallery-preview-item img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+  .gallery-preview-item:hover img{transform:scale(1.05)}
+  .gallery-preview-more{aspect-ratio:1;border-radius:12px;background:var(--tx);display:flex;align-items:center;justify-content:center;text-decoration:none;color:#fff;font-size:14px;font-weight:500;transition:background .2s}
+  .gallery-preview-more:hover{background:var(--ac)}
+
+  /* FOOTER */
+  footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:36px 40px 24px}
+  .footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:36px;margin-bottom:32px}
+  .footer-brand h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;letter-spacing:.15em;margin-bottom:10px}
+  .footer-brand p{font-size:13px;line-height:1.7;white-space:pre-line}
+  footer h4{color:#fff;font-size:13px;margin-bottom:12px;letter-spacing:.05em}
+  footer ul{list-style:none}
+  footer ul li{margin-bottom:7px}
+  footer ul li a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:color .2s}
+  footer ul li a:hover{color:var(--ac)}
+  .footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,.4)}
+
+  @media(max-width:768px){
+    nav{padding:0 16px}.about-hero-content{flex-direction:column;align-items:center;text-align:center;padding:40px 20px 36px}
+    .about-main{padding:36px 20px 60px}.skills-grid{grid-template-columns:1fr}
+    .gallery-preview{grid-template-columns:repeat(2,1fr)}.footer-inner{grid-template-columns:1fr;gap:20px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/" id="navLogo">GAL·LERY</a>
+  <div class="nav-links" id="navLinks"></div>
+</nav>
+
+<section class="about-hero" id="aboutHero">
+  <div class="about-hero-bg" id="heroBg"></div>
+  <div class="about-hero-content">
+    <div class="about-avatar" id="aboutAvatar">🎨</div>
+    <div class="about-hero-text">
+      <h1 id="aboutName">创作者</h1>
+      <div class="tagline" id="aboutTagline">用镜头记录世界的美好</div>
+    </div>
+  </div>
+</section>
+
+<main class="about-main">
+  <!-- STORY -->
+  <section class="about-section">
+    <div class="sec-label">My Story</div>
+    <h2 class="sec-title">关于<span>我</span></h2>
+    <div class="story-text" id="storyText"></div>
+  </section>
+
+  <!-- SKILLS -->
+  <section class="about-section" id="skillsSection">
+    <div class="sec-label">Expertise</div>
+    <h2 class="sec-title">专业<span>技能</span></h2>
+    <div class="skills-grid" id="skillsGrid"></div>
+  </section>
+
+  <!-- SOCIAL -->
+  <section class="about-section">
+    <div class="sec-label">Connect</div>
+    <h2 class="sec-title">联系<span>我</span></h2>
+    <div class="social-links" id="socialLinks"></div>
+  </section>
+
+  <!-- GALLERY PREVIEW -->
+  <section class="about-section">
+    <div class="sec-label">Recent Works</div>
+    <h2 class="sec-title">近期<span>作品</span></h2>
+    <div class="gallery-preview" id="galleryPreview"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner" id="footerInner"></div>
+  <div class="footer-bottom"><p id="footerCopy"></p></div>
+</footer>
+
+<script>
+async function init(){
+  const [site, items] = await Promise.all([
+    fetch('/api/site').then(r=>r.json()),
+    fetch('/api/items?per_page=6').then(r=>r.json())
+  ]);
+  const basic=site.site||{};
+  if(basic.favicon)document.getElementById('faviconLink').href='/static/uploads/'+basic.favicon;
+  if(basic.title)document.title='关于我 · '+basic.title;
+
+  // Nav
+  document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
+  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}">${l.label}</a>`).join('');
+
+  // About
+  const ab=site.about||{};
+  // Hero bg
+  if(ab.heroImage){
+    const bg=document.getElementById('heroBg');
+    bg.style.backgroundImage=`url('/static/uploads/${ab.heroImage}')`;
+    bg.style.opacity='1';
+  }
+  // Avatar
+  const avatarEl=document.getElementById('aboutAvatar');
+  if(ab.avatarImage){
+    avatarEl.innerHTML=`<img src="/static/uploads/${ab.avatarImage}" alt="头像">`;
+  } else {
+    avatarEl.textContent=ab.emoji||'🎨';
+  }
+  document.getElementById('aboutName').textContent=ab.name||'创作者';
+  document.getElementById('aboutTagline').textContent=ab.tagline||'';
+
+  // Story
+  document.getElementById('storyText').innerHTML=(ab.paragraphs||[]).map(p=>`<p>${esc(p)}</p>`).join('');
+
+  // Skills
+  const skills=ab.skills||[];
+  const sg=document.getElementById('skillsSection');
+  if(skills.length===0){sg.style.display='none';}
+  else{
+    document.getElementById('skillsGrid').innerHTML=skills.map(s=>`
+      <div class="skill-item">
+        <div class="skill-name"><span>${esc(s.label)}</span><span style="color:var(--ac)">${s.value}%</span></div>
+        <div class="skill-bar"><div class="skill-fill" style="width:0" data-val="${s.value}%"></div></div>
+      </div>`).join('');
+    // Animate bars
+    setTimeout(()=>{
+      document.querySelectorAll('.skill-fill').forEach(el=>el.style.width=el.dataset.val);
+    },200);
+  }
+
+  // Socials
+  document.getElementById('socialLinks').innerHTML=(ab.socials||[]).map(s=>`<a href="${s.href}" class="social-link">${esc(s.label)}</a>`).join('');
+
+  // Gallery preview
+  const gp=document.getElementById('galleryPreview');
+  const previewItems=items.items.slice(0,5);
+  gp.innerHTML=previewItems.map(item=>{
+    const src=item.cover||(!item.type||item.type==='image'?item.filename:null);
+    return src
+      ?`<div class="gallery-preview-item"><img src="/static/uploads/${src}" alt="${esc(item.title||'')}"></div>`
+      :`<div class="gallery-preview-item" style="display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
+  }).join('')+`<a class="gallery-preview-more" href="/">查看全部 →</a>`;
+
+  // Footer
+  renderFooter(site.footer||{});
+}
+
+function renderFooter(ft){
+  const cols=(ft.columns||[]).map(col=>`<div><h4>${col.title}</h4><ul>${(col.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
+  document.getElementById('footerInner').innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
+  document.getElementById('footerCopy').textContent=ft.copyright||'';
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>关于我 · GALLERY</title>
+<link rel="icon" id="faviconLink" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf9f7;--s:#fff;--tx:#1a1a1a;--mu:#8a8680;--ac:#c8a97e;--bd:#e8e4df;--nav-bg:rgba(250,249,247,.93)}
+[data-theme=cool]{--bg:#f0f4f8;--s:#fff;--tx:#1e2a3a;--mu:#6b7d8f;--ac:#4a90d9;--bd:#d4dde8;--nav-bg:rgba(240,244,248,.93)}
+[data-theme=dark]{--bg:#0f1117;--s:#1a1c24;--tx:#e2e4f0;--mu:#6b6e84;--ac:#7c6af5;--bd:#252833;--nav-bg:rgba(15,17,23,.95)}
+[data-theme=green]{--bg:#f2f7f2;--s:#fff;--tx:#1a2e1a;--mu:#5a7a5a;--ac:#4a9460;--bd:#d0e8d0;--nav-bg:rgba(242,247,242,.93)}
+[data-theme=rose]{--bg:#fdf6f8;--s:#fff;--tx:#2e1a20;--mu:#9a6875;--ac:#d4607a;--bd:#f0d8de;--nav-bg:rgba(253,246,248,.93)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .3s,color .3s}
+nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 32px;transition:background .3s}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:.15em;color:var(--tx);text-decoration:none;margin-right:auto}
+.nav-links{display:flex;gap:8px}
+.nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:8px 14px;border-radius:20px;transition:all .2s}
+.nav-links a:hover{color:var(--tx);background:var(--bd)}
+.about-hero{position:relative;min-height:420px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
+.about-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.45)}
+.about-hero-content{position:relative;z-index:2;max-width:900px;margin:0 auto;width:100%;padding:60px 40px 48px;display:flex;align-items:flex-end;gap:36px}
+.about-avatar{width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#e8c99a);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;border:4px solid rgba(255,255,255,.25);box-shadow:0 8px 32px rgba(0,0,0,.3);overflow:hidden}
+.about-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.about-hero-text h1{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,52px);font-weight:700;color:#fff;margin-bottom:10px}
+.about-hero-text .tagline{font-size:20px;font-weight:300;color:rgba(255,255,255,.75);font-style:italic;font-family:'Cormorant Garamond',serif}
+.about-main{max-width:900px;margin:0 auto;padding:52px 40px 80px}
+.about-section{margin-bottom:52px}
+.sec-label{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--ac);margin-bottom:14px}
+.sec-title{font-family:'Playfair Display',serif;font-size:28px;margin-bottom:20px}
+.sec-title span{color:var(--ac)}
+.story-text p{font-size:15px;line-height:1.9;color:var(--mu);margin-bottom:14px;font-weight:300}
+.skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+.skill-item{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:20px;transition:background .3s,border-color .3s}
+.skill-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.skill-icon{width:32px;height:32px;border-radius:8px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--bd)}
+.skill-icon img{width:100%;height:100%;object-fit:cover}
+.skill-name{font-size:13px;font-weight:500;display:flex;justify-content:space-between;flex:1}
+.skill-bar{height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
+.skill-fill{height:100%;background:linear-gradient(90deg,var(--ac),#e8c99a);border-radius:2px;transition:width 1s ease}
+.social-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.social-link{padding:10px 22px;border-radius:24px;border:1px solid var(--bd);font-size:13px;color:var(--mu);text-decoration:none;transition:all .2s;display:flex;align-items:center;gap:8px}
+.social-link:hover{border-color:var(--ac);color:var(--ac);background:rgba(200,169,126,.06)}
+.social-link-icon{width:20px;height:20px;border-radius:4px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.social-link-icon img{width:100%;height:100%;object-fit:cover}
+.gallery-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.gallery-preview-item{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--bd);cursor:pointer;position:relative}
+.gallery-preview-item img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.gallery-preview-item:hover img{transform:scale(1.05)}
+.gallery-preview-more{aspect-ratio:1;border-radius:12px;background:var(--tx);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--bg);font-size:14px;font-weight:500;transition:background .2s}
+.gallery-preview-more:hover{background:var(--ac)}
+footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:36px 40px 24px}
+.footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:36px;margin-bottom:32px}
+.footer-brand h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;letter-spacing:.15em;margin-bottom:10px}
+.footer-brand p{font-size:13px;line-height:1.7;white-space:pre-line}
+footer h4{color:#fff;font-size:13px;margin-bottom:12px}
+footer ul{list-style:none}footer ul li{margin-bottom:7px}
+footer ul li a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:color .2s}
+footer ul li a:hover{color:var(--ac)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,.4)}
+@media(max-width:768px){nav{padding:0 16px}.about-hero-content{flex-direction:column;align-items:center;text-align:center;padding:40px 20px 36px}.about-main{padding:36px 20px 60px}.skills-grid{grid-template-columns:1fr}.gallery-preview{grid-template-columns:repeat(2,1fr)}.footer-inner{grid-template-columns:1fr;gap:20px}}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal.open{opacity:1;pointer-events:all}
+.modal-inner{max-width:92vw;max-height:92vh;position:relative;border-radius:18px;overflow:hidden}
+.modal-inner img,.modal-inner video{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
+.modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
+.modal-bigbtn{position:absolute;top:12px;right:52px;height:32px;padding:0 14px;border-radius:16px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px);z-index:2}
+.modal-bigbtn:hover{background:rgba(200,169,126,.7)}
+.modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
+.modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
+.modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
+
+/* Theme switcher */
+.theme-trigger{width:30px;height:30px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;transition:all .2s;flex-shrink:0}
+.theme-trigger:hover{transform:scale(1.1);border-color:var(--ac)}
+.theme-popup{position:fixed;top:72px;right:16px;background:var(--s);border:1px solid var(--bd);border-radius:16px;padding:14px 16px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.15);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;transform:translateY(-8px)}
+.theme-popup.open{opacity:1;pointer-events:all;transform:translateY(0)}
+.theme-popup h4{font-size:11px;color:var(--mu);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.theme-swatches{display:flex;gap:8px}
+.swatch{width:32px;height:32px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .2s;position:relative}
+.swatch:hover{transform:scale(1.15)}
+.swatch.active::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.swatch-label{font-size:10px;text-align:center;color:var(--mu);margin-top:4px}
+.theme-swatch-wrap{display:flex;flex-direction:column;align-items:center}
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="/" id="navLogo">GAL·LERY</a>
+  <div class="nav-links" id="navLinks"></div>
+  <div style="position:relative">
+    <div class="theme-trigger" id="themeBtn" onclick="togglePicker()" title="切换配色"></div>
+    <div class="theme-popup" id="themePop">
+      <h4>配色方案</h4>
+      <div class="theme-swatches">
+        <div class="theme-swatch-wrap"><div class="swatch" style="background:linear-gradient(135deg,#c8a97e,#f0e0c0)" data-t="warm" onclick="applyTheme('warm')"></div><div class="swatch-label">暖金</div></div>
+        <div class="theme-swatch-wrap"><div class="swatch" style="background:linear-gradient(135deg,#4a90d9,#a0c8f8)" data-t="cool" onclick="applyTheme('cool')"></div><div class="swatch-label">清蓝</div></div>
+        <div class="theme-swatch-wrap"><div class="swatch" style="background:linear-gradient(135deg,#333,#7c6af5)" data-t="dark" onclick="applyTheme('dark')"></div><div class="swatch-label">暗夜</div></div>
+        <div class="theme-swatch-wrap"><div class="swatch" style="background:linear-gradient(135deg,#4a9460,#a8e0b0)" data-t="green" onclick="applyTheme('green')"></div><div class="swatch-label">绿意</div></div>
+        <div class="theme-swatch-wrap"><div class="swatch" style="background:linear-gradient(135deg,#d4607a,#f8b0c0)" data-t="rose" onclick="applyTheme('rose')"></div><div class="swatch-label">玫瑰</div></div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<section class="about-hero" id="aboutHero">
+  <div class="about-hero-bg" id="heroBg"></div>
+  <div class="about-hero-content">
+    <div class="about-avatar" id="aboutAvatar">🎨</div>
+    <div class="about-hero-text">
+      <h1 id="aboutName">创作者</h1>
+      <div class="tagline" id="aboutTagline">用镜头记录世界的美好</div>
+    </div>
+  </div>
+</section>
+
+<main class="about-main">
+  <section class="about-section">
+    <div class="sec-label">My Story</div>
+    <h2 class="sec-title">关于<span>我</span></h2>
+    <div class="story-text" id="storyText"></div>
+  </section>
+  <section class="about-section" id="skillsSection">
+    <div class="sec-label">Expertise</div>
+    <h2 class="sec-title">专业<span>技能</span></h2>
+    <div class="skills-grid" id="skillsGrid"></div>
+  </section>
+  <section class="about-section">
+    <div class="sec-label">Connect</div>
+    <h2 class="sec-title">联系<span>我</span></h2>
+    <div class="social-links" id="socialLinks"></div>
+  </section>
+  <section class="about-section">
+    <div class="sec-label">Recent Works</div>
+    <h2 class="sec-title">近期<span>作品</span></h2>
+    <div class="gallery-preview" id="galleryPreview"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner" id="footerInner"></div>
+  <div class="footer-bottom"><p id="footerCopy"></p></div>
+</footer>
+
+<div class="modal" id="aboutModal" onclick="if(event.target===this)closeAboutModal()">
+  <div class="modal-inner">
+    <button class="modal-close" onclick="closeAboutModal()">&#215;</button>
+    <button class="modal-bigbtn" id="aboutModalBigBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>查看大图
+    </button>
+    <div id="aboutModalBody"></div>
+    <div class="modal-info"><h2 id="aboutModalTitle"></h2><p id="aboutModalDesc"></p></div>
+  </div>
+</div>
+
+<script>
+// 主题同步（与首页共用 localStorage）
+// 主题由下方 applyTheme 统一初始化
+
+async function init(){
+  const [site, items] = await Promise.all([
+    fetch('/api/site').then(r=>r.json()),
+    fetch('/api/items?per_page=6').then(r=>r.json())
+  ]);
+  const basic=site.site||{};
+  if(basic.favicon)document.getElementById('faviconLink').href='/static/uploads/'+basic.favicon;
+  if(basic.title)document.title='关于我 · '+basic.title;
+  document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
+  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}">${l.label}</a>`).join('');
+  const ab=site.about||{};
+  if(ab.heroImage){
+    const bg=document.getElementById('heroBg');
+    bg.style.backgroundImage=`url('/static/uploads/${ab.heroImage}')`;
+  }
+  const avatarEl=document.getElementById('aboutAvatar');
+  if(ab.avatarImage) avatarEl.innerHTML=`<img src="/static/uploads/${ab.avatarImage}" alt="头像">`;
+  else avatarEl.textContent=ab.emoji||'🎨';
+  document.getElementById('aboutName').textContent=ab.name||'创作者';
+  document.getElementById('aboutTagline').textContent=ab.tagline||'';
+  document.getElementById('storyText').innerHTML=(ab.paragraphs||[]).map(p=>`<p>${esc(p)}</p>`).join('');
+
+  // Skills with icon support (需求6)
+  const skills=ab.skills||[];
+  const sg=document.getElementById('skillsSection');
+  if(!skills.length){sg.style.display='none';}
+  else{
+    document.getElementById('skillsGrid').innerHTML=skills.map(s=>{
+      const iconHtml=s.icon
+        ?`<div class="skill-icon"><img src="/static/uploads/${s.icon}" alt="" onerror="this.parentElement.style.display='none'"></div>`
+        :'';
+      return `<div class="skill-item">
+        <div class="skill-header">
+          ${iconHtml}
+          <div class="skill-name"><span>${esc(s.label)}</span><span style="color:var(--ac)">${s.value}%</span></div>
+        </div>
+        <div class="skill-bar"><div class="skill-fill" style="width:0" data-val="${s.value}%"></div></div>
+      </div>`;
+    }).join('');
+    setTimeout(()=>document.querySelectorAll('.skill-fill').forEach(el=>el.style.width=el.dataset.val),200);
+  }
+
+  // Socials with icon support (需求6)
+  document.getElementById('socialLinks').innerHTML=(ab.socials||[]).map(s=>{
+    const iconHtml=s.icon
+      ?`<div class="social-link-icon"><img src="/static/uploads/${s.icon}" alt="" onerror="this.parentElement.style.display='none'"></div>`
+      :'';
+    return `<a href="${s.href}" class="social-link">${iconHtml}${esc(s.label)}</a>`;
+  }).join('');
+
+  const gp=document.getElementById('galleryPreview');
+  const previewItems=items.items.slice(0,5);
+  // 存储 items 用于 modal
+  window._aboutItems={};
+  items.items.forEach(i=>{window._aboutItems[i.id]=i;});
+  gp.innerHTML=previewItems.map(item=>{
+    const src=item.cover||(!item.type||item.type==='image'?item.filename:null);
+    const isVid=item.type==='video';
+    return src
+      ?`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer">
+          <img src="/static/uploads/${src}" alt="${esc(item.title||'')}">
+          ${isVid?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;pointer-events:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''} 
+        </div>`
+      :`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
+  }).join('')+`<a class="gallery-preview-more" href="/">查看全部 →</a>`;
+  renderFooter(site.footer||{});
+}
+
+function renderFooter(ft){
+  const cols=(ft.columns||[]).map(col=>`<div><h4>${col.title}</h4><ul>${(col.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
+  document.getElementById('footerInner').innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
+  document.getElementById('footerCopy').textContent=ft.copyright||'';
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function openAboutModal(id){
+  const item=window._aboutItems?.[id];if(!item)return;
+  const src='/static/uploads/'+item.filename;
+  const isVid=item.type==='video';
+  document.getElementById('aboutModalBody').innerHTML=isVid
+    ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
+    :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+  document.getElementById('aboutModalTitle').textContent=item.title||'';
+  document.getElementById('aboutModalDesc').textContent=item.description||'';
+  const bigBtn=document.getElementById('aboutModalBigBtn');
+  bigBtn.style.display=isVid?'none':'flex';
+  bigBtn.onclick=()=>window.open(src,'_blank');
+  document.getElementById('aboutModal').classList.add('open');
+}
+function closeAboutModal(){
+  document.getElementById('aboutModal').classList.remove('open');
+  document.getElementById('aboutModalBody').innerHTML='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAboutModal();});
+
+// 监听首页配色实时同步
+
+// ── 配色方案 ──
+const THEME_COLORS={warm:'#c8a97e',cool:'#4a90d9',dark:'#7c6af5',green:'#4a9460',rose:'#d4607a'};
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  localStorage.setItem('g_theme',t);
+  const btn=document.getElementById('themeBtn');
+  if(btn) btn.style.background=THEME_COLORS[t]||'#c8a97e';
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.dataset.t===t));
+}
+function togglePicker(){document.getElementById('themePop').classList.toggle('open');}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.theme-trigger')&&!e.target.closest('.theme-popup')){
+    const pop=document.getElementById('themePop');
+    if(pop) pop.classList.remove('open');
+  }
+});
+// 实时监听其他页面的主题变化
+window.addEventListener('storage',e=>{
+  if(e.key==='g_theme'&&e.newValue) applyTheme(e.newValue);
+});
+
+// 初始化主题
+applyTheme(localStorage.getItem('g_theme')||'warm');
+init();
+</script>
+</body>
+</html>

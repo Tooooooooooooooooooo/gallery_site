@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理员登录 · GALLERY</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans SC',system-ui,sans-serif;background:#0f0f13;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{background:#1a1a22;border:1px solid #2e2e3e;border-radius:20px;padding:44px 40px;width:360px}
+.logo{font-size:22px;font-weight:600;letter-spacing:.15em;color:#c8a97e;text-align:center;margin-bottom:8px}
+.sub{text-align:center;color:#6b6880;font-size:13px;margin-bottom:32px}
+label{display:block;font-size:11px;color:#6b6880;letter-spacing:.05em;margin-bottom:5px}
+input{width:100%;padding:10px 14px;background:#22222e;border:1px solid #2e2e3e;border-radius:8px;color:#e8e6f0;font-family:inherit;font-size:14px;outline:none;margin-bottom:16px;transition:border-color .2s}
+input:focus{border-color:#c8a97e}
+.err{color:#e05c5c;font-size:12px;margin-bottom:12px;display:none;padding:8px 12px;background:rgba(224,92,92,.08);border-radius:6px;border:1px solid rgba(224,92,92,.2)}
+button{width:100%;padding:12px;background:#c8a97e;color:#1a0f00;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s;margin-top:4px}
+button:hover{background:#d4b890}
+button:disabled{opacity:.6;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">GAL·LERY</div>
+  <div class="sub">管理后台登录</div>
+  <div class="err" id="err"></div>
+  <label>用户名</label>
+  <input type="text" id="u" placeholder="admin" autocomplete="username">
+  <label>密码</label>
+  <input type="password" id="p" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+  <button id="btn" onclick="login()">登 录</button>
+</div>
+<script>
+async function login(){
+  const btn=document.getElementById('btn');
+  const err=document.getElementById('err');
+  btn.disabled=true; btn.textContent='登录中...'; err.style.display='none';
+  const res=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:document.getElementById('u').value,password:document.getElementById('p').value})});
+  if(res.ok){window.location='/admin';}
+  else{const d=await res.json();err.textContent=d.error||'登录失败';err.style.display='block';btn.disabled=false;btn.textContent='登 录';}
+}
+</script>
+</body>
+</html>
