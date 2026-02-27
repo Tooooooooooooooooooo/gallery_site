@@ -42,6 +42,7 @@ def load_json(path, default):
     return default
 
 def save_json(path, data):
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -380,6 +381,46 @@ def api_like(item_id):
     return jsonify({'success': True, 'likes': likes[item_id]})
 
 # ── Admin Routes (protected) ──
+
+@app.route('/admin/debug-paths')
+@login_required
+def debug_paths():
+    """查看当前数据路径（仅用于排查 Railway 持久化问题）"""
+    import os
+    paths = {
+        'UPLOAD_FOLDER': UPLOAD_FOLDER,
+        '_DATA_DIR': _DATA_DIR,
+        'DATA_FILE': DATA_FILE,
+        'AUTH_FILE': AUTH_FILE,
+        'SMTP_FILE': SMTP_FILE,
+        'SHOWCASE_FILE': SHOWCASE_FILE,
+    }
+    status = {}
+    for k, v in paths.items():
+        status[k] = {
+            'path': v,
+            'exists': os.path.exists(v),
+            'is_dir': os.path.isdir(v) if os.path.exists(v) else None,
+        }
+    # 列出 _DATA_DIR 下的文件
+    try:
+        files = os.listdir(_DATA_DIR)
+    except Exception as e:
+        files = [f'ERROR: {e}']
+    try:
+        uploads = os.listdir(UPLOAD_FOLDER)[:20]
+    except Exception as e:
+        uploads = [f'ERROR: {e}']
+    return jsonify({
+        'env': {
+            'UPLOAD_DIR': os.environ.get('UPLOAD_DIR', '(not set)'),
+            'DATA_DIR': os.environ.get('DATA_DIR', '(not set)'),
+        },
+        'paths': status,
+        'data_files': files,
+        'uploads_sample': uploads,
+    })
+
 @app.route('/admin')
 @login_required
 def admin():
