@@ -6,18 +6,41 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = 'gallery-secret-key-2024-x9z'
 
-UPLOAD_FOLDER = 'static/uploads'
+# ========== 修改点1：Volume 路径配置 ==========
+# 优先使用 Railway Volume 的环境变量，如果没有则使用默认相对路径
+VOLUME_PATH = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', None)
+if VOLUME_PATH:
+    # 如果设置了 Volume，直接使用 Volume 路径
+    UPLOAD_FOLDER = VOLUME_PATH
+    print(f"✅ 使用 Volume 路径: {UPLOAD_FOLDER}")
+else:
+    # 没有 Volume 时使用相对路径（本地开发）
+    UPLOAD_FOLDER = 'static/uploads'
+    print(f"⚠️ 使用本地路径: {UPLOAD_FOLDER}")
+
+# ========== 修改点2：确保所有数据文件路径也是绝对路径 ==========
+# 获取应用根目录
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# 数据文件路径（使用绝对路径）
+DATA_DIR = os.path.join(APP_ROOT, 'data')
+DATA_FILE = os.path.join(DATA_DIR, 'content.json')
+MESSAGES_FILE = os.path.join(DATA_DIR, 'messages.json')
+SITE_FILE = os.path.join(DATA_DIR, 'site.json')
+VISITORS_FILE = os.path.join(DATA_DIR, 'visitors.json')
+LIKES_FILE = os.path.join(DATA_DIR, 'likes.json')
+AUTH_FILE = os.path.join(DATA_DIR, 'auth.json')
+SHOWCASE_FILE = os.path.join(DATA_DIR, 'showcase.json')
+
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-DATA_FILE = 'data/content.json'
-MESSAGES_FILE = 'data/messages.json'
-SITE_FILE = 'data/site.json'
-VISITORS_FILE = 'data/visitors.json'
-LIKES_FILE = 'data/likes.json'
-AUTH_FILE = 'data/auth.json'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
+
+# ========== 修改点3：确保上传目录存在 ==========
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
 
 def allowed_file(f): return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def allowed_img(f): return '.' in f and f.rsplit('.', 1)[1].lower() in IMG_EXTENSIONS
@@ -31,6 +54,8 @@ def load_json(path, default):
     return default
 
 def save_json(path, data):
+    # ========== 修改点4：确保目录存在 ==========
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -134,6 +159,7 @@ def save_site(d): save_json(SITE_FILE, d)
 def save_upload(file, prefix=''):
     ext = file.filename.rsplit('.', 1)[1].lower()
     fn = prefix + str(uuid.uuid4()) + '.' + ext
+    # ========== 修改点5：使用配置的 UPLOAD_FOLDER ==========
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
     return fn
 
@@ -145,6 +171,36 @@ def record_visitor():
     visitors.insert(0, v)
     if len(visitors) > 2000: visitors = visitors[:2000]
     save_visitors(visitors)
+
+# ========== 修改点6：添加调试路由 ==========
+@app.route('/debug-volume')
+def debug_volume():
+    """调试路由：查看Volume配置状态"""
+    info = []
+    info.append(f"<h2>Volume 调试信息</h2>")
+    info.append(f"<b>RAILWAY_VOLUME_MOUNT_PATH:</b> {os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '未设置')}")
+    info.append(f"<b>UPLOAD_FOLDER 配置:</b> {app.config['UPLOAD_FOLDER']}")
+    info.append(f"<b>上传目录是否存在:</b> {os.path.exists(app.config['UPLOAD_FOLDER'])}")
+    
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+        try:
+            files = os.listdir(app.config['UPLOAD_FOLDER'])
+            info.append(f"<b>文件数量:</b> {len(files)}")
+            if files:
+                info.append("<b>最近文件:</b>")
+                for f in sorted(files)[-5:]:
+                    fp = os.path.join(app.config['UPLOAD_FOLDER'], f)
+                    size = os.path.getsize(fp)
+                    info.append(f"  - {f} ({size} bytes)")
+        except Exception as e:
+            info.append(f"<b>读取目录出错:</b> {str(e)}")
+    
+    info.append(f"<br><b>所有环境变量:</b>")
+    for k, v in sorted(os.environ.items()):
+        if 'VOLUME' in k or 'RAILWAY' in k:
+            info.append(f"  {k}: {v}")
+    
+    return '<pre>' + '\n'.join(info) + '</pre>'
 
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -692,159 +748,3 @@ def admin_media_replace(filename):
     if os.path.exists(old_fp):
         os.remove(old_fp)
     return jsonify({'success': True, 'new_filename': new_filename, 'url': '/static/uploads/' + new_filename})
-
-
-# ═══════════════════════════════════════════════════
-# 橱窗 API
-# ═══════════════════════════════════════════════════
-SHOWCASE_FILE = 'data/showcase.json'
-
-def load_showcase():
-    d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
-    if "config" not in d:
-        d["config"] = {}
-    cfg = d["config"]
-    cfg.setdefault("enabled", True)
-    cfg.setdefault("title", "橱窗精选")
-    cfg.setdefault("subtitle", "SHOWCASE")
-    cfg.setdefault("columns", 4)
-    return d
-
-def save_showcase(d):
-    save_json(SHOWCASE_FILE, d)
-
-@app.route('/api/showcase')
-def api_showcase():
-    """公开接口：返回橱窗内容（含点赞数）+ config"""
-    data = load_showcase()
-    likes = load_likes()
-    items = [dict(i) for i in data['items']]
-    for item in items:
-        item['likes'] = likes.get('sc_' + item['id'], 0)
-    return jsonify({"items": items, "config": data["config"]})
-
-@app.route('/api/showcase/like/<item_id>', methods=['POST'])
-def api_showcase_like(item_id):
-    likes = load_likes()
-    key = 'sc_' + item_id
-    likes[key] = likes.get(key, 0) + 1
-    save_likes(likes)
-    return jsonify({'success': True, 'likes': likes[key]})
-
-@app.route('/admin/showcase')
-@login_required
-def admin_showcase_list():
-    data = load_showcase()
-    likes = load_likes()
-    items = [dict(i) for i in data['items']]
-    for item in items:
-        item['likes'] = likes.get('sc_' + item['id'], 0)
-    return jsonify({"items": items, "config": data["config"]})
-
-@app.route('/admin/showcase/config', methods=['PUT'])
-@login_required
-def admin_showcase_config():
-    data = load_showcase()
-    body = request.json or {}
-    data["config"]["enabled"] = bool(body.get("enabled", True))
-    data["config"]["title"] = body.get("title", "橱窗精选")
-    data["config"]["subtitle"] = body.get("subtitle", "SHOWCASE")
-    data["config"]["columns"] = int(body.get("columns", 4))
-    save_showcase(data)
-    return jsonify({"success": True})
-
-@app.route('/admin/showcase/upload', methods=['POST'])
-@login_required
-def admin_showcase_upload():
-    data = load_showcase()
-    file = request.files.get('file')
-    cover = request.files.get('cover')
-    if not file or not allowed_file(file.filename):
-        return jsonify({'success': False, 'error': '无效文件'}), 400
-    filename = save_upload(file)
-    cover_filename = None
-    if cover and allowed_img(cover.filename):
-        cover_filename = save_upload(cover, 'sc_cover_')
-    likes = load_likes()
-    item_id = str(uuid.uuid4())
-    item = {
-        'id': item_id,
-        'title': request.form.get('title', ''),
-        'description': request.form.get('description', ''),
-        'link': request.form.get('link', ''),
-        'filename': filename,
-        'cover': cover_filename,
-        'type': 'video' if is_video(filename) else 'image',
-        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'width': int(request.form.get('width', 16)),
-        'height': int(request.form.get('height', 9)),
-    }
-    likes['sc_' + item_id] = 0
-    save_likes(likes)
-    data['items'].append(item)
-    save_showcase(data)
-    return jsonify({'success': True, 'item': item})
-
-@app.route('/admin/showcase/<item_id>', methods=['PUT'])
-@login_required
-def admin_showcase_edit(item_id):
-    data = load_showcase()
-    body = request.json or {}
-    for item in data['items']:
-        if item['id'] == item_id:
-            item['title'] = body.get('title', item.get('title', ''))
-            item['description'] = body.get('description', item.get('description', ''))
-            item['link'] = body.get('link', item.get('link', ''))
-            if 'likes' in body:
-                likes = load_likes()
-                likes['sc_' + item_id] = max(0, int(body['likes']))
-                save_likes(likes)
-            break
-    save_showcase(data)
-    return jsonify({'success': True})
-
-@app.route('/admin/showcase/<item_id>/replace', methods=['POST'])
-@login_required
-def admin_showcase_replace(item_id):
-    data = load_showcase()
-    file = request.files.get('file')
-    cover = request.files.get('cover')
-    for item in data['items']:
-        if item['id'] == item_id:
-            if file and allowed_file(file.filename):
-                item['filename'] = save_upload(file)
-                item['type'] = 'video' if is_video(item['filename']) else 'image'
-            if cover and allowed_img(cover.filename):
-                item['cover'] = save_upload(cover, 'sc_cover_')
-            break
-    save_showcase(data)
-    return jsonify({'success': True})
-
-@app.route('/admin/showcase/<item_id>', methods=['DELETE'])
-@login_required
-def admin_showcase_delete(item_id):
-    data = load_showcase()
-    data['items'] = [i for i in data['items'] if i['id'] != item_id]
-    save_showcase(data)
-    return jsonify({'success': True})
-
-@app.route('/admin/showcase/reorder', methods=['PUT'])
-@login_required
-def admin_showcase_reorder():
-    data = load_showcase()
-    order = request.json.get('order', [])
-    id_map = {i['id']: i for i in data['items']}
-    data['items'] = [id_map[oid] for oid in order if oid in id_map]
-    save_showcase(data)
-    return jsonify({'success': True})
-
-if __name__ == '__main__':
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs('data', exist_ok=True)
-    if not os.path.exists(DATA_FILE):
-        save_data({"categories": ["摄影", "插画", "设计", "视频", "其他"], "items": []})
-    if not os.path.exists(SITE_FILE):
-        save_site(get_default_site())
-    if not os.path.exists(AUTH_FILE):
-        save_json(AUTH_FILE, {"username": "admin", "password": hash_pw("admin123")})
-    app.run(debug=True, port=5000)
