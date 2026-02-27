@@ -12,8 +12,9 @@ app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 
 # Railway 单 Volume 方案：
 # Volume 挂载到 /app/static/uploads，数据 JSON 存到其下的 _data/ 子目录
-# 这样上传文件和所有配置数据都在同一个持久化路径内
-_UPLOAD_DIR = os.environ.get('UPLOAD_DIR', 'static/uploads')
+# 用 __file__ 的绝对路径作基准，彻底避免相对路径陷阱
+_BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+_UPLOAD_DIR = os.environ.get('UPLOAD_DIR', os.path.join(_BASE_DIR, 'static', 'uploads'))
 _DATA_DIR   = os.environ.get('DATA_DIR',   os.path.join(_UPLOAD_DIR, '_data'))
 
 UPLOAD_FOLDER = _UPLOAD_DIR
@@ -415,6 +416,8 @@ def debug_paths():
         'env': {
             'UPLOAD_DIR': os.environ.get('UPLOAD_DIR', '(not set)'),
             'DATA_DIR': os.environ.get('DATA_DIR', '(not set)'),
+            'BASE_DIR': _BASE_DIR,
+            'CWD': os.getcwd(),
         },
         'paths': status,
         'data_files': files,
