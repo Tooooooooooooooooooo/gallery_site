@@ -45,19 +45,19 @@
         "btnHref": "#gallery",
         "btnText": "查看",
         "id": "s1772173676375",
-        "subtitle": "副标题",
-        "tag": "New",
-        "title": "标题"
+        "subtitle": "黑白之间，是未完成的祷词",
+        "tag": "Whispers in Stone",
+        "title": "石中余响"
       },
       {
         "bgType": "image",
-        "bgValue": "003.jpg",
+        "bgValue": "Gemini_Generated_Image_64a8f464a8f464a8.jpg",
         "btnHref": "#gallery",
         "btnText": "查看",
         "id": "s1772173677738",
-        "subtitle": "副标题",
-        "tag": "New",
-        "title": "标题"
+        "subtitle": "赛博朋克",
+        "tag": "Spotlight",
+        "title": "掌上极境：聆听未来"
       }
     ],
     "enabled": true
