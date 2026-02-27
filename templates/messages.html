@@ -142,6 +142,7 @@ footer ul li a:hover{color:var(--ac)}
         <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="handleAvatarUpload(this)">
         <button class="btn btn-s" style="padding:6px 14px;font-size:12px" onclick="document.getElementById('avatarFile').click()">上传头像</button>
         <button class="btn btn-s" style="padding:6px 14px;font-size:12px;margin-left:6px" onclick="clearAvatar()">使用默认</button>
+        <span id="avatarQuotaHint" style="font-size:11px;color:var(--mu);margin-left:6px"></span>
       </div>
     </div>
     <div class="form-row">
@@ -164,6 +165,7 @@ footer ul li a:hover{color:var(--ac)}
 // 主题由下方 applyTheme 统一初始化
 
 let uploadedAvatarUrl='', defaultAvatarUrl='', allMsgsData=[];
+let avatarMaxSizeMB=2, avatarFormats=['jpg','jpeg','png','webp'], avatarDailyLimit=0;
 
 async function init(){
   const site=await fetch('/api/site').then(r=>r.json());
@@ -193,6 +195,14 @@ async function init(){
   titleEl.textContent=mp.title||'留言板';
   document.getElementById('msgHeroSub').textContent=mp.subtitle||'留下你的足迹，与我分享你的想法';
   defaultAvatarUrl=mp.defaultAvatar?('/static/uploads/'+mp.defaultAvatar):'';
+  avatarMaxSizeMB=mp.avatarMaxSizeMB??2;
+  avatarFormats=(mp.avatarFormats||['jpg','png','webp']).map(f=>f.toLowerCase());
+  avatarDailyLimit=mp.avatarDailyLimit??0;
+  // 查询今日已用次数，更新提示
+  updateAvatarQuotaHint();
+  // 如果禁止上传，隐藏上传按钮
+  const uploadBtn=document.querySelector('[onclick*="avatarFile"]');
+  if(uploadBtn) uploadBtn.style.display=avatarMaxSizeMB===0?'none':'';
   // Footer
   const ft=site.footer||{};
   const cols=(ft.columns||[]).map(col=>`<div><h4>${col.title}</h4><ul>${(col.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
@@ -201,14 +211,43 @@ async function init(){
   loadMessages();
 }
 
-function handleAvatarUpload(inp){
+async function handleAvatarUpload(inp){
   const file=inp.files[0];if(!file)return;
+  // 禁止上传
+  if(avatarMaxSizeMB===0){toast('头像上传已关闭');inp.value='';return;}
+  // 格式校验
+  const ext=file.name.split('.').pop().toLowerCase();
+  const allowed=avatarFormats.length?avatarFormats:['jpg','jpeg','png','webp'];
+  const extAlias={'jpg':'jpeg','jpeg':'jpg'};
+  if(!allowed.includes(ext)&&!allowed.includes(extAlias[ext]||'')){
+    toast('不支持的格式，允许：'+allowed.join('/').toUpperCase());inp.value='';return;
+  }
+  // 大小校验
+  if(avatarMaxSizeMB>0&&file.size>avatarMaxSizeMB*1024*1024){
+    toast(`头像超过限制（最大 ${avatarMaxSizeMB}MB，当前 ${(file.size/1024/1024).toFixed(1)}MB）`);inp.value='';return;
+  }
+  // 向后端记录上传次数（含限制校验）
+  const chk=await fetch('/api/avatar-upload',{method:'POST'}).then(r=>r.json()).catch(()=>({success:true}));
+  if(!chk.success){toast(chk.error||'今日上传次数已达上限');inp.value='';return;}
   document.getElementById('avatarEmoji').style.display='none';
   const img=document.getElementById('avatarImg');
   img.src=URL.createObjectURL(file);img.style.display='block';
   const reader=new FileReader();
   reader.onload=e=>{uploadedAvatarUrl=e.target.result;};
   reader.readAsDataURL(file);
+  updateAvatarQuotaHint();
+}
+
+async function updateAvatarQuotaHint(){
+  if(avatarDailyLimit<=0)return;
+  try{
+    const s=await fetch('/api/avatar-upload-status').then(r=>r.json());
+    const hint=document.getElementById('avatarQuotaHint');
+    if(hint){
+      hint.textContent=`今日头像上传：${s.count}/${s.limit} 次`;
+      hint.style.color=s.remaining===0?'#e05c5c':'var(--mu)';
+    }
+  }catch(e){}
 }
 function clearAvatar(){
   uploadedAvatarUrl='';

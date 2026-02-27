@@ -78,12 +78,12 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .link-row input{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12px;outline:none;width:100%}
 .link-row input::placeholder{color:var(--mu)}
 /* COL EDITOR */
-.col-list{display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
-.col-item{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px}
+.col-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:12px}
+.col-item{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px;overflow:hidden;min-width:0}
 .cih{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .col-links{display:flex;flex-direction:column;gap:5px}
-.clr{display:grid;grid-template-columns:1fr 1fr auto;gap:5px;align-items:center}
-.clr input{background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:5px 8px;color:var(--tx);font-family:inherit;font-size:11px;outline:none}
+.clr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 24px;gap:4px;align-items:center;min-width:0}
+.clr input{background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:5px 8px;color:var(--tx);font-family:inherit;font-size:11px;outline:none;min-width:0;width:100%}
 .clr input:focus{border-color:var(--ac)}
 /* CONTACT EDITOR */
 .contact-list{display:flex;flex-direction:column;gap:8px;margin-bottom:11px}
@@ -139,6 +139,20 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .sc-col-btn{padding:5px 13px;border-radius:7px;font-size:13px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;font-family:inherit;transition:all .2s}
 .sc-col-btn:hover{border-color:var(--ac);color:var(--ac)}
 .sc-col-btn.active{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+
+/* 用户中心 */
+.uc-wrap{position:relative;padding:10px 14px;border-top:1px solid var(--bd);flex-shrink:0}
+.uc-btn{display:flex;align-items:center;gap:9px;cursor:pointer;padding:7px 8px;border-radius:9px;transition:background .2s;user-select:none}
+.uc-btn:hover{background:var(--s2)}
+.uc-avatar{width:34px;height:34px;border-radius:50%;background:var(--s2);border:2px solid var(--bd);object-fit:cover;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}
+.uc-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.uc-name{font-size:12px;font-weight:500;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uc-menu{position:absolute;bottom:calc(100% + 4px);left:10px;right:10px;background:var(--s1);border:1px solid var(--bd);border-radius:11px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.3);display:none;z-index:200}
+.uc-menu.open{display:block}
+.uc-mi{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--tx);transition:background .15s}
+.uc-mi:hover{background:var(--s2)}
+.uc-mi.danger{color:#e05c5c}
+.uc-mi.danger:hover{background:rgba(224,92,92,.1)}
 </style>
 </head>
 <body>
@@ -164,8 +178,51 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="ni" onclick="showPage('messages',this)"><span class="ic">💬</span>留言管理</div>
   <div class="sg">账号</div>
   <div class="ni" onclick="showPage('account',this)"><span class="ic">🔐</span>账号安全</div>
-  <div class="sb-foot"><a class="back" href="/" target="_blank">← 返回前台</a></div>
+  <div class="sb-foot" style="padding-bottom:0"><a class="back" href="/" target="_blank">← 返回前台</a></div>
+  <!-- 用户中心 -->
+  <div class="uc-wrap">
+    <div class="uc-btn" id="ucBtn" onclick="toggleUcMenu(event)">
+      <div class="uc-avatar" id="ucAvatar">👤</div>
+      <span class="uc-name" id="ucName">admin</span>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="color:var(--mu);flex-shrink:0"><path d="M2 4l4 4 4-4"/></svg>
+    </div>
+    <div class="uc-menu" id="ucMenu">
+      <div class="uc-mi" onclick="openAvatarPicker()">
+        <span>🖼️</span><span>设置头像</span>
+      </div>
+      <div class="uc-mi" onclick="showPage('account',document.querySelector('[onclick*=\"account\"]'))">
+        <span>🔐</span><span>账号设置</span>
+      </div>
+      <div style="height:1px;background:var(--bd);margin:4px 0"></div>
+      <div class="uc-mi danger" onclick="doLogout()">
+        <span>🚪</span><span>退出登录</span>
+      </div>
+    </div>
+  </div>
 </aside>
+
+<!-- 头像设置 Modal -->
+<div class="overlay" id="avatarPickerOverlay" onclick="if(event.target===this)closeAvatarPicker()" style="z-index:2500">
+  <div class="mbox" style="max-width:400px">
+    <h3 style="margin-bottom:16px">🖼️ 设置头像</h3>
+    <div style="display:flex;justify-content:center;margin-bottom:18px">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--s2);border:3px solid var(--bd);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px" id="avatarPreviewBox">👤</div>
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>本地上传</label>
+      <input class="inp" type="file" id="avatarFileInp" accept="image/*" style="padding:6px" onchange="previewAvatarFile(this)">
+    </div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>或从媒体库选择</label>
+      <button class="btn btn-s btn-sm" style="width:100%" onclick="openMediaPicker((fn,url)=>{selectAvatarFromMedia(fn,url);},'image')">🗂 从媒体库选</button>
+      <div id="avatarMediaName" style="font-size:11px;color:var(--ac);margin-top:4px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" onclick="saveAvatar()">保存头像</button>
+      <button class="btn btn-s" onclick="closeAvatarPicker()">取消</button>
+    </div>
+  </div>
+</div>
 
 <main class="main">
 
@@ -254,22 +311,54 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
     <div class="fr" style="margin-bottom:14px">
       <div class="fg" style="max-width:180px">
-        <label>展示列数（1~4）</label>
-        <div style="display:flex;gap:8px;margin-top:4px">
+        <label>展示列数（1~20）</label>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
           <button class="sc-col-btn" data-col="1" onclick="scSetCols(1)">1</button>
           <button class="sc-col-btn" data-col="2" onclick="scSetCols(2)">2</button>
           <button class="sc-col-btn" data-col="3" onclick="scSetCols(3)">3</button>
-          <button class="sc-col-btn active" data-col="4" onclick="scSetCols(4)">4</button>
+          <button class="sc-col-btn  active" data-col="4" onclick="scSetCols(4)">4</button>
+          <button class="sc-col-btn" data-col="5" onclick="scSetCols(5)">5</button>
+          <button class="sc-col-btn" data-col="6" onclick="scSetCols(6)">6</button>
+          <button class="sc-col-btn" data-col="7" onclick="scSetCols(7)">7</button>
+          <button class="sc-col-btn" data-col="8" onclick="scSetCols(8)">8</button>
+          <button class="sc-col-btn" data-col="9" onclick="scSetCols(9)">9</button>
+          <button class="sc-col-btn" data-col="10" onclick="scSetCols(10)">10</button>
+          <button class="sc-col-btn" data-col="11" onclick="scSetCols(11)">11</button>
+          <button class="sc-col-btn" data-col="12" onclick="scSetCols(12)">12</button>
+          <button class="sc-col-btn" data-col="13" onclick="scSetCols(13)">13</button>
+          <button class="sc-col-btn" data-col="14" onclick="scSetCols(14)">14</button>
+          <button class="sc-col-btn" data-col="15" onclick="scSetCols(15)">15</button>
+          <button class="sc-col-btn" data-col="16" onclick="scSetCols(16)">16</button>
+          <button class="sc-col-btn" data-col="17" onclick="scSetCols(17)">17</button>
+          <button class="sc-col-btn" data-col="18" onclick="scSetCols(18)">18</button>
+          <button class="sc-col-btn" data-col="19" onclick="scSetCols(19)">19</button>
+          <button class="sc-col-btn" data-col="20" onclick="scSetCols(20)">20</button>
         </div>
       </div>
-      <div class="fg" style="max-width:200px">
-        <label>卡片高度（px，100~600）</label>
+      <div class="fg">
+        <label>卡片高度（px，100~800）</label>
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-          <input class="inp" type="number" id="scCfgHeight" min="100" max="600" step="10" value="200" style="width:90px">
-          <input type="range" id="scCfgHeightRange" min="100" max="600" step="10" value="200" style="flex:1;accent-color:var(--ac)"
+          <input class="inp" type="number" id="scCfgHeight" min="100" max="800" step="10" value="200" style="width:90px">
+          <input type="range" id="scCfgHeightRange" min="100" max="800" step="10" value="200" style="flex:1;accent-color:var(--ac)"
             oninput="document.getElementById('scCfgHeight').value=this.value">
         </div>
-        <div style="font-size:10px;color:var(--mu);margin-top:3px">默认 200px（约 16:9）</div>
+      </div>
+      <div class="fg">
+        <label>卡片宽度（px，120~600）</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <input class="inp" type="number" id="scCfgWidth" min="120" max="600" step="10" value="280" style="width:90px">
+          <input type="range" id="scCfgWidthRange" min="120" max="600" step="10" value="280" style="flex:1;accent-color:var(--ac)"
+            oninput="document.getElementById('scCfgWidth').value=this.value">
+        </div>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>自动滚动速度（px/秒，0 = 不滚动）</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <input class="inp" type="number" id="scCfgSpeed" min="0" max="300" step="10" value="0" style="width:90px">
+        <input type="range" id="scCfgSpeedRange" min="0" max="300" step="10" value="0" style="flex:1;accent-color:var(--ac)"
+          oninput="document.getElementById('scCfgSpeed').value=this.value">
+        <span style="font-size:11px;color:var(--mu);white-space:nowrap">0=静止 &nbsp;60=缓慢 &nbsp;120=适中</span>
       </div>
     </div>
     <button class="btn btn-p btn-sm" onclick="scSaveConfig()">保存设置</button>
@@ -451,8 +540,13 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <p style="font-size:11px;color:var(--mu);margin-bottom:10px">建议 32×32 或 64×64 PNG</p>
     <div class="favicon-row">
       <img id="faviconPrev" class="favicon-prev" src="data:," alt="" onerror="this.style.display='none'">
-      <div><input class="inp" type="file" id="faviconInp" accept="image/*" style="padding:6px;margin-bottom:7px"><br>
-        <button class="btn btn-p btn-sm" onclick="uploadFavicon()">上传图标</button></div>
+      <div>
+        <input class="inp" type="file" id="faviconInp" accept="image/*" style="padding:6px;margin-bottom:7px"><br>
+        <div style="display:flex;gap:7px;margin-top:4px">
+          <button class="btn btn-p btn-sm" onclick="uploadFavicon()">上传图标</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{setFaviconFromMedia(fn,url);},'image')">🗂 从媒体库选</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -508,6 +602,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <button class="btn btn-s btn-sm" onclick="uploadAboutImg('heroBgInp','heroImage')">上传横幅图</button>
           <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpSetAboutImg(fn,url,'heroBgPreview','heroImage');},'image')">🗂 从媒体库选</button>
         </div>
+      </div>
+    </div>
+    <div class="fg" style="margin-top:12px">
+      <label>横幅高度（px，200~800）</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+        <input class="inp" type="number" id="aboutHeroHeight" min="200" max="800" step="10" value="420" style="width:90px" oninput="document.getElementById('aboutHeroHeightRange').value=this.value">
+        <input type="range" id="aboutHeroHeightRange" min="200" max="800" step="10" value="420" style="flex:1;accent-color:var(--ac)"
+          oninput="document.getElementById('aboutHeroHeight').value=this.value">
+        <span style="font-size:11px;color:var(--mu);white-space:nowrap">默认 420px</span>
       </div>
     </div>
   </div>
@@ -644,7 +747,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card"><div class="ct">📐 横幅高度与文字</div>
     <div class="fr" style="margin-bottom:11px">
       <div class="fg"><label>横幅高度（px，200~600）</label>
-        <input class="inp" type="number" id="mpHeight" value="320" min="200" max="600">
+        <input class="inp" type="number" id="mpHeight" value="320" min="200" max="800">
       </div>
       <div class="fg"><label>标题字号（px，28~72）</label>
         <input class="inp" type="number" id="mpTitleSize" value="48" min="28" max="72">
@@ -671,6 +774,42 @@ tr:hover td{background:rgba(255,255,255,.012)}
       </div>
     </div>
   </div>
+
+  <div class="card"><div class="ct">📏 访客头像上传限制</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:14px">控制前台留言板访客上传头像的文件大小上限</p>
+    <div class="fr" style="align-items:flex-end">
+      <div class="fg">
+        <label>最大文件大小</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <input class="inp" type="number" id="mpAvatarMaxSize" min="0" max="20" step="0.1" value="2" style="width:90px" oninput="document.getElementById('mpAvatarMaxSizeRange').value=this.value">
+          <span style="font-size:13px;color:var(--mu)">MB</span>
+          <input type="range" id="mpAvatarMaxSizeRange" min="0.1" max="20" step="0.1" value="2" style="flex:1;accent-color:var(--ac)"
+            oninput="document.getElementById('mpAvatarMaxSize').value=parseFloat(this.value).toFixed(1)">
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-top:4px">设为 0 则禁止上传头像 · 默认 2MB</div>
+      </div>
+      <div class="fg" style="max-width:160px">
+        <label>允许的格式</label>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="mpAvatarFmtJpg" checked> JPG / JPEG</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="mpAvatarFmtPng" checked> PNG</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="mpAvatarFmtGif"> GIF</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" id="mpAvatarFmtWebp" checked> WebP</label>
+        </div>
+      </div>
+      <div class="fg">
+        <label>每 IP 每日上传次数上限</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <input class="inp" type="number" id="mpAvatarDailyLimit" min="0" max="100" step="1" value="0" style="width:80px"
+            oninput="document.getElementById('mpAvatarDailyLimitRange').value=this.value">
+          <span style="font-size:13px;color:var(--mu)">次</span>
+          <input type="range" id="mpAvatarDailyLimitRange" min="0" max="20" step="1" value="0" style="flex:1;accent-color:var(--ac)"
+            oninput="document.getElementById('mpAvatarDailyLimit').value=this.value">
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-top:4px">0 = 不限制次数 · 计数重启后清零</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- MESSAGES -->
@@ -690,14 +829,51 @@ tr:hover td{background:rgba(255,255,255,.012)}
 
 <!-- ACCOUNT -->
 <div class="page" id="page-account">
-  <div class="pt">账号安全</div><div class="ps">修改后台登录凭据</div>
-  <div class="card" style="max-width:420px">
+  <div class="pt">账号安全</div><div class="ps">登录凭据与密码找回邮箱设置</div>
+
+  <!-- 账号信息 -->
+  <div class="card" style="max-width:480px">
     <div class="ct">🔐 修改账号信息</div>
     <div class="fg" style="margin-bottom:11px"><label>当前密码（必填验证）</label><input class="inp" type="password" id="pwOld" placeholder="输入当前密码"></div>
     <div class="fg" style="margin-bottom:11px"><label>新用户名（留空则不修改）</label><input class="inp" type="text" id="pwUser" placeholder="admin"></div>
     <div class="fg" style="margin-bottom:11px"><label>新密码（留空则不修改）</label><input class="inp" type="password" id="pwNew" placeholder="至少6位"></div>
     <div class="fg" style="margin-bottom:18px"><label>确认新密码</label><input class="inp" type="password" id="pwNew2" placeholder="再次输入"></div>
     <button class="btn btn-p" onclick="doChangePw()">保存修改</button>
+  </div>
+
+  <!-- 找回邮箱 -->
+  <div class="card" style="max-width:480px">
+    <div class="ct">📧 密码找回邮箱</div>
+    <div class="ps" style="margin-bottom:12px">设置后，忘记密码时可通过此邮箱接收验证码重置密码</div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>绑定邮箱</label>
+      <input class="inp" type="email" id="accountEmail" placeholder="admin@example.com">
+    </div>
+    <button class="btn btn-p btn-sm" onclick="saveAccountEmail()">保存邮箱</button>
+  </div>
+
+  <!-- SMTP 配置 -->
+  <div class="card" style="max-width:480px">
+    <div class="ct">⚙️ SMTP 邮件服务器</div>
+    <div class="ps" style="margin-bottom:14px">用于发送密码重置验证码，建议使用专用应用密码</div>
+    <div class="fr" style="margin-bottom:10px">
+      <div class="fg"><label>SMTP 服务器</label><input class="inp" id="smtpHost" placeholder="smtp.example.com"></div>
+      <div class="fg" style="max-width:110px"><label>端口</label><input class="inp" type="number" id="smtpPort" value="465"></div>
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label>发件账号（邮箱地址）</label><input class="inp" id="smtpUser" placeholder="noreply@example.com"></div>
+    <div class="fg" style="margin-bottom:10px"><label>授权码 / 密码</label><input class="inp" type="password" id="smtpPw" placeholder="应用专用密码"></div>
+    <div class="fg" style="margin-bottom:10px"><label>发件人名称</label><input class="inp" id="smtpFrom" placeholder="Gallery Admin"></div>
+    <div class="fg" style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="smtpSsl" checked style="width:16px;height:16px;cursor:pointer;accent-color:var(--ac)">
+      <label for="smtpSsl" style="cursor:pointer;font-size:12px;color:var(--tx)">使用 SSL 加密（端口465）/ 取消则用 STARTTLS（端口587）</label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" onclick="saveSmtp()">保存配置</button>
+      <div style="display:flex;gap:6px;flex:1;align-items:center">
+        <input class="inp" id="smtpTestEmail" placeholder="发送测试到..." style="margin:0;flex:1">
+        <button class="btn btn-s btn-sm" onclick="testSmtp()">发送测试</button>
+      </div>
+    </div>
   </div>
 </div>
 </main>
@@ -725,7 +901,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div id="editFilePrev"></div>
       <div style="flex:1">
         <input class="inp" type="file" id="editFileInp" accept="image/*,video/*" style="padding:5px;margin-bottom:5px" onchange="prevEditFile(this)">
-        <button class="btn btn-s btn-sm" onclick="replaceFile()">上传替换</button>
+        <div style="display:flex;gap:7px;margin-top:2px">
+          <button class="btn btn-s btn-sm" onclick="replaceFile()">上传替换</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('editFileInp')._mpFile=fn;document.getElementById('editFileInp')._mpUrl=url;prevEditFileMp(fn,url,type);})">🗂 从媒体库选</button>
+        </div>
       </div>
     </div>
     <div class="div"></div>
@@ -735,7 +914,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div id="editCoverPrev"></div>
       <div style="flex:1">
         <input class="inp" type="file" id="editCoverInp" accept="image/*" style="padding:5px;margin-bottom:5px" onchange="prevEditCover(this)">
-        <button class="btn btn-s btn-sm" onclick="replaceCover()">上传替换</button>
+        <div style="display:flex;gap:7px;margin-top:2px">
+          <button class="btn btn-s btn-sm" onclick="replaceCover()">上传替换</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{document.getElementById('editCoverInp')._mpFile=fn;document.getElementById('editCoverInp')._mpUrl=url;prevEditCoverMp(fn,url);},'image')">🗂 从媒体库选</button>
+        </div>
       </div>
     </div>
     <div class="mact">
@@ -771,7 +953,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={account:()=>{},msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
+  const a={account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
   if(a[p])a[p]();
 }
 
@@ -924,16 +1106,20 @@ async function saveEdit(){
 
 async function replaceFile(){
   const id=document.getElementById('editId').value;const inp=document.getElementById('editFileInp');
-  if(!inp.files[0]){toast('请选择文件','err');return;}
-  const fd=new FormData();fd.append('file',inp.files[0]);
+  const mpFile=inp._mpFile;
+  if(!inp.files[0]&&!mpFile){toast('请选择文件','err');return;}
+  const fd=new FormData();
+  if(inp.files[0]) fd.append('file',inp.files[0]); else fd.append('existing_file',mpFile);
   const res=await fetch(`/admin/item/${id}/replace-file`,{method:'POST',body:fd});
   if(res.ok){const d=await res.json();const item=allItems.find(i=>i.id===id);if(item){item.filename=d.filename;item.type=d.type||item.type;}loadManage();toast('主文件已替换');}else toast('替换失败','err');
 }
 
 async function replaceCover(){
   const id=document.getElementById('editId').value;const inp=document.getElementById('editCoverInp');
-  if(!inp.files[0]){toast('请选择封面','err');return;}
-  const fd=new FormData();fd.append('file',inp.files[0]);
+  const mpFile=inp._mpFile;
+  if(!inp.files[0]&&!mpFile){toast('请选择封面','err');return;}
+  const fd=new FormData();
+  if(inp.files[0]) fd.append('file',inp.files[0]); else fd.append('existing_file',mpFile);
   const res=await fetch(`/admin/item/${id}/replace-cover`,{method:'POST',body:fd});
   if(res.ok){const d=await res.json();const item=allItems.find(i=>i.id===id);if(item)item.cover=d.cover;loadManage();toast('封面已更新');}else toast('失败','err');
 }
@@ -964,6 +1150,48 @@ function loadHero(){
   document.getElementById('heroEnabled').onchange=function(){updateHeroToggleUI(this.checked);};
   renderSlideList(h.slides||[]);
 }
+
+function setFaviconFromMedia(fn, url) {
+  if(!siteData.site) siteData.site={};
+  siteData.site.favicon = fn;
+  const p = document.getElementById('faviconPrev');
+  p.src = url; p.style.display = 'block';
+  // 直接保存
+  fetch('/admin/site/favicon-from-media', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({filename: fn})
+  }).then(r=>r.json()).then(d=>{ if(d.success) toast('图标已更新'); else toast('保存失败','err'); });
+}
+
+function prevEditFileMp(fn, url, type) {
+  const wrap = document.getElementById('editFilePrev');
+  if (type === 'image') {
+    wrap.innerHTML = `<img src="${url}" style="max-height:80px;border-radius:7px;margin-bottom:6px">`;
+  } else {
+    wrap.innerHTML = `<div style="padding:8px;background:var(--s3);border-radius:7px;font-size:12px;color:var(--mu);margin-bottom:6px">🎬 ${fn}</div>`;
+  }
+}
+
+function prevEditCoverMp(fn, url) {
+  const wrap = document.getElementById('editCoverPrev');
+  wrap.innerHTML = `<img src="${url}" style="max-height:80px;border-radius:7px;margin-bottom:6px">`;
+}
+
+function setSlideBgFromMedia(sid, fn, url) {
+  const s = siteData.hero?.slides?.find(s => s.id === sid);
+  if (!s) return;
+  s.bgValue = fn;
+  // 更新预览图
+  const imgArea = document.querySelector(`#bg-i-${sid} img`);
+  if (imgArea) { imgArea.src = url; }
+  else {
+    const div = document.querySelector(`#bg-i-${sid} > div`);
+    if (div) div.insertAdjacentHTML('beforeend', `<img src="${url}" style="height:44px;border-radius:5px;object-fit:cover;border:1px solid var(--bd)">`);
+  }
+  toast('背景图已选，记得保存海报');
+}
+
+
 function updateHeroToggleUI(on){
   document.getElementById('heroEnabledSlider').style.background=on?'var(--ok)':'var(--bd)';
   document.getElementById('heroEnabledThumb').style.transform=on?'translateX(20px)':'translateX(0)';
@@ -982,10 +1210,11 @@ function slideHtml(s,i){const isImg=s.bgType==='image';return `<div class="slide
     </div>
     <div class="fg full" id="bg-g-${s.id}" style="${isImg?'display:none':''}"><label>渐变CSS</label><input class="inp" data-sid="${s.id}" data-field="bgValue" value="${esc(isImg?'':s.bgValue||'')}"></div>
     <div class="fg full" id="bg-i-${s.id}" style="${!isImg?'display:none':''}"><label>背景图片</label>
-      <div style="display:flex;gap:7px;align-items:center">
+      <div style="display:flex;gap:7px;align-items:center;margin-bottom:5px">
         <input class="inp" type="file" accept="image/*" onchange="uploadSlideBg('${s.id}',this)" style="padding:5px;flex:1">
         ${isImg&&s.bgValue?`<img src="/static/uploads/${s.bgValue}" style="height:44px;border-radius:5px;object-fit:cover;border:1px solid var(--bd)" onerror="this.style.display='none'">`:``}
       </div>
+      <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url)=>setSlideBgFromMedia('${s.id}',fn,url),'image')">🗂 从媒体库选背景图</button>
     </div>
   </div></div>`;}
 function setBgType(sid,type){const s=siteData.hero?.slides?.find(s=>s.id===sid);if(!s)return;s.bgType=type;document.getElementById('bg-g-'+sid).style.display=type==='gradient'?'':'none';document.getElementById('bg-i-'+sid).style.display=type==='image'?'':'none';document.querySelectorAll(`#si-${sid} .bg-tab`).forEach((b,i)=>b.classList.toggle('active',(i===0&&type==='gradient')||(i===1&&type==='image')));}
@@ -1056,6 +1285,9 @@ function loadAbout(){
   document.getElementById('aboutTagline').value=ab.tagline||'';
   document.getElementById('aboutEmoji').value=ab.emoji||'🎨';
   if(ab.heroImage){document.getElementById('heroBgPreview').innerHTML=`<img class="img-thumb" src="/static/uploads/${ab.heroImage}">`;}
+  const abH=parseInt(ab.heroHeight)||420;
+  document.getElementById('aboutHeroHeight').value=abH;
+  document.getElementById('aboutHeroHeightRange').value=abH;
   if(ab.avatarImage){document.getElementById('avatarImgPreview').innerHTML=`<img class="img-thumb" src="/static/uploads/${ab.avatarImage}" style="border-radius:50%">`;}
   renderParagraphs(ab.paragraphs||[]);
   renderSkills(ab.skills||[]);
@@ -1151,6 +1383,7 @@ async function saveAbout(){
   // Collect paragraphs from textareas
   const paras=Array.from(document.querySelectorAll('#paragraphList textarea')).map(t=>t.value);
   siteData.about.paragraphs=paras;
+  siteData.about.heroHeight=Math.min(800,Math.max(200,parseInt(document.getElementById('aboutHeroHeight').value)||420));
   const res=await fetch('/admin/site/about',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.about)});
   if(res.ok)toast('关于我页面已保存');else toast('保存失败','err');
 }
@@ -1164,7 +1397,7 @@ async function saveContact(){const rows=document.querySelectorAll('#contactList 
 
 // FOOTER
 function loadFooter(){const ft=siteData.footer||{};document.getElementById('ftLogo').value=ft.brand?.logo||'';document.getElementById('ftDesc').value=ft.brand?.desc||'';document.getElementById('ftCopy').value=ft.copyright||'';renderFtCols(ft.columns||[]);}
-function renderFtCols(cols){document.getElementById('ftColList').innerHTML=cols.map((col,ci)=>`<div class="col-item"><div class="cih"><input class="inp" value="${esc(col.title||'')}" placeholder="栏目标题" style="flex:1;margin-right:7px" oninput="siteData.footer.columns[${ci}].title=this.value"><button class="btn btn-s btn-xs" onclick="addFtLink(${ci})">+ 链接</button><button class="btn btn-d btn-xs" onclick="removeFtCol(${ci})" style="margin-left:4px">删除</button></div><div class="col-links">${(col.links||[]).map((l,li)=>`<div class="clr"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].href=this.value"><button class="btn btn-d btn-xs" onclick="removeFtLink(${ci},${li})">×</button></div>`).join('')}</div></div>`).join('');}
+function renderFtCols(cols){document.getElementById('ftColList').innerHTML=cols.map((col,ci)=>`<div class="col-item"><div class="cih"><input class="inp" value="${esc(col.title||'')}" placeholder="栏目标题" style="flex:1;margin-right:7px" oninput="siteData.footer.columns[${ci}].title=this.value"><button class="btn btn-s btn-xs" onclick="addFtLink(${ci})">+ 链接</button><button class="btn btn-d btn-xs" onclick="removeFtCol(${ci})" style="margin-left:4px">删除</button></div><div class="col-links">${(col.links||[]).map((l,li)=>`<div class="clr"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].href=this.value"><button onclick="removeFtLink(${ci},${li})" style="width:24px;height:24px;padding:0;border-radius:5px;border:1px solid rgba(220,80,80,.4);background:rgba(220,80,80,.12);color:#e05c5c;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button></div>`).join('')}</div></div>`).join('');}
 function addFtCol(){if(!siteData.footer)siteData.footer={columns:[]};siteData.footer.columns.push({title:'新栏目',links:[]});renderFtCols(siteData.footer.columns);}
 function removeFtCol(ci){siteData.footer.columns.splice(ci,1);renderFtCols(siteData.footer.columns);}
 function addFtLink(ci){siteData.footer.columns[ci].links.push({label:'链接',href:'#'});renderFtCols(siteData.footer.columns);}
@@ -1321,12 +1554,12 @@ async function changePassword(){
 // ═══════════════════════════════════════════════════
 // SHOWCASE ADMIN
 // ═══════════════════════════════════════════════════
-let scItems = [], scDragId = '', scCfg = {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200};
+let scItems = [], scDragId = '', scCfg = {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200,cardWidth:280,scrollSpeed:0};
 
 async function loadShowcaseAdmin() {
   const d = await fetch('/admin/showcase').then(r => r.json());
   scItems = d.items || d;  // backward compat
-  scCfg = d.config || {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200};
+  scCfg = d.config || {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200,cardWidth:280,scrollSpeed:0};
   renderScCfg();
   renderScList();
 }
@@ -1352,8 +1585,20 @@ function renderScCfg() {
   const hInp = document.getElementById('scCfgHeight');
   const hRange = document.getElementById('scCfgHeightRange');
   const hVal = scCfg.cardHeight || 200;
-  if (hInp) { hInp.value = hVal; hInp.oninput = () => { hRange.value = hInp.value; }; }
-  if (hRange) hRange.value = hVal;
+  if (hInp) { hInp.value = hVal; hInp.oninput = () => { if(hRange) hRange.value = hInp.value; }; }
+  if (hRange) { hRange.value = hVal; hRange.oninput = () => { if(hInp) hInp.value = hRange.value; }; }
+  // Card width
+  const wInp = document.getElementById('scCfgWidth');
+  const wRange = document.getElementById('scCfgWidthRange');
+  const wVal = scCfg.cardWidth || 280;
+  if (wInp) { wInp.value = wVal; wInp.oninput = () => { if(wRange) wRange.value = wInp.value; }; }
+  if (wRange) { wRange.value = wVal; wRange.oninput = () => { if(wInp) wInp.value = wRange.value; }; }
+  // Scroll speed
+  const sInp = document.getElementById('scCfgSpeed');
+  const sRange = document.getElementById('scCfgSpeedRange');
+  const sVal = scCfg.scrollSpeed ?? 0;
+  if (sInp) { sInp.value = sVal; sInp.oninput = () => { if(sRange) sRange.value = sInp.value; }; }
+  if (sRange) { sRange.value = sVal; sRange.oninput = () => { if(sInp) sInp.value = sRange.value; }; }
 }
 
 function scToggleEnabled() {
@@ -1377,7 +1622,9 @@ async function scSaveConfig() {
     title: document.getElementById('scCfgTitle').value || '橱窗精选',
     subtitle: document.getElementById('scCfgSubtitle').value || 'SHOWCASE',
     columns: scCfg.columns || 4,
-    cardHeight: Math.min(600, Math.max(100, parseInt(document.getElementById('scCfgHeight').value) || 200)),
+    cardHeight: Math.min(800, Math.max(100, parseInt(document.getElementById('scCfgHeight').value) || 200)),
+    cardWidth: Math.min(600, Math.max(120, parseInt(document.getElementById('scCfgWidth').value) || 280)),
+    scrollSpeed: Math.min(300, Math.max(0, parseInt(document.getElementById('scCfgSpeed').value) || 0)),
   };
   const res = await fetch('/admin/showcase/config', {
     method: 'PUT', headers: {'Content-Type':'application/json'},
@@ -1680,8 +1927,103 @@ function closeMediaPicker(){
   mpCallback=null;
 }
 
+
+// ════════════════════════════════════════════
+// 用户中心
+// ════════════════════════════════════════════
+let _avatarMpFile = null;
+
+async function loadUserInfo() {
+  try {
+    const d = await fetch('/admin/account/info').then(r => r.json());
+    document.getElementById('ucName').textContent = d.username || 'admin';
+    setUcAvatar(d.avatar ? '/static/uploads/' + d.avatar : '');
+  } catch(e) {}
+}
+
+function setUcAvatar(url) {
+  const el = document.getElementById('ucAvatar');
+  if (url) {
+    el.innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='👤'">`;
+  } else {
+    el.innerHTML = '👤';
+  }
+}
+
+function toggleUcMenu(e) {
+  e.stopPropagation();
+  document.getElementById('ucMenu').classList.toggle('open');
+}
+
+// 点击外部关闭
+document.addEventListener('click', () => {
+  document.getElementById('ucMenu')?.classList.remove('open');
+});
+
+async function doLogout() {
+  await fetch('/admin/logout', { method: 'POST' });
+  location.href = '/admin/login';
+}
+
+// 头像弹窗
+function openAvatarPicker() {
+  document.getElementById('ucMenu').classList.remove('open');
+  _avatarMpFile = null;
+  document.getElementById('avatarFileInp').value = '';
+  document.getElementById('avatarMediaName').textContent = '';
+  // 显示当前头像
+  const img = document.getElementById('ucAvatar').querySelector('img');
+  const box = document.getElementById('avatarPreviewBox');
+  box.innerHTML = img ? `<img src="${img.src}" style="width:100%;height:100%;object-fit:cover">` : '👤';
+  document.getElementById('avatarPickerOverlay').classList.add('open');
+}
+
+function closeAvatarPicker() {
+  document.getElementById('avatarPickerOverlay').classList.remove('open');
+  _avatarMpFile = null;
+}
+
+function previewAvatarFile(inp) {
+  if (!inp.files[0]) return;
+  _avatarMpFile = null;
+  document.getElementById('avatarMediaName').textContent = '';
+  const url = URL.createObjectURL(inp.files[0]);
+  document.getElementById('avatarPreviewBox').innerHTML =
+    `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+}
+
+function selectAvatarFromMedia(fn, url) {
+  _avatarMpFile = fn;
+  document.getElementById('avatarFileInp').value = '';
+  document.getElementById('avatarMediaName').textContent = '已选：' + fn;
+  document.getElementById('avatarPreviewBox').innerHTML =
+    `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
+}
+
+async function saveAvatar() {
+  const fileInp = document.getElementById('avatarFileInp');
+  const fd = new FormData();
+  if (fileInp.files[0]) {
+    fd.append('file', fileInp.files[0]);
+  } else if (_avatarMpFile) {
+    fd.append('existing_file', _avatarMpFile);
+  } else {
+    toast('请选择头像图片', 'err'); return;
+  }
+  const res = await fetch('/admin/account/avatar', { method: 'POST', body: fd });
+  const d = await res.json();
+  if (d.success) {
+    setUcAvatar(d.url);
+    closeAvatarPicker();
+    toast('头像已更新');
+  } else {
+    toast(d.error || '保存失败', 'err');
+  }
+}
+
 // MEDIA LIBRARY
-let allMediaFiles=[], curMediaFile=null, mediaSelected=new Set(), mediaFiltered=[];
+let allMediaFiles=[], curMediaFile=null, mediaSelected=new Set(), mediaFiltered=[], mediaPage=1;
+const MEDIA_PAGE_SIZE=30;
 
 async function loadMedia(){
   document.getElementById('mediaGrid').innerHTML='<div style="color:var(--mu);font-size:13px;padding:20px">加载中...</div>';
@@ -1706,14 +2048,20 @@ function filterMedia(){
   });
   // 筛选后移除已不在列表的选中项
   mediaSelected.forEach(fn=>{ if(!mediaFiltered.find(f=>f.filename===fn)) mediaSelected.delete(fn); });
+  mediaPage=1;
   updateBatchBar();
   renderMediaGrid();
 }
 
 function renderMediaGrid(){
   const grid=document.getElementById('mediaGrid');
-  if(!mediaFiltered.length){grid.innerHTML='<div style="color:var(--mu);font-size:13px;padding:20px">无匹配文件</div>';return;}
-  grid.innerHTML=mediaFiltered.map(f=>{
+  if(!mediaFiltered.length){grid.innerHTML='<div style="color:var(--mu);font-size:13px;padding:20px">无匹配文件</div>';renderMediaPager();return;}
+  const totalPages=Math.max(1,Math.ceil(mediaFiltered.length/MEDIA_PAGE_SIZE));
+  if(mediaPage>totalPages)mediaPage=totalPages;
+  const start=(mediaPage-1)*MEDIA_PAGE_SIZE;
+  const pageFiles=mediaFiltered.slice(start,start+MEDIA_PAGE_SIZE);
+  document.getElementById('mediaCount').textContent=`共 ${mediaFiltered.length} 个文件，第 ${mediaPage}/${totalPages} 页`;
+  grid.innerHTML=pageFiles.map(f=>{
     const isImg=f.type==='image', isVid=f.type==='video';
     const isSel=mediaSelected.has(f.filename);
     const refBadge=f.refs.length
@@ -1722,9 +2070,21 @@ function renderMediaGrid(){
     const selCheck=`<div style="position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:2px solid ${isSel?'var(--ac)':'rgba(255,255,255,.6)'};background:${isSel?'var(--ac)':'rgba(0,0,0,.3)'};display:flex;align-items:center;justify-content:center;transition:all .15s;pointer-events:none">
       ${isSel?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>':''}
     </div>`;
-    const thumb=isImg?`<img src="${f.url}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.style.display='none'">`
-      :isVid?`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:var(--mu)">🎬</div>`
-      :`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:var(--mu)">📄</div>`;
+    let thumb;
+    if(isImg){
+      thumb=`<img src="${f.url}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.style.display='none'">`
+    } else if(isVid){
+      if(f.cover){
+        thumb=`<img src="/static/uploads/${f.cover}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.querySelector('div')&&(this.style.display='none')">` +
+          `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.22)"><div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.88);display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 12 12" fill="#222"><polygon points="3,1 11,6 3,11"/></svg></div></div>`;
+      } else {
+        thumb=`<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">` +
+          `<div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 12 12" fill="rgba(255,255,255,.9)"><polygon points="3,1 11,6 3,11"/></svg></div>` +
+          `<span style="font-size:9px;color:rgba(255,255,255,.55);letter-spacing:.05em">${f.ext.toUpperCase()}</span></div>`;
+      }
+    } else {
+      thumb=`<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:28px;color:var(--mu)">📄</div>`;
+    }
     const size=f.size>1024*1024?(f.size/1024/1024).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB';
     const border=isSel?'var(--ac)':'var(--bd)';
     const bg=isSel?'rgba(200,169,126,.08)':'var(--s2)';
@@ -1739,6 +2099,32 @@ function renderMediaGrid(){
       </div>
     </div>`;
   }).join('');
+  renderMediaPager();
+}
+
+function renderMediaPager(){
+  let pager=document.getElementById('mediaPager');
+  if(!pager){pager=document.createElement('div');pager.id='mediaPager';pager.style.cssText='display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 0;flex-wrap:wrap';document.getElementById('mediaGrid').after(pager);}
+  const total=mediaFiltered.length;
+  const totalPages=Math.max(1,Math.ceil(total/MEDIA_PAGE_SIZE));
+  if(totalPages<=1){pager.innerHTML='';return;}
+  const btnStyle=(active)=>`min-width:32px;height:32px;padding:0 8px;border-radius:7px;border:1px solid ${active?'var(--ac)':'var(--bd)'};background:${active?'var(--ac)':'var(--s2)'};color:${active?'#fff':'var(--tx)'};font-size:12px;cursor:pointer;font-family:inherit`;
+  let html=`<button style="${btnStyle(false)}" onclick="mediaGoPage(1)" ${mediaPage===1?'disabled style="opacity:.4;cursor:default;'+btnStyle(false)+'"':''}>«</button>`;
+  html+=`<button style="${btnStyle(false)}" onclick="mediaGoPage(${mediaPage-1})" ${mediaPage===1?'disabled style="opacity:.4;cursor:default;'+btnStyle(false)+'"':''}>‹</button>`;
+  const lo=Math.max(1,mediaPage-2),hi=Math.min(totalPages,mediaPage+2);
+  if(lo>1)html+='<span style="color:var(--mu);font-size:13px">…</span>';
+  for(let i=lo;i<=hi;i++)html+=`<button style="${btnStyle(i===mediaPage)}" onclick="mediaGoPage(${i})">${i}</button>`;
+  if(hi<totalPages)html+='<span style="color:var(--mu);font-size:13px">…</span>';
+  html+=`<button style="${btnStyle(false)}" onclick="mediaGoPage(${mediaPage+1})" ${mediaPage===totalPages?'disabled style="opacity:.4;cursor:default;'+btnStyle(false)+'"':''}>›</button>`;
+  html+=`<button style="${btnStyle(false)}" onclick="mediaGoPage(${totalPages})" ${mediaPage===totalPages?'disabled style="opacity:.4;cursor:default;'+btnStyle(false)+'"':''}>»</button>`;
+  pager.innerHTML=html;
+}
+function mediaGoPage(n){
+  const totalPages=Math.ceil(mediaFiltered.length/MEDIA_PAGE_SIZE);
+  if(n<1||n>totalPages)return;
+  mediaPage=n;
+  renderMediaGrid();
+  document.getElementById('mediaGrid').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // 单击：切换选中；双击：打开详情
@@ -1889,6 +2275,18 @@ function loadMsgPage(){
   document.getElementById('mpTitle').value=mp.title||'留言板';
   document.getElementById('mpSubtitle').value=mp.subtitle||'留下你的足迹，与我分享你的想法';
   document.getElementById('mpHeight').value=mp.height||320;
+  // 头像上传限制
+  const maxMB=mp.avatarMaxSizeMB??2;
+  document.getElementById('mpAvatarMaxSize').value=maxMB;
+  document.getElementById('mpAvatarMaxSizeRange').value=maxMB;
+  const fmts=mp.avatarFormats||['jpg','png','webp'];
+  document.getElementById('mpAvatarFmtJpg').checked=fmts.includes('jpg');
+  document.getElementById('mpAvatarFmtPng').checked=fmts.includes('png');
+  document.getElementById('mpAvatarFmtGif').checked=fmts.includes('gif');
+  document.getElementById('mpAvatarFmtWebp').checked=fmts.includes('webp');
+  const dailyLimit=mp.avatarDailyLimit??0;
+  document.getElementById('mpAvatarDailyLimit').value=dailyLimit;
+  document.getElementById('mpAvatarDailyLimitRange').value=Math.min(dailyLimit,20);
   document.getElementById('mpTitleSize').value=mp.titleSize||48;
   const overlay=mp.overlayOpacity!=null?mp.overlayOpacity:0.45;
   document.getElementById('mpOverlay').value=overlay;
@@ -1948,6 +2346,9 @@ async function saveMsgPage(){
     title:document.getElementById('mpTitle').value,
     subtitle:document.getElementById('mpSubtitle').value,
     height:parseInt(document.getElementById('mpHeight').value)||320,
+    avatarMaxSizeMB:parseFloat(document.getElementById('mpAvatarMaxSize').value)||2,
+    avatarFormats:['jpg','png','gif','webp'].filter(f=>document.getElementById('mpAvatarFmt'+f.charAt(0).toUpperCase()+f.slice(1)).checked),
+    avatarDailyLimit:Math.max(0,parseInt(document.getElementById('mpAvatarDailyLimit').value)||0),
     titleSize:parseInt(document.getElementById('mpTitleSize').value)||48,
     overlayOpacity:parseFloat(document.getElementById('mpOverlay').value),
     defaultAvatar:mpAvatarFilename
@@ -1957,6 +2358,69 @@ async function saveMsgPage(){
 }
 
 // ACCOUNT
+
+// ── 账号页 SMTP / 邮箱 ──
+async function loadAccountPage(){
+  // 加载绑定邮箱
+  const auth=await fetch('/api/site').then(r=>r.json()).catch(()=>null);
+  // 邮箱单独存在 auth.json，用专门接口
+  const ae=await fetch('/admin/account/email-get').then(r=>r.json()).catch(()=>({email:''}));
+  if(ae.email) document.getElementById('accountEmail').value=ae.email;
+  // 加载 SMTP
+  const cfg=await fetch('/admin/smtp').then(r=>r.json()).catch(()=>({}));
+  document.getElementById('smtpHost').value=cfg.host||'';
+  document.getElementById('smtpPort').value=cfg.port||465;
+  document.getElementById('smtpUser').value=cfg.user||'';
+  document.getElementById('smtpPw').value='';  // 不回显密码，修改时才填
+  document.getElementById('smtpFrom').value=cfg.from_name||'Gallery Admin';
+  document.getElementById('smtpSsl').checked=cfg.use_ssl!==false;
+}
+
+async function saveAccountEmail(){
+  const email=document.getElementById('accountEmail').value.trim();
+  const res=await fetch('/admin/account/email',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+  if(res.ok) toast('邮箱已保存');
+  else toast('保存失败','err');
+}
+
+async function saveSmtp(){
+  const body={
+    host:document.getElementById('smtpHost').value.trim(),
+    port:parseInt(document.getElementById('smtpPort').value)||465,
+    user:document.getElementById('smtpUser').value.trim(),
+    password:document.getElementById('smtpPw').value,
+    from_name:document.getElementById('smtpFrom').value.trim()||'Gallery Admin',
+    use_ssl:document.getElementById('smtpSsl').checked,
+  };
+  const res=await fetch('/admin/smtp',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok) toast('SMTP 配置已保存');
+  else toast('保存失败','err');
+}
+
+async function testSmtp(){
+  let to=document.getElementById('smtpTestEmail').value.trim();
+  // 空时自动用绑定邮箱
+  if(!to) to=document.getElementById('accountEmail').value.trim();
+  if(!to){toast('请在输入框填写收件邮箱','err');return;}
+  if(!to.includes('@')||!to.includes('.')){toast('邮箱格式不正确：'+ to,'err');return;}
+  const btn=event.currentTarget||document.querySelector('[onclick="testSmtp()"]');
+  if(btn){btn.disabled=true;btn.textContent='发送中...';}
+  const body={
+    to,
+    host:document.getElementById('smtpHost').value.trim(),
+    port:parseInt(document.getElementById('smtpPort').value)||465,
+    user:document.getElementById('smtpUser').value.trim(),
+    password:document.getElementById('smtpPw').value,
+    from_name:document.getElementById('smtpFrom').value.trim()||'Gallery Admin',
+    use_ssl:document.getElementById('smtpSsl').checked,
+  };
+  const res=await fetch('/admin/smtp/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await res.json();
+  if(btn){btn.disabled=false;btn.textContent='发送测试';}
+  if(d.success) toast('✓ 测试邮件已发送，请检查收件箱');
+  else toast('发送失败：'+d.error,'err');
+}
+
 async function doChangePw(){
   const old=document.getElementById('pwOld').value;
   const uname=document.getElementById('pwUser').value.trim();
@@ -1977,7 +2441,7 @@ init();
 </script>
 
 <!-- 媒体库选择器 Modal -->
-<div class="overlay" id="mediaPickerOverlay" onclick="if(event.target===this)closeMediaPicker()" style="z-index:2000">
+<div class="overlay" id="mediaPickerOverlay" onclick="if(event.target===this)closeMediaPicker()" style="z-index:3000">
   <div class="mbox" style="max-width:900px;width:96vw;max-height:90vh;display:flex;flex-direction:column;padding:18px">
     <!-- 顶栏 -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;flex-wrap:wrap">

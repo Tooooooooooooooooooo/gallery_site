@@ -20,7 +20,7 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .nav-links{display:flex;gap:8px}
 .nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:8px 14px;border-radius:20px;transition:all .2s}
 .nav-links a:hover{color:var(--tx);background:var(--bd)}
-.about-hero{position:relative;min-height:420px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
+.about-hero{position:relative;min-height:280px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
 .about-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.45)}
 .about-hero-content{position:relative;z-index:2;max-width:900px;margin:0 auto;width:100%;padding:60px 40px 48px;display:flex;align-items:flex-end;gap:36px}
 .about-avatar{width:140px;height:140px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#e8c99a);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:52px;border:4px solid rgba(255,255,255,.25);box-shadow:0 8px 32px rgba(0,0,0,.3);overflow:hidden}
@@ -171,6 +171,8 @@ async function init(){
   document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
   document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}">${l.label}</a>`).join('');
   const ab=site.about||{};
+  const heroEl=document.getElementById('aboutHero');
+  if(ab.heroHeight) heroEl.style.minHeight=ab.heroHeight+'px';
   if(ab.heroImage){
     const bg=document.getElementById('heroBg');
     bg.style.backgroundImage=`url('/static/uploads/${ab.heroImage}')`;

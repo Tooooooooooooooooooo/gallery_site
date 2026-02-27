@@ -59,12 +59,13 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .showcase-header{display:flex;align-items:baseline;gap:12px;margin-bottom:20px}
 .showcase-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tx)}
 .showcase-sub{font-size:12px;color:var(--mu);letter-spacing:.06em}
-.showcase-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-@media(max-width:900px){.showcase-row{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:480px){.showcase-row{grid-template-columns:1fr 1fr}}
+.showcase-track-wrap{overflow:hidden;width:100%;position:relative;cursor:grab;user-select:none}
+.showcase-track-wrap:active{cursor:grabbing}
+.showcase-track{display:flex;gap:14px;will-change:transform;transition:none}
+.showcase-track.no-transition{transition:none!important}
 .sc-card{border-radius:14px;overflow:hidden;background:var(--s);box-shadow:0 1px 8px rgba(0,0,0,.07);cursor:pointer;position:relative;transition:transform .3s,box-shadow .3s}
 .sc-card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.14)}
-.sc-thumb{position:relative;overflow:hidden;background:#111;height:200px;font-size:0;line-height:0}
+.sc-thumb{position:relative;overflow:hidden;background:#111;font-size:0;line-height:0}
 .sc-thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;vertical-align:top;transition:transform .4s}
 .sc-card:hover .sc-thumb img{transform:scale(1.04)}
 .sc-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;z-index:3;pointer-events:none;transition:all .3s}
@@ -121,15 +122,15 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .end-msg{text-align:center;padding:40px;color:var(--mu);font-size:13px;display:none}
 
 /* FOOTER */
-footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:40px 36px 24px}
-.footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:36px;margin-bottom:32px}
+footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:40px 0 24px}
+.footer-inner{max-width:1100px;margin:0 auto 32px;padding:0 40px;display:grid;gap:36px}
 .footer-brand h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;letter-spacing:.15em;margin-bottom:10px}
 .footer-brand p{font-size:13px;line-height:1.7;white-space:pre-line}
 footer h4{color:#fff;font-size:13px;margin-bottom:12px}
 footer ul{list-style:none}footer ul li{margin-bottom:7px}
 footer ul li a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:color .2s}
 footer ul li a:hover{color:var(--ac)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,.4)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,.4);max-width:1100px;margin:0 auto;padding-left:40px;padding-right:40px}
 
 /* MODAL */
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
@@ -141,7 +142,7 @@ footer ul li a:hover{color:var(--ac)}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
 .modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
 
-@media(max-width:768px){nav{padding:0 14px}.masonry{columns:2 150px}.toolbar{padding:10px 12px}.footer-inner{grid-template-columns:1fr}}
+@media(max-width:768px){nav{padding:0 14px}.masonry{columns:2 150px}.toolbar{padding:10px 12px}.footer-inner{grid-template-columns:1fr;padding:0 20px}}
 </style>
 </head>
 <body>
@@ -176,7 +177,9 @@ footer ul li a:hover{color:var(--ac)}
       <span class="showcase-title" id="showcaseTitle">橱窗精选</span>
       <span class="showcase-sub" id="showcaseSub">SHOWCASE</span>
     </div>
-    <div class="showcase-row" id="showcaseRow"></div>
+    <div class="showcase-track-wrap" id="showcaseWrap">
+      <div class="showcase-track" id="showcaseRow"></div>
+    </div>
   </div>
   <div style="height:1px;background:var(--bd);margin:0 24px 0"></div>
 </section>
@@ -276,8 +279,13 @@ function chSlide(d){clearTimeout(autoT);goSlide(curSlide+d);startAuto();}
 function startAuto(){if(slideTotal>1)autoT=setTimeout(()=>{goSlide(curSlide+1);startAuto();},5000);}
 
 function renderFooter(ft){
-  const cols=(ft.columns||[]).map(c=>`<div><h4>${c.title}</h4><ul>${(c.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
-  document.getElementById('footerInner').innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
+  const colData=ft.columns||[];
+  const cols=colData.map(c=>`<div><h4>${c.title}</h4><ul>${(c.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
+  const el=document.getElementById('footerInner');
+  el.innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
+  // 动态设置列数：品牌列 2fr，每个导航栏目 1fr
+  const navCount=colData.length;
+  el.style.gridTemplateColumns=navCount>0?`2fr ${Array(navCount).fill('1fr').join(' ')}`:'1fr';
   document.getElementById('ftCopy').textContent=ft.copyright||'';
 }
 
@@ -285,26 +293,27 @@ function renderFooter(ft){
 const scLiked = new Set(JSON.parse(localStorage.getItem('g_sc_liked') || '[]'));
 const scMap = {};
 
+let scScrollRAF = null, scScrollPaused = false, scScrollPos = 0, scScrollSpeed = 0;
+let scDragStartX = 0, scDragScrollX = 0, scIsDragging = false;
+
 async function loadShowcase() {
   const res = await fetch('/api/showcase').then(r => r.json());
   const cfg = res.config || {};
   const items = res.items || [];
-  // 未开启或无内容则隐藏
   if (!cfg.enabled || !items.length) return;
   items.forEach(i => scMap[i.id] = i);
-  // 应用 config
   document.getElementById('showcaseTitle').textContent = cfg.title || '橱窗精选';
   document.getElementById('showcaseSub').textContent = cfg.subtitle || 'SHOWCASE';
-  const cols = Math.min(Math.max(parseInt(cfg.columns)||4, 1), 4);
-  const cardH = Math.min(600, Math.max(100, parseInt(cfg.cardHeight)||200));
+  const cardH = Math.min(800, Math.max(100, parseInt(cfg.cardHeight)||200));
+  const cardW = Math.min(600, Math.max(120, parseInt(cfg.cardWidth)||280));
+  scScrollSpeed = Math.min(300, Math.max(0, parseInt(cfg.scrollSpeed)||0));
   const row = document.getElementById('showcaseRow');
-  row.style.gridTemplateColumns = `repeat(${cols},1fr)`;
-  // 动态设置卡片缩略图高度
+  // 动态样式
   const styleId = 'sc-dyn-style';
   let dynStyle = document.getElementById(styleId);
   if (!dynStyle) { dynStyle = document.createElement('style'); dynStyle.id = styleId; document.head.appendChild(dynStyle); }
-  dynStyle.textContent = `.sc-thumb{height:${cardH}px!important}`;
-  row.innerHTML = items.slice(0, cols).map(item => {
+  dynStyle.textContent = `.sc-thumb{height:${cardH}px!important}.sc-card{width:${cardW}px;flex-shrink:0}`;
+  const makeCard = (item) => {
     const cover = item.cover || item.filename;
     const isLiked = scLiked.has(item.id);
     return `<div class="sc-card" onclick="openScModal('${item.id}')">
@@ -323,8 +332,62 @@ async function loadShowcase() {
         ${item.description?`<p>${esc(item.description)}</p>`:''}
       </div>`:''}
     </div>`;
-  }).join('');
+  };
+  // 填充卡片（如果开启滚动，复制两份实现无缝循环）
+  const cards = items.map(makeCard).join('');
+  row.innerHTML = scScrollSpeed > 0 ? cards + cards : cards;
   document.getElementById('showcase-section').style.display = 'block';
+  // 启动自动滚动
+  if (scScrollRAF) cancelAnimationFrame(scScrollRAF);
+  scScrollPos = 0; row.style.transform = 'translateX(0)';
+  if (scScrollSpeed > 0) scStartScroll();
+  // 拖拽滚动
+  const wrap = document.getElementById('showcaseWrap');
+  wrap.onmousedown = scDragStart;
+  wrap.ontouchstart = scDragStart;
+  document.onmousemove = scDragMove;
+  document.ontouchmove = scDragMove;
+  document.onmouseup = scDragEnd;
+  document.ontouchend = scDragEnd;
+  wrap.onmouseenter = () => scScrollPaused = true;
+  wrap.onmouseleave = () => scScrollPaused = false;
+}
+
+function scStartScroll() {
+  const row = document.getElementById('showcaseRow');
+  if (!row) return;
+  const halfW = row.scrollWidth / 2;
+  let last = null;
+  function step(ts) {
+    if (!scScrollPaused && !scIsDragging) {
+      const dt = last ? (ts - last) / 1000 : 0;
+      scScrollPos += scScrollSpeed * dt;
+      if (scScrollPos >= halfW) scScrollPos -= halfW;
+      row.style.transform = `translateX(${-scScrollPos}px)`;
+    }
+    last = ts;
+    scScrollRAF = requestAnimationFrame(step);
+  }
+  scScrollRAF = requestAnimationFrame(step);
+}
+
+function scDragStart(e) {
+  scIsDragging = true;
+  scScrollPaused = true;
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  scDragStartX = clientX + scScrollPos;
+}
+function scDragMove(e) {
+  if (!scIsDragging) return;
+  e.preventDefault && e.preventDefault();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  scScrollPos = Math.max(0, scDragStartX - clientX);
+  const row = document.getElementById('showcaseRow');
+  if (row) row.style.transform = `translateX(${-scScrollPos}px)`;
+}
+function scDragEnd() {
+  scIsDragging = false;
+  setTimeout(() => scScrollPaused = false, 100);
 }
 
 async function scDoLike(e, id, btn) {
