@@ -10,23 +10,16 @@ from email.utils import formataddr
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 
-# Railway 单 Volume 方案：
-# Volume 挂载到 /app/static/uploads，数据 JSON 存到其下的 _data/ 子目录
-# 用 __file__ 的绝对路径作基准，彻底避免相对路径陷阱
-_BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
-_UPLOAD_DIR = os.environ.get('UPLOAD_DIR', os.path.join(_BASE_DIR, 'static', 'uploads'))
-_DATA_DIR   = os.environ.get('DATA_DIR',   os.path.join(_UPLOAD_DIR, '_data'))
-
-UPLOAD_FOLDER = _UPLOAD_DIR
+UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-DATA_FILE      = os.path.join(_DATA_DIR, 'content.json')
-MESSAGES_FILE  = os.path.join(_DATA_DIR, 'messages.json')
-SITE_FILE      = os.path.join(_DATA_DIR, 'site.json')
-VISITORS_FILE  = os.path.join(_DATA_DIR, 'visitors.json')
-LIKES_FILE     = os.path.join(_DATA_DIR, 'likes.json')
-AUTH_FILE      = os.path.join(_DATA_DIR, 'auth.json')
-SMTP_FILE      = os.path.join(_DATA_DIR, 'smtp.json')
+DATA_FILE     = 'data/content.json'
+MESSAGES_FILE = 'data/messages.json'
+SITE_FILE     = 'data/site.json'
+VISITORS_FILE = 'data/visitors.json'
+LIKES_FILE    = 'data/likes.json'
+AUTH_FILE     = 'data/auth.json'
+SMTP_FILE     = 'data/smtp.json'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -43,7 +36,6 @@ def load_json(path, default):
     return default
 
 def save_json(path, data):
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -383,46 +375,6 @@ def api_like(item_id):
 
 # ── Admin Routes (protected) ──
 
-@app.route('/admin/debug-paths')
-@login_required
-def debug_paths():
-    """查看当前数据路径（仅用于排查 Railway 持久化问题）"""
-    import os
-    paths = {
-        'UPLOAD_FOLDER': UPLOAD_FOLDER,
-        '_DATA_DIR': _DATA_DIR,
-        'DATA_FILE': DATA_FILE,
-        'AUTH_FILE': AUTH_FILE,
-        'SMTP_FILE': SMTP_FILE,
-        'SHOWCASE_FILE': SHOWCASE_FILE,
-    }
-    status = {}
-    for k, v in paths.items():
-        status[k] = {
-            'path': v,
-            'exists': os.path.exists(v),
-            'is_dir': os.path.isdir(v) if os.path.exists(v) else None,
-        }
-    # 列出 _DATA_DIR 下的文件
-    try:
-        files = os.listdir(_DATA_DIR)
-    except Exception as e:
-        files = [f'ERROR: {e}']
-    try:
-        uploads = os.listdir(UPLOAD_FOLDER)[:20]
-    except Exception as e:
-        uploads = [f'ERROR: {e}']
-    return jsonify({
-        'env': {
-            'UPLOAD_DIR': os.environ.get('UPLOAD_DIR', '(not set)'),
-            'DATA_DIR': os.environ.get('DATA_DIR', '(not set)'),
-            'BASE_DIR': _BASE_DIR,
-            'CWD': os.getcwd(),
-        },
-        'paths': status,
-        'data_files': files,
-        'uploads_sample': uploads,
-    })
 
 @app.route('/admin')
 @login_required
@@ -909,7 +861,7 @@ def admin_media_replace(filename):
 # ═══════════════════════════════════════════════════
 # 橱窗 API
 # ═══════════════════════════════════════════════════
-SHOWCASE_FILE = os.path.join(_DATA_DIR, 'showcase.json')  # 已随 _DATA_DIR 正确
+SHOWCASE_FILE = 'data/showcase.json'
 
 def load_showcase():
     d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
@@ -1294,7 +1246,7 @@ def admin_account_email():
 
 def init_app():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(_DATA_DIR, exist_ok=True)   # static/uploads/_data/
+    os.makedirs('data', exist_ok=True)
     if not os.path.exists(DATA_FILE):
         save_data({"categories": ["摄影", "插画", "设计", "视频", "其他"], "items": []})
     if not os.path.exists(SITE_FILE):
