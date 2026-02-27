@@ -193,6 +193,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="dz-text" id="dzText">点击或拖拽文件到此处</div>
       <div class="dz-hint">JPG PNG GIF WEBP MP4 MOV WEBM</div>
     </div>
+    <button class="btn btn-s btn-sm" style="margin-top:7px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;})">🗂 从媒体库选</button>
     <div class="pb" id="pb"><div class="pf" id="pf"></div></div>
   </div>
   <div class="card"><div class="ct">📝 作品信息</div>
@@ -209,7 +210,14 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="fg"></div>
     </div>
     <div class="fg" style="margin-bottom:11px"><label>描述</label><textarea class="inp" id="upDesc" rows="2" placeholder="简短描述..."></textarea></div>
-    <div class="fg" style="margin-bottom:16px"><label>封面图（可选，不选则自动使用原文件）</label><input class="inp" type="file" id="coverInp" accept="image/*" style="padding:6px"></div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>封面图（可选，不选则自动使用原文件）</label>
+      <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+        <input class="inp" type="file" id="coverInp" accept="image/*" style="padding:6px;flex:1;min-width:0">
+        <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{document.getElementById('coverInp')._mpFile=fn;document.getElementById('coverInp')._mpUrl=url;toast('封面已选：'+fn);},'image')">🗂 从媒体库选</button>
+      </div>
+      <div id="coverPickPreview" style="margin-top:6px;display:none"><img id="coverPickImg" style="height:60px;border-radius:6px;object-fit:cover"></div>
+    </div>
     <button class="btn btn-p" onclick="submitUpload()">上传发布 →</button>
   </div>
 </div>
@@ -254,6 +262,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <button class="sc-col-btn active" data-col="4" onclick="scSetCols(4)">4</button>
         </div>
       </div>
+      <div class="fg" style="max-width:200px">
+        <label>卡片高度（px，100~600）</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <input class="inp" type="number" id="scCfgHeight" min="100" max="600" step="10" value="200" style="width:90px">
+          <input type="range" id="scCfgHeightRange" min="100" max="600" step="10" value="200" style="flex:1;accent-color:var(--ac)"
+            oninput="document.getElementById('scCfgHeight').value=this.value">
+        </div>
+        <div style="font-size:10px;color:var(--mu);margin-top:3px">默认 200px（约 16:9）</div>
+      </div>
     </div>
     <button class="btn btn-p btn-sm" onclick="scSaveConfig()">保存设置</button>
   </div>
@@ -283,6 +300,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <span id="scDzText" style="margin-left:6px">点击选择图片或视频</span>
         </div>
         <input type="file" id="scFile" accept="image/*,video/*" style="display:none" onchange="scFileChange(this)">
+        <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scDzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('scDzText').textContent=fn;document.getElementById('scFile')._mpFile=fn;})">🗂 从媒体库选</button>
       </div>
       <div class="fg">
         <label>视频封面图（视频时必填）</label>
@@ -291,6 +309,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <span id="scCoverText" style="margin-left:6px">可选封面图</span>
         </div>
         <input type="file" id="scCover" accept="image/*" style="display:none" onchange="scCoverChange(this)">
+        <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="openMediaPicker((fn,url)=>{document.getElementById('scCoverIcon').textContent='✅';document.getElementById('scCoverText').textContent=fn;document.getElementById('scCover')._mpFile=fn;},'image')">🗂 从媒体库选</button>
       </div>
     </div>
     <button class="btn btn-p" onclick="scUpload()">上传到橱窗</button>
@@ -332,11 +351,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="fr" style="margin-bottom:4px">
       <div class="fg">
         <label>主文件</label>
-        <input class="inp" type="file" id="scEditFile" accept="image/*,video/*" style="padding:5px">
+        <input class="inp" type="file" id="scEditFile" accept="image/*,video/*" style="padding:5px;margin-bottom:5px">
+        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;},'')" style="width:100%">🗂 从媒体库选</button>
+        <div id="scEditFilename" style="font-size:10px;color:var(--ac);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
       </div>
       <div class="fg">
         <label>封面图</label>
-        <input class="inp" type="file" id="scEditCover" accept="image/*" style="padding:5px">
+        <input class="inp" type="file" id="scEditCover" accept="image/*" style="padding:5px;margin-bottom:5px">
+        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url)=>{document.getElementById('scEditCover')._mpFile=fn;document.getElementById('scEditCoverName').textContent=fn;},'image')" style="width:100%">🗂 从媒体库选</button>
+        <div id="scEditCoverName" style="font-size:10px;color:var(--ac);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
       </div>
     </div>
     <div class="mact" style="margin-top:14px">
@@ -363,6 +386,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <option value="unused">未引用</option>
     </select>
     <span id="mediaCount" style="font-size:12px;color:var(--mu);margin-left:auto"></span>
+    <button class="btn btn-d btn-sm" onclick="mediaCleanup()" title="删除所有未被任何内容引用的文件" style="white-space:nowrap">🧹 清理垃圾</button>
   </div>
   <!-- 批量操作栏（选中后显示）-->
   <div id="mediaBatchBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:rgba(200,169,126,.1);border:1px solid rgba(200,169,126,.3);border-radius:9px;margin-bottom:10px">
@@ -480,7 +504,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div id="heroBgPreview" class="img-thumb-ph">🌄</div>
       <div style="flex:1">
         <input class="inp" type="file" id="heroBgInp" accept="image/*" style="padding:6px;margin-bottom:6px" onchange="previewImg(this,'heroBgPreview')">
-        <button class="btn btn-s btn-sm" onclick="uploadAboutImg('heroBgInp','heroImage')">上传横幅图</button>
+        <div style="display:flex;gap:7px;margin-bottom:6px">
+          <button class="btn btn-s btn-sm" onclick="uploadAboutImg('heroBgInp','heroImage')">上传横幅图</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpSetAboutImg(fn,url,'heroBgPreview','heroImage');},'image')">🗂 从媒体库选</button>
+        </div>
       </div>
     </div>
   </div>
@@ -496,7 +523,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <div id="avatarImgPreview" class="img-thumb-ph" style="border-radius:50%">👤</div>
         <div style="flex:1">
           <input class="inp" type="file" id="avatarImgInp" accept="image/*" style="padding:6px;margin-bottom:6px" onchange="previewImg(this,'avatarImgPreview')">
-          <button class="btn btn-s btn-sm" onclick="uploadAboutImg('avatarImgInp','avatarImage')">上传头像</button>
+          <div style="display:flex;gap:7px;margin-bottom:6px">
+            <button class="btn btn-s btn-sm" onclick="uploadAboutImg('avatarImgInp','avatarImage')">上传头像</button>
+            <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpSetAboutImg(fn,url,'avatarImgPreview','avatarImage');},'image')">🗂 从媒体库选</button>
+          </div>
         </div>
       </div>
     </div>
@@ -591,7 +621,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <div id="mpImgPreview" class="img-thumb-ph" style="width:120px;height:80px;border-radius:9px;flex-shrink:0">🌄</div>
         <div style="flex:1">
           <input class="inp" type="file" id="mpImgInp" accept="image/*" style="padding:6px;margin-bottom:7px">
-          <button class="btn btn-s btn-sm" onclick="uploadMpBg()">上传背景图</button>
+          <div style="display:flex;gap:7px;margin-bottom:7px">
+            <button class="btn btn-s btn-sm" onclick="uploadMpBg()">上传背景图</button>
+            <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpPickBg(fn,url);},'image')">🗂 从媒体库选</button>
+          </div>
         </div>
       </div>
     </div>
@@ -631,7 +664,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div id="mpAvatarPreview" class="img-thumb-ph" style="border-radius:50%;width:64px;height:64px;flex-shrink:0">👤</div>
       <div style="flex:1">
         <input class="inp" type="file" id="mpAvatarInp" accept="image/*" style="padding:6px;margin-bottom:7px">
-        <button class="btn btn-s btn-sm" onclick="uploadMpAvatar()">上传默认头像</button>
+        <div style="display:flex;gap:7px;margin-bottom:7px">
+          <button class="btn btn-s btn-sm" onclick="uploadMpAvatar()">上传默认头像</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpPickAvatar(fn,url);},'image')">🗂 从媒体库选</button>
+        </div>
       </div>
     </div>
   </div>
@@ -788,9 +824,11 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');do
 
 async function submitUpload(){
   const f=document.getElementById('fileInp');
-  if(!f.files[0]){toast('请选择文件','err');return;}
+  const mpFile=f._mpFile;
+  if(!f.files[0]&&!mpFile){toast('请选择文件','err');return;}
   const fd=new FormData();
-  fd.append('file',f.files[0]);
+  if(f.files[0]) fd.append('file',f.files[0]);
+  else fd.append('existing_file',mpFile);
   fd.append('title',document.getElementById('upTitle').value);
   const upCats=getUpCatSelected();
   if(!upCats.length){toast('请至少选择一个分类','err');return;}
@@ -800,14 +838,14 @@ async function submitUpload(){
   fd.append('width',document.getElementById('upW').value||800);
   fd.append('height',document.getElementById('upH').value||600);
   fd.append('likes',document.getElementById('upLikes').value||0);
-  const cv=document.getElementById('coverInp');if(cv.files[0])fd.append('cover',cv.files[0]);
+  const cv=document.getElementById('coverInp');if(cv.files[0])fd.append('cover',cv.files[0]);else if(cv._mpFile)fd.append('existing_cover',cv._mpFile);
   document.getElementById('pb').style.display='block';document.getElementById('pf').style.width='40%';
   const res=await fetch('/admin/upload',{method:'POST',body:fd});
   document.getElementById('pf').style.width='100%';
   if(res.ok){
     const d=await res.json();allItems.unshift(d.item);document.getElementById('sTotal').textContent=allItems.length;
     setTimeout(()=>{document.getElementById('pb').style.display='none';document.getElementById('pf').style.width='0';},500);
-    toast('✓ 上传成功！');f.value='';cv.value='';document.getElementById('dzIcon').textContent='📁';document.getElementById('dzText').textContent='点击或拖拽文件到此处';document.getElementById('upTitle').value='';document.getElementById('upDesc').value='';document.getElementById('upLikes').value='0';renderUpCatBox([]);
+    toast('✓ 上传成功！');f.value='';cv.value='';document.getElementById('dzIcon').textContent='📁';document.getElementById('dzText').textContent='点击或拖拽文件到此处';document.getElementById('upTitle').value='';document.getElementById('upDesc').value='';document.getElementById('upLikes').value='0';renderUpCatBox([]);document.getElementById('fileInp')._mpFile=null;document.getElementById('coverInp')._mpFile=null;
   }else{toast('上传失败','err');document.getElementById('pb').style.display='none';}
 }
 
@@ -1028,9 +1066,12 @@ function addParagraph(){if(!siteData.about)siteData.about={};if(!siteData.about.
 function removePara(i){siteData.about.paragraphs.splice(i,1);renderParagraphs(siteData.about.paragraphs);}
 function iconThumbHtml(icon, type, idx){
   const src=icon?`/static/uploads/${icon}`:'';
-  return `<div class="icon-thumb" onclick="triggerIconUpload('${type}',${idx})" title="点击上传图标">
-    ${src?`<img src="${src}" onerror="this.parentElement.innerHTML='🔧'">`:
-    (type==='skill'?'🔧':'🔗')}
+  const thumb=src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:(type==='skill'?'🔧':'🔗');
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+    <div class="icon-thumb" onclick="triggerIconUpload('${type}',${idx})" title="上传图标" style="flex-shrink:0">${thumb}</div>
+    <button onclick="openMediaPicker((fn,url)=>setIconFromMedia('${type}',${idx},fn),'image')"
+      style="font-size:8px;padding:1px 4px;border-radius:4px;border:1px solid var(--bd);background:var(--s2);color:var(--mu);cursor:pointer;white-space:nowrap;line-height:1.5"
+      title="从媒体库选">🗂</button>
   </div>`;
 }
 function renderSkills(skills){
@@ -1063,6 +1104,19 @@ function triggerIconUpload(type, idx){
   let inp=document.getElementById('_iconUploadInp');
   if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.id='_iconUploadInp';inp.style.display='none';inp.onchange=doIconUpload;document.body.appendChild(inp);}
   inp.value=''; inp.click();
+}
+function setIconFromMedia(type, idx, filename){
+  if(!siteData.about) siteData.about={};
+  if(type==='skill'){
+    if(!siteData.about.skills||!siteData.about.skills[idx]) return;
+    siteData.about.skills[idx].icon=filename;
+    renderSkills(siteData.about.skills);
+  } else {
+    if(!siteData.about.socials||!siteData.about.socials[idx]) return;
+    siteData.about.socials[idx].icon=filename;
+    renderSocialLinks(siteData.about.socials);
+  }
+  toast('图标已选择，记得保存设置');
 }
 async function doIconUpload(e){
   const file=e.target.files[0]; if(!file) return;
@@ -1267,12 +1321,12 @@ async function changePassword(){
 // ═══════════════════════════════════════════════════
 // SHOWCASE ADMIN
 // ═══════════════════════════════════════════════════
-let scItems = [], scDragId = '', scCfg = {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4};
+let scItems = [], scDragId = '', scCfg = {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200};
 
 async function loadShowcaseAdmin() {
   const d = await fetch('/admin/showcase').then(r => r.json());
   scItems = d.items || d;  // backward compat
-  scCfg = d.config || {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4};
+  scCfg = d.config || {enabled:true,title:'橱窗精选',subtitle:'SHOWCASE',columns:4,cardHeight:200};
   renderScCfg();
   renderScList();
 }
@@ -1294,6 +1348,12 @@ function renderScCfg() {
   if (s) s.value = scCfg.subtitle || 'SHOWCASE';
   // Columns
   scSetCols(scCfg.columns || 4, false);
+  // Card height
+  const hInp = document.getElementById('scCfgHeight');
+  const hRange = document.getElementById('scCfgHeightRange');
+  const hVal = scCfg.cardHeight || 200;
+  if (hInp) { hInp.value = hVal; hInp.oninput = () => { hRange.value = hInp.value; }; }
+  if (hRange) hRange.value = hVal;
 }
 
 function scToggleEnabled() {
@@ -1317,6 +1377,7 @@ async function scSaveConfig() {
     title: document.getElementById('scCfgTitle').value || '橱窗精选',
     subtitle: document.getElementById('scCfgSubtitle').value || 'SHOWCASE',
     columns: scCfg.columns || 4,
+    cardHeight: Math.min(600, Math.max(100, parseInt(document.getElementById('scCfgHeight').value) || 200)),
   };
   const res = await fetch('/admin/showcase/config', {
     method: 'PUT', headers: {'Content-Type':'application/json'},
@@ -1399,20 +1460,28 @@ function scCoverChange(inp) {
 }
 
 async function scUpload() {
-  const file = document.getElementById('scFile').files[0];
-  if (!file) { toast('请选择文件', 'err'); return; }
+  const scFileEl = document.getElementById('scFile');
+  const file = scFileEl.files[0];
+  const mpFile = scFileEl._mpFile;
+  if (!file && !mpFile) { toast('请选择文件', 'err'); return; }
   const fd = new FormData();
-  fd.append('file', file);
+  if (file) fd.append('file', file);
+  else fd.append('existing_file', mpFile);
   fd.append('title', document.getElementById('scUpTitle').value);
   fd.append('description', document.getElementById('scUpDesc').value);
   fd.append('link', document.getElementById('scUpLink').value);
-  const cover = document.getElementById('scCover').files[0];
+  const scCoverEl = document.getElementById('scCover');
+  const cover = scCoverEl.files[0];
+  const mpCover = scCoverEl._mpFile;
   if (cover) fd.append('cover', cover);
+  else if (mpCover) fd.append('existing_cover', mpCover);
   const res = await fetch('/admin/showcase/upload', {method:'POST', body:fd});
   if (res.ok) {
     // Reset form
     document.getElementById('scFile').value = '';
+    document.getElementById('scFile')._mpFile = null;
     document.getElementById('scCover').value = '';
+    document.getElementById('scCover')._mpFile = null;
     document.getElementById('scUpTitle').value = '';
     document.getElementById('scUpDesc').value = '';
     document.getElementById('scUpLink').value = '';
@@ -1437,7 +1506,13 @@ function openScEdit(id) {
   document.getElementById('scEditCover').value = '';
   document.getElementById('scEditOverlay').classList.add('open');
 }
-function closeScEdit() { document.getElementById('scEditOverlay').classList.remove('open'); }
+function closeScEdit() {
+  document.getElementById('scEditOverlay').classList.remove('open');
+  const fe=document.getElementById('scEditFile'); if(fe){fe.value='';fe._mpFile=null;}
+  const ce=document.getElementById('scEditCover'); if(ce){ce.value='';ce._mpFile=null;}
+  const fn=document.getElementById('scEditFilename'); if(fn) fn.textContent='';
+  const cn=document.getElementById('scEditCoverName'); if(cn) cn.textContent='';
+}
 
 async function scSaveEdit() {
   const id = document.getElementById('scEditId').value;
@@ -1454,10 +1529,14 @@ async function scSaveEdit() {
   // Replace files if provided
   const fileInp = document.getElementById('scEditFile');
   const coverInp = document.getElementById('scEditCover');
-  if (fileInp.files[0] || coverInp.files[0]) {
+  const hasFile = fileInp.files[0] || fileInp._mpFile;
+  const hasCover = coverInp.files[0] || coverInp._mpFile;
+  if (hasFile || hasCover) {
     const fd = new FormData();
     if (fileInp.files[0]) fd.append('file', fileInp.files[0]);
+    else if (fileInp._mpFile) fd.append('existing_file', fileInp._mpFile);
     if (coverInp.files[0]) fd.append('cover', coverInp.files[0]);
+    else if (coverInp._mpFile) fd.append('existing_cover', coverInp._mpFile);
     await fetch('/admin/showcase/' + id + '/replace', {method:'POST', body:fd});
   }
   if (r1.ok) { closeScEdit(); await loadShowcaseAdmin(); toast('保存成功'); }
@@ -1469,6 +1548,136 @@ async function scDelete(id) {
   const res = await fetch('/admin/showcase/' + id, {method:'DELETE'});
   if (res.ok) { await loadShowcaseAdmin(); toast('已删除'); }
   else toast('删除失败','err');
+}
+
+
+// ════════════════════════════════════════════
+// 媒体库选择器（通用）
+// ════════════════════════════════════════════
+let mpCallback=null, mpAllFiles=[], mpFiltered=[], mpPage=1;
+const MP_PAGE_SIZE=24;
+
+async function openMediaPicker(cb, typeFilter=''){
+  mpCallback=cb; mpPage=1;
+  document.getElementById('mpSearch').value='';
+  document.getElementById('mpTypeFilter').value=typeFilter;
+  document.getElementById('mediaPickerOverlay').classList.add('open');
+  document.getElementById('mpGrid').innerHTML='<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center">加载中...</div>';
+  document.getElementById('mpPager').innerHTML='';
+  document.getElementById('mpInfo').textContent='';
+  const d=await fetch('/admin/media').then(r=>r.json());
+  mpAllFiles=d.files||[];
+  mpFilter();
+}
+
+function mpFilter(){
+  const q=(document.getElementById('mpSearch').value||'').toLowerCase();
+  const t=document.getElementById('mpTypeFilter').value;
+  mpFiltered=mpAllFiles.filter(f=>{
+    if(q&&!f.filename.toLowerCase().includes(q))return false;
+    if(t&&f.type!==t)return false;
+    return true;
+  });
+  mpPage=1;
+  renderMpGrid();
+}
+
+function renderMpGrid(){
+  const grid=document.getElementById('mpGrid');
+  const total=mpFiltered.length;
+  const totalPages=Math.max(1,Math.ceil(total/MP_PAGE_SIZE));
+  if(mpPage>totalPages)mpPage=totalPages;
+  const start=(mpPage-1)*MP_PAGE_SIZE;
+  const pageFiles=mpFiltered.slice(start,start+MP_PAGE_SIZE);
+
+  document.getElementById('mpInfo').textContent=total?`共 ${total} 个文件`:'';
+
+  if(!total){
+    grid.innerHTML='<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center;grid-column:1/-1">无匹配文件</div>';
+    document.getElementById('mpPager').innerHTML='';
+    return;
+  }
+
+  // 用 index 做 key，避免文件名里引号导致的 onclick 注入问题
+  const startIdx=(mpPage-1)*MP_PAGE_SIZE;
+  grid.innerHTML='';
+  pageFiles.forEach((f,i)=>{
+
+    const isImg=f.type==='image', isVid=f.type==='video';
+    const coverSrc=isImg?f.url:(f.cover?'/static/uploads/'+f.cover:null);
+    let thumbInner;
+    if(coverSrc){
+      thumbInner='<img src="'+coverSrc+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" loading="lazy">';
+      if(isVid) thumbInner+='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 12 12" fill="#333"><polygon points="3,1 11,6 3,11"/></svg></div></div>';
+    } else if(isVid){
+      thumbInner='<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 12 12" fill="rgba(255,255,255,.9)"><polygon points=\"3,1 11,6 3,11\"/></svg></div><span style="font-size:9px;color:rgba(255,255,255,.6)">'+f.ext.toUpperCase()+'</span></div>';
+    } else {
+      thumbInner='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--s3)">📄</div>';
+    }
+    const size=f.size>1024*1024?(f.size/1024/1024).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB';
+    const name=f.filename.length>16?f.filename.slice(0,14)+'..':f.filename;
+    const idx=startIdx+i;
+    const card=document.createElement('div');
+    card.dataset.mpidx=idx;
+    card.style.cssText='background:var(--s2);border:2px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;aspect-ratio:1/1;display:flex;flex-direction:column';
+    card.onclick=()=>mpSelectByIdx(idx);
+    card.onmouseover=()=>{card.style.borderColor='var(--ac)';card.style.transform='scale(1.03)';};
+    card.onmouseout=()=>{card.style.borderColor='var(--bd)';card.style.transform='';};
+    card.innerHTML='<div style="position:relative;flex:1;overflow:hidden;background:var(--s3)">'+thumbInner+'</div>'+
+      '<div style="padding:5px 7px;flex-shrink:0;background:var(--s2)">'+
+        '<div style="font-size:10px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3">'+name+'</div>'+
+        '<div style="font-size:9px;color:var(--mu)">'+size+'</div>'+
+      '</div>';
+    grid.appendChild(card);
+  });
+
+  // 分页按钮
+  renderMpPager(totalPages);
+}
+
+function renderMpPager(totalPages){
+  const pager=document.getElementById('mpPager');
+  if(totalPages<=1){pager.innerHTML='';return;}
+  const btn=(n,label,disabled,active)=>`<button onclick="mpGoPage(${n})"
+    style="min-width:30px;height:30px;padding:0 8px;border-radius:7px;border:1px solid ${active?'var(--ac)':'var(--bd)'};
+    background:${active?'var(--ac)':'var(--s2)'};color:${active?'#fff':'var(--tx)'};
+    font-size:12px;cursor:${disabled?'default':'pointer'};opacity:${disabled?'.4':'1'};
+    font-family:inherit"
+    ${disabled?'disabled':''}>
+    ${label}
+  </button>`;
+  let html=btn(1,'«',mpPage===1,false)+btn(mpPage-1,'‹',mpPage===1,false);
+  // 显示周围页码
+  const lo=Math.max(1,mpPage-2), hi=Math.min(totalPages,mpPage+2);
+  if(lo>1) html+='<span style="color:var(--mu);font-size:12px;padding:0 2px">…</span>';
+  for(let i=lo;i<=hi;i++) html+=btn(i,i,false,i===mpPage);
+  if(hi<totalPages) html+='<span style="color:var(--mu);font-size:12px;padding:0 2px">…</span>';
+  html+=btn(mpPage+1,'›',mpPage===totalPages,false)+btn(totalPages,'»',mpPage===totalPages,false);
+  pager.innerHTML=html;
+}
+
+function mpGoPage(n){
+  const totalPages=Math.ceil(mpFiltered.length/MP_PAGE_SIZE);
+  if(n<1||n>totalPages)return;
+  mpPage=n;
+  renderMpGrid();
+  document.getElementById('mpGrid').scrollTop=0;
+}
+
+function mpSelectByIdx(idx){
+  const f=mpFiltered[idx];
+  if(!f)return;
+  if(mpCallback) mpCallback(f.filename, f.url, f.type);
+  closeMediaPicker();
+}
+function mpSelect(filename, url, type){
+  if(mpCallback) mpCallback(filename, url, type);
+  closeMediaPicker();
+}
+
+function closeMediaPicker(){
+  document.getElementById('mediaPickerOverlay').classList.remove('open');
+  mpCallback=null;
 }
 
 // MEDIA LIBRARY
@@ -1595,6 +1804,22 @@ function openMedia(f){
   document.getElementById('mediaOverlay').classList.add('open');
 }
 function closeMedia(){document.getElementById('mediaOverlay').classList.remove('open');curMediaFile=null;}
+async function mediaCleanup(){
+  const unused=allMediaFiles.filter(f=>!f.refs.length);
+  if(!unused.length){toast('没有未引用的文件，无需清理');return;}
+  const totalSize=unused.reduce((s,f)=>s+f.size,0);
+  const sizeTxt=totalSize>1024*1024?(totalSize/1024/1024).toFixed(1)+' MB':(totalSize/1024).toFixed(0)+' KB';
+  if(!confirm(`发现 ${unused.length} 个未引用文件，共 ${sizeTxt}。\n\n确定一次性删除全部？此操作不可撤销。`))return;
+  const btn=document.querySelector('[onclick="mediaCleanup()"]');
+  if(btn){btn.disabled=true;btn.textContent='🧹 清理中...';}
+  const res=await fetch('/admin/media/cleanup',{method:'POST'});
+  if(btn){btn.disabled=false;btn.textContent='🧹 清理垃圾';}
+  if(res.ok){
+    const d=await res.json();
+    await loadMedia();
+    toast(`✓ 已清理 ${d.deleted} 个文件${d.errors.length?'，'+d.errors.length+' 个失败':''}`)
+  }else toast('清理失败','err');
+}
 function closeMediaIfBg(e){if(e.target===document.getElementById('mediaOverlay'))closeMedia();}
 async function doMediaReplace(){
   if(!curMediaFile)return;
@@ -1609,6 +1834,48 @@ async function doMediaDelete(){
   if(!confirm(`确定删除 "${curMediaFile.filename}"？${curMediaFile.refs.length?'\n⚠️ 此文件已被引用，删除后相关内容可能显示异常。':''}`))return;
   const res=await fetch('/admin/media/delete/'+encodeURIComponent(curMediaFile.filename),{method:'DELETE'});
   if(res.ok){closeMedia();loadMedia();toast('已删除');}else toast('删除失败','err');
+}
+
+
+// 媒体库选取辅助函数
+
+// 关于我：直接设置已有图片（不需要重新上传，直接更新 siteData 里的字段）
+async function mpSetAboutImg(filename, url, previewId, field){
+  // 更新预览
+  const prev = document.getElementById(previewId);
+  if(prev){
+    prev.style.backgroundImage = '';
+    prev.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">`;
+  }
+  // 直接更新 siteData 并保存
+  if(!siteData.about) siteData.about={};
+  siteData.about[field] = filename;
+  const res = await fetch('/admin/site/about', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(siteData.about)
+  });
+  if(res.ok) toast('已设置：' + filename);
+  else toast('设置失败','err');
+}
+
+// 留言板背景图：从媒体库选取
+async function mpPickBg(filename, url){
+  mpBgFilename = filename;
+  mpBgType = 'image';
+  document.getElementById('mpBgType') && (document.getElementById('mpBgType').value='image');
+  setMpBgType('image');
+  // 更新预览
+  const prev = document.getElementById('mpImgPreview');
+  if(prev) { prev.src = url; prev.style.display='block'; }
+  toast('背景图已选：' + filename);
+}
+
+// 留言板默认头像：从媒体库选取
+async function mpPickAvatar(filename, url){
+  mpAvatarFilename = filename;
+  const prev = document.getElementById('mpAvatarPreview');
+  if(prev) { prev.src = url; prev.style.display='block'; }
+  toast('头像已选：' + filename);
 }
 
 // MSGPAGE
@@ -1708,5 +1975,28 @@ async function doChangePw(){
 
 init();
 </script>
+
+<!-- 媒体库选择器 Modal -->
+<div class="overlay" id="mediaPickerOverlay" onclick="if(event.target===this)closeMediaPicker()" style="z-index:2000">
+  <div class="mbox" style="max-width:900px;width:96vw;max-height:90vh;display:flex;flex-direction:column;padding:18px">
+    <!-- 顶栏 -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0;flex-wrap:wrap">
+      <h3 style="margin:0;flex:1;font-size:15px">📁 从媒体库选择</h3>
+      <input class="inp" id="mpSearch" placeholder="搜索文件名..." style="width:160px;margin:0" oninput="mpFilter()">
+      <select class="inp" id="mpTypeFilter" style="width:100px;margin:0" onchange="mpFilter()">
+        <option value="">全部</option>
+        <option value="image">图片</option>
+        <option value="video">视频</option>
+      </select>
+      <span id="mpInfo" style="font-size:11px;color:var(--mu)"></span>
+      <button class="btn btn-s btn-sm" onclick="closeMediaPicker()">✕</button>
+    </div>
+    <!-- 图片网格 -->
+    <div id="mpGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;flex:1;overflow-y:auto;padding-right:2px;min-height:200px"></div>
+    <!-- 分页栏 -->
+    <div id="mpPager" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:12px;flex-shrink:0"></div>
+  </div>
+</div>
+
 </body>
 </html>
