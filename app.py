@@ -10,16 +10,22 @@ from email.utils import formataddr
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 
-UPLOAD_FOLDER = 'static/uploads'
+# Railway 单 Volume 方案：
+# Volume 挂载到 /app/static/uploads，数据 JSON 存到其下的 _data/ 子目录
+# 这样上传文件和所有配置数据都在同一个持久化路径内
+_UPLOAD_DIR = os.environ.get('UPLOAD_DIR', 'static/uploads')
+_DATA_DIR   = os.environ.get('DATA_DIR',   os.path.join(_UPLOAD_DIR, '_data'))
+
+UPLOAD_FOLDER = _UPLOAD_DIR
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-DATA_FILE = 'data/content.json'
-MESSAGES_FILE = 'data/messages.json'
-SITE_FILE = 'data/site.json'
-VISITORS_FILE = 'data/visitors.json'
-LIKES_FILE = 'data/likes.json'
-AUTH_FILE = 'data/auth.json'
-SMTP_FILE = 'data/smtp.json'
+DATA_FILE      = os.path.join(_DATA_DIR, 'content.json')
+MESSAGES_FILE  = os.path.join(_DATA_DIR, 'messages.json')
+SITE_FILE      = os.path.join(_DATA_DIR, 'site.json')
+VISITORS_FILE  = os.path.join(_DATA_DIR, 'visitors.json')
+LIKES_FILE     = os.path.join(_DATA_DIR, 'likes.json')
+AUTH_FILE      = os.path.join(_DATA_DIR, 'auth.json')
+SMTP_FILE      = os.path.join(_DATA_DIR, 'smtp.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -332,8 +338,42 @@ def api_reply_message(msg_id):
             return jsonify({'success': True, 'reply': reply})
     return jsonify({'success': False, 'error': '留言不存在'}), 404
 
+
+# 点赞 IP 限制（内存，重启清零；Volume 下可跨部署保留计数文件）
+_like_ip_counts = {}  # "ip:YYYY-MM-DD:item_id" -> count
+
+def check_like_ip(item_id, ip):
+    """返回 (allowed, current_count, limit)"""
+    from datetime import date
+    site = load_site()
+    limit = int(site.get('site', {}).get('likeIpDailyLimit', 0))
+    if limit <= 0:
+        return True, 0, 0
+    today = str(date.today())
+    # 统计该 IP 今日总点赞数（跨所有内容）
+    prefix = f"{ip}:{today}:"
+    total = sum(v for k, v in _like_ip_counts.items() if k.startswith(f"{ip}:{today}"))
+    key = f"{ip}:{today}:{item_id}"
+    already = _like_ip_counts.get(key, 0)
+    if already > 0:  # 已对该项目点赞，允许取消
+        return True, total, limit
+    if total >= limit:
+        return False, total, limit
+    return True, total, limit
+
+def record_like_ip(item_id, ip):
+    from datetime import date
+    today = str(date.today())
+    key = f"{ip}:{today}:{item_id}"
+    _like_ip_counts[key] = _like_ip_counts.get(key, 0) + 1
+
 @app.route('/api/like/<item_id>', methods=['POST'])
 def api_like(item_id):
+    ip = request.remote_addr or 'unknown'
+    allowed, count, limit = check_like_ip(item_id, ip)
+    if not allowed:
+        return jsonify({'success': False, 'error': f'今日点赞已达上限（{limit} 次）', 'likes': load_likes().get(item_id, 0)}), 429
+    record_like_ip(item_id, ip)
     likes = load_likes()
     likes[item_id] = likes.get(item_id, 0) + 1
     save_likes(likes)
@@ -589,6 +629,8 @@ def admin_site_basic():
     site['site']['title'] = body.get('title', site['site'].get('title', ''))
     site['site']['subtitle'] = body.get('subtitle', site['site'].get('subtitle', ''))
     site['theme'] = body.get('theme', site.get('theme', 'warm'))
+    if 'likeIpDailyLimit' in body:
+        site['site']['likeIpDailyLimit'] = max(0, int(body.get('likeIpDailyLimit', 0)))
     save_site(site)
     return jsonify({'success': True})
 
@@ -823,7 +865,7 @@ def admin_media_replace(filename):
 # ═══════════════════════════════════════════════════
 # 橱窗 API
 # ═══════════════════════════════════════════════════
-SHOWCASE_FILE = 'data/showcase.json'
+SHOWCASE_FILE = os.path.join(_DATA_DIR, 'showcase.json')  # 已随 _DATA_DIR 正确
 
 def load_showcase():
     d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
@@ -852,6 +894,12 @@ def api_showcase():
 
 @app.route('/api/showcase/like/<item_id>', methods=['POST'])
 def api_showcase_like(item_id):
+    ip = request.remote_addr or 'unknown'
+    sc_id = 'sc_' + item_id
+    allowed, count, limit = check_like_ip(sc_id, ip)
+    if not allowed:
+        return jsonify({'success': False, 'error': f'今日点赞已达上限（{limit} 次）', 'likes': load_likes().get(sc_id, 0)}), 429
+    record_like_ip(sc_id, ip)
     likes = load_likes()
     key = 'sc_' + item_id
     likes[key] = likes.get(key, 0) + 1
@@ -1202,7 +1250,7 @@ def admin_account_email():
 
 def init_app():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs('data', exist_ok=True)
+    os.makedirs(_DATA_DIR, exist_ok=True)   # static/uploads/_data/
     if not os.path.exists(DATA_FILE):
         save_data({"categories": ["摄影", "插画", "设计", "视频", "其他"], "items": []})
     if not os.path.exists(SITE_FILE):

@@ -1,0 +1,8 @@
+{
+  "host": "smtp.qq.com",
+  "port": 465,
+  "user": "275592873@qq.com",
+  "password": "cwaiqyocguqfcaib",
+  "use_ssl": true,
+  "from_name": "GALLERY Admin"
+}
