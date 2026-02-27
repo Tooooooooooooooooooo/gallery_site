@@ -17,11 +17,11 @@
     ]
   },
   "hero": {
-    "height": 900,
+    "height": 700,
     "slides": [
       {
         "bgType": "image",
-        "bgValue": "hero_f206744a-4a1d-4331-93db-87a969168329.png",
+        "bgValue": "002.jpg",
         "btnHref": "#gallery",
         "btnText": "查看最新",
         "id": "s2",
@@ -31,23 +31,33 @@
       },
       {
         "bgType": "image",
-        "bgValue": "hero_071dae21-83ce-4394-8c92-f1f973110ece.png",
-        "btnHref": "/messages",
-        "btnText": "留下足迹",
-        "id": "s3",
-        "subtitle": "分享你看见的世界，让创作连接彼此",
-        "tag": "Creative Space",
-        "title": "创意无界<br>灵感涌现"
-      },
-      {
-        "bgType": "image",
-        "bgValue": "hero_467318c0-6448-4dc0-a46b-0ec462aaceac.png",
+        "bgValue": "001.jpg",
         "btnHref": "/about",
         "btnText": "关于我",
         "id": "s1772008468257",
         "subtitle": "我相信，美无处不在",
         "tag": "My Story",
         "title": "用像素记录世界的美好"
+      },
+      {
+        "bgType": "image",
+        "bgValue": "005.jpg",
+        "btnHref": "#gallery",
+        "btnText": "查看",
+        "id": "s1772173676375",
+        "subtitle": "副标题",
+        "tag": "New",
+        "title": "标题"
+      },
+      {
+        "bgType": "image",
+        "bgValue": "003.jpg",
+        "btnHref": "#gallery",
+        "btnText": "查看",
+        "id": "s1772173677738",
+        "subtitle": "副标题",
+        "tag": "New",
+        "title": "标题"
       }
     ],
     "enabled": true
@@ -55,7 +65,7 @@
   "about": {
     "avatarImage": "about_c4f40915-1552-426f-b229-b66f159d7153.png",
     "emoji": "🎨",
-    "heroImage": "about_a7b0ccac-d111-47d8-a759-6efe85901049.png",
+    "heroImage": "007.jpg",
     "name": "创作者",
     "paragraphs": [
       "你好，我是这个画廊的主人。热爱记录生活中的美好瞬间，每一件作品都承载着我对这个世界独特的感知与思考。",
@@ -64,14 +74,14 @@
     ],
     "skills": [
       {
-        "icon": "about_a0f28516-67dd-43aa-b198-4bfb5b523e8c.png",
+        "icon": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
         "label": "建模",
         "value": 90
       },
       {
+        "icon": "about_0e96b5b3-c00d-4c18-9c52-7fe1afb4fb74.png",
         "label": "渲染",
-        "value": 90,
-        "icon": "about_0e96b5b3-c00d-4c18-9c52-7fe1afb4fb74.png"
+        "value": 90
       },
       {
         "icon": "about_371c2387-770c-4446-9b16-22392ce7b1fb.png",
@@ -104,9 +114,9 @@
         "value": 70
       },
       {
+        "icon": "about_34490bea-6c25-4bfc-9274-7ffeab1f0035.png",
         "label": "Gaea",
-        "value": 60,
-        "icon": "about_34490bea-6c25-4bfc-9274-7ffeab1f0035.png"
+        "value": 60
       },
       {
         "icon": "about_1ae63e9c-95eb-4b5f-aa4b-373d028b4fa3.png",
@@ -141,7 +151,8 @@
         "label": "所在地：长沙"
       }
     ],
-    "tagline": "用像素记录世界的美好"
+    "tagline": "用像素记录世界的美好",
+    "heroHeight": 420
   },
   "contact": [
     {
@@ -223,15 +234,22 @@
   "site": {
     "title": "GALLERY · 视觉创作集",
     "subtitle": "记录生活之美，分享视觉灵感",
-    "favicon": "favicon_95e86daf-e101-4298-afd6-931e56d7cd14.png"
+    "favicon": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"
   },
   "theme": "warm",
   "messages_page": {
     "bgType": "image",
-    "bgValue": "msgbg_a51d72f8-2c05-403f-b4d3-6f160b52f0e8.png",
+    "bgValue": "002.jpg",
     "title": "留言板",
     "subtitle": "留下你的足迹，与我分享你的想法",
-    "height": 320,
+    "height": 420,
+    "avatarMaxSizeMB": 2,
+    "avatarFormats": [
+      "jpg",
+      "png",
+      "webp"
+    ],
+    "avatarDailyLimit": 2,
     "titleSize": 48,
     "overlayOpacity": 0.5,
     "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"

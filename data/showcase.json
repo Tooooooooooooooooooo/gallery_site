@@ -1,50 +1,62 @@
 {
   "items": [
     {
-      "id": "c456951d-3003-408c-988f-771fad98fa32",
+      "id": "d2e1a7f0-b003-4b90-b7ae-4b2630a3a4ff",
       "title": "",
       "description": "",
       "link": "",
-      "filename": "28456920-41cb-4fa7-abcb-cf6fcb4f428c.mp4",
-      "cover": "sc_cover_60718be5-e312-4377-bdc3-6ebf37ec29ea.png",
+      "filename": "橱柜.mp4",
+      "cover": "019.jpg",
       "type": "video",
-      "created_at": "2026-02-26 19:30:57",
+      "created_at": "2026-02-27 13:22:34",
       "width": 16,
       "height": 9
     },
     {
-      "id": "d5128035-ac95-4627-9d0c-27cd90983422",
+      "id": "30af12d2-f4af-4ffc-ad5e-19aa3305049d",
       "title": "",
       "description": "",
       "link": "",
-      "filename": "07a75a1c-4ab4-485c-94e0-c583b23ac69a.mp4",
-      "cover": "sc_cover_9d573615-2376-40b4-bbc8-c787155ae5b3.png",
+      "filename": "短片.mp4",
+      "cover": "007.jpg",
       "type": "video",
-      "created_at": "2026-02-26 19:32:56",
+      "created_at": "2026-02-27 13:22:48",
       "width": 16,
       "height": 9
     },
     {
-      "id": "a88a788f-0ad4-4e86-a341-f1975fd1754b",
+      "id": "b62e4959-a28b-4711-a226-0387d2d00925",
       "title": "",
       "description": "",
       "link": "",
-      "filename": "dee99b54-099f-4b1d-8e75-9a37b30371b9.mp4",
-      "cover": "sc_cover_e43fd25f-97b4-46f4-8c45-0511891f1591.png",
+      "filename": "椅子.mp4",
+      "cover": "015.jpg",
       "type": "video",
-      "created_at": "2026-02-26 19:33:17",
+      "created_at": "2026-02-27 13:23:13",
       "width": 16,
       "height": 9
     },
     {
-      "id": "96c65b9e-cf31-4739-8824-440d2f8df00d",
+      "id": "bfa9c704-6a1d-4b61-a98f-e065a6a5b638",
       "title": "",
       "description": "",
       "link": "",
-      "filename": "85340cc4-7cfb-497e-bb8a-ad20c0670c4f.mp4",
-      "cover": "sc_cover_7b4db156-fffe-4b4b-a029-8a146c139394.png",
+      "filename": "风格化.mp4",
+      "cover": "002.jpg",
       "type": "video",
-      "created_at": "2026-02-26 19:33:58",
+      "created_at": "2026-02-27 13:23:24",
+      "width": 16,
+      "height": 9
+    },
+    {
+      "id": "7a740c65-85d4-4cb6-9964-5e641e23fe1e",
+      "title": "",
+      "description": "",
+      "link": "",
+      "filename": "地形.mp4",
+      "cover": "028.jpg",
+      "type": "video",
+      "created_at": "2026-02-27 13:23:31",
       "width": 16,
       "height": 9
     }
@@ -53,6 +65,9 @@
     "enabled": true,
     "title": "橱窗精选",
     "subtitle": "SHOWCASE",
-    "columns": 3
+    "columns": 10,
+    "cardHeight": 280,
+    "cardWidth": 500,
+    "scrollSpeed": 50
   }
 }
