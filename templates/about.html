@@ -83,7 +83,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-bigbtn:hover{background:rgba(200,169,126,.7)}
 .modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
-.modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
+.modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
 
 /* Theme switcher */
 .theme-trigger{width:30px;height:30px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;transition:all .2s;flex-shrink:0}
@@ -163,7 +163,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>查看大图
     </button>
     <div id="aboutModalBody"></div>
-    <div class="modal-info"><h2 id="aboutModalTitle"></h2><p id="aboutModalDesc"></p></div>
+    <div class="modal-info"><h2 id="aboutModalTitle"></h2><div id="aboutModalDesc" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px"></div></div>
   </div>
 </div>
 
@@ -277,7 +277,7 @@ function openAboutModal(id){
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
     :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
   document.getElementById('aboutModalTitle').textContent=item.title||'';
-  document.getElementById('aboutModalDesc').textContent=item.description||'';
+  document.getElementById('aboutModalDesc').innerHTML=item.description||'';
   const bigBtn=document.getElementById('aboutModalBigBtn');
   bigBtn.style.display=isVid?'none':'flex';
   bigBtn.onclick=()=>window.open(src,'_blank');

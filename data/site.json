@@ -176,53 +176,53 @@
   "footer": {
     "brand": {
       "logo": "GAL·LERY",
-      "desc": "记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。"
+      "desc": "<p>记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。</p>"
     },
     "columns": [
       {
-        "title": "",
         "links": [
           {
-            "label": "留言",
-            "href": "/messages"
+            "href": "/messages",
+            "label": "留言"
           }
-        ]
+        ],
+        "title": ""
       },
       {
-        "title": "",
         "links": [
           {
-            "label": "关于我",
-            "href": "/about"
+            "href": "/about",
+            "label": "关于我"
           }
-        ]
+        ],
+        "title": ""
       },
       {
-        "title": "",
         "links": [
           {
-            "label": "V:starjiekong",
-            "href": ""
+            "href": "",
+            "label": "V:starjiekong"
           }
-        ]
+        ],
+        "title": ""
       },
       {
-        "title": "",
         "links": [
           {
-            "label": "订阅RSS",
-            "href": ""
+            "href": "",
+            "label": "订阅RSS"
           }
-        ]
+        ],
+        "title": ""
       },
       {
-        "title": "",
         "links": [
           {
-            "label": "github",
-            "href": "https://github.com/Tooooooooooooooooooo/gallery_site"
+            "href": "https://github.com/Tooooooooooooooooooo/gallery_site",
+            "label": "github"
           }
-        ]
+        ],
+        "title": ""
       }
     ],
     "copyright": "© 2026 GALLERY · 视觉创作集. All Rights Reserved. · Made 80万萝莉总教头 with ♥"

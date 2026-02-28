@@ -109,9 +109,10 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .vid-play svg{margin-left:3px}
 /* LIKE - top right corner */
 .like-corner{position:absolute;top:9px;right:9px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:2px}
-.like-btn{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .22s;padding:0;line-height:1}
+.like-btn{width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.35);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .22s;padding:0;line-height:1;opacity:0}
 .like-btn:hover{background:rgba(220,50,80,.5);border-color:rgba(220,50,80,.7);transform:scale(1.1)}
-.like-btn.liked{background:rgba(220,50,80,.4);border-color:rgba(220,50,80,.8)}
+.like-btn.liked{background:rgba(220,50,80,.4);border-color:rgba(220,50,80,.8);opacity:1}
+.m-item:hover .like-btn{opacity:1}
 .like-badge{font-size:10px;font-weight:600;color:#fff;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:8px;backdrop-filter:blur(4px);white-space:nowrap;opacity:0;transition:opacity .2s}
 .m-item:hover .like-badge,.like-btn.liked~.like-badge{opacity:1}
 
@@ -145,7 +146,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
 .modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
-.modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
+.modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
 
 @media(max-width:768px){nav{padding:0 14px}.toolbar{padding:10px 12px}}
 </style>
@@ -218,7 +219,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>查看大图
     </button>
     <div id="modalBody"></div>
-    <div class="modal-info"><h2 id="modalTitle"></h2><p id="modalDesc"></p></div>
+    <div class="modal-info"><h2 id="modalTitle"></h2><div id="modalDesc" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px"></div></div>
   </div>
 </div>
 
@@ -345,7 +346,7 @@ async function loadShowcase() {
       </div>
       ${(item.title||item.description)?`<div class="sc-info">
         ${item.title?`<h4>${esc(item.title)}</h4>`:''}
-        ${item.description?`<p>${esc(item.description)}</p>`:''}
+        ${item.description?`<p>${esc(stripHtml(item.description))}</p>`:''}
       </div>`:''}
     </div>`;
   };
@@ -435,7 +436,7 @@ function openScModal(id) {
     ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
     : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
   document.getElementById('modalTitle').textContent = item.title || '';
-  document.getElementById('modalDesc').textContent = item.description || '';
+  document.getElementById('modalDesc').innerHTML = item.description || '';
   const bigBtn = document.getElementById('modalBigBtn');
   if (bigBtn) { bigBtn.style.display = isVid ? 'none' : 'flex'; bigBtn.onclick = () => window.open(src,'_blank'); }
   document.getElementById('modal').classList.add('open');
@@ -694,7 +695,7 @@ function openModal(id){
     :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   document.getElementById('modalTitle').textContent=item.title||'';
-  document.getElementById('modalDesc').textContent=[item.description,cats.join(' · ')].filter(Boolean).join(' — ');
+  const _catsStr=cats.length?cats.join(' · '):'';document.getElementById('modalDesc').innerHTML=(item.description||'')+(_catsStr?`<span style="opacity:.6;margin-left:6px">${esc(_catsStr)}</span>`:'');
   // 查看大图按钮（仅图片）
   const bigBtn=document.getElementById('modalBigBtn');
   if(bigBtn){bigBtn.style.display=isVid?'none':'flex';bigBtn.onclick=()=>window.open(src,'_blank');}
@@ -703,7 +704,7 @@ function openModal(id){
 function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 init();
 </script>
 </body>
