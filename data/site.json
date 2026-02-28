@@ -65,6 +65,7 @@
   "about": {
     "avatarImage": "about_c4f40915-1552-426f-b229-b66f159d7153.png",
     "emoji": "🎨",
+    "heroHeight": 420,
     "heroImage": "007.jpg",
     "name": "创作者",
     "paragraphs": [
@@ -151,8 +152,7 @@
         "label": "所在地：长沙"
       }
     ],
-    "tagline": "用像素记录世界的美好",
-    "heroHeight": 420
+    "tagline": "用像素记录世界的美好"
   },
   "contact": [
     {
@@ -185,24 +185,12 @@
       {
         "links": [
           {
-            "href": "#gallery",
-            "label": "作品集"
-          },
-          {
             "href": "/about",
             "label": "关于我"
           },
           {
-            "href": "#contact",
-            "label": "联系方式"
-          },
-          {
             "href": "/messages",
             "label": "留言板"
-          },
-          {
-            "href": "/admin",
-            "label": "管理后台"
           }
         ],
         "title": "导航"
@@ -220,10 +208,6 @@
           {
             "href": "#",
             "label": "使用条款"
-          },
-          {
-            "href": "#",
-            "label": "RSS 订阅"
           }
         ],
         "title": "关于"
@@ -234,7 +218,8 @@
   "site": {
     "title": "GALLERY · 视觉创作集",
     "subtitle": "记录生活之美，分享视觉灵感",
-    "favicon": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"
+    "favicon": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
+    "likeIpDailyLimit": 3
   },
   "theme": "warm",
   "messages_page": {
@@ -249,7 +234,7 @@
       "png",
       "webp"
     ],
-    "avatarDailyLimit": 2,
+    "avatarDailyLimit": 1,
     "titleSize": 48,
     "overlayOpacity": 0.5,
     "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"

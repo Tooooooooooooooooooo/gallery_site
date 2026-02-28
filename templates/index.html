@@ -53,13 +53,13 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .hero-arr:hover{background:rgba(255,255,255,.28)}
 .hero-arr.prev{left:20px}.hero-arr.next{right:20px}
 
-
 /* ── SHOWCASE ── */
-.showcase-section{padding:32px 24px 8px;max-width:100%}
-.showcase-header{display:flex;align-items:baseline;gap:12px;margin-bottom:20px}
+.showcase-section{padding:32px 0 8px;max-width:100%}
+.showcase-header{display:flex;align-items:baseline;gap:12px;margin-bottom:20px;padding:0 24px}
 .showcase-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tx)}
 .showcase-sub{font-size:12px;color:var(--mu);letter-spacing:.06em}
-.showcase-track-wrap{overflow:hidden;width:100%;position:relative;cursor:grab;user-select:none}
+.showcase-section{position:relative}
+.showcase-track-wrap{overflow:hidden;width:100%;position:relative;cursor:grab;user-select:none;border-radius:14px}
 .showcase-track-wrap:active{cursor:grabbing}
 .showcase-track{display:flex;gap:14px;will-change:transform;transition:none}
 .showcase-track.no-transition{transition:none!important}
@@ -91,9 +91,9 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 
 /* MASONRY */
 .masonry-wrap{padding:20px 16px 60px}
-.masonry{columns:5 230px;column-gap:14px}
-.m-item{break-inside:avoid;margin-bottom:14px;border-radius:14px;overflow:hidden;background:var(--s);cursor:pointer;position:relative;box-shadow:0 1px 6px rgba(0,0,0,.06);transition:transform .3s,box-shadow .3s;animation:fadeUp .4s ease both}
-@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.masonry{position:relative;width:100%}
+.m-item{position:absolute;border-radius:14px;overflow:hidden;background:var(--s);cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.06);transition:transform .3s,box-shadow .3s;animation:fadeIn .35s ease both}
+@keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
 .m-item:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.13)}
 .thumb-wrap{position:relative;overflow:hidden;background:#f0ede8}
 [data-theme=dark] .thumb-wrap{background:#252833}
@@ -122,15 +122,20 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .end-msg{text-align:center;padding:40px;color:var(--mu);font-size:13px;display:none}
 
 /* FOOTER */
-footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:40px 0 24px}
-.footer-inner{max-width:1100px;margin:0 auto 32px;padding:0 40px;display:grid;gap:36px}
-.footer-brand h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:#fff;letter-spacing:.15em;margin-bottom:10px}
-.footer-brand p{font-size:13px;line-height:1.7;white-space:pre-line}
-footer h4{color:#fff;font-size:13px;margin-bottom:12px}
-footer ul{list-style:none}footer ul li{margin-bottom:7px}
-footer ul li a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:color .2s}
-footer ul li a:hover{color:var(--ac)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:20px;text-align:center;font-size:12px;color:rgba(255,255,255,.4);max-width:1100px;margin:0 auto;padding-left:40px;padding-right:40px}
+@media(max-width:640px){}
+
+/* FOOTER */
+footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:48px 0 28px}
+.footer-cols{max-width:960px;margin:0 auto;padding:0 48px;display:flex;align-items:flex-start;box-sizing:border-box}
+.footer-copy{max-width:960px;margin:32px auto 0;padding:20px 48px 0;box-sizing:border-box;border-top:1px solid rgba(255,255,255,.12);text-align:center;font-size:12px;color:rgba(255,255,255,.35)}
+.footer-brand-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#fff;letter-spacing:.15em;margin-bottom:12px}
+.footer-brand-desc{font-size:13px;line-height:1.75;color:rgba(255,255,255,.55);white-space:pre-line}
+.footer-col-title{color:#fff;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+footer ul{list-style:none;padding:0;margin:0}
+footer ul li{margin-bottom:9px}
+footer ul li a{color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;transition:color .2s}
+footer ul li a:hover{color:rgba(255,255,255,.9)}
+@media(max-width:640px){.footer-cols{flex-direction:column;padding:0 24px;gap:32px}.footer-copy{padding:16px 24px 0}}
 
 /* MODAL */
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
@@ -142,7 +147,7 @@ footer ul li a:hover{color:var(--ac)}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
 .modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
 
-@media(max-width:768px){nav{padding:0 14px}.masonry{columns:2 150px}.toolbar{padding:10px 12px}.footer-inner{grid-template-columns:1fr;padding:0 20px}}
+@media(max-width:768px){nav{padding:0 14px}.toolbar{padding:10px 12px}}
 </style>
 </head>
 <body>
@@ -181,7 +186,7 @@ footer ul li a:hover{color:var(--ac)}
       <div class="showcase-track" id="showcaseRow"></div>
     </div>
   </div>
-  <div style="height:1px;background:var(--bd);margin:0 24px 0"></div>
+  <div style="height:1px;background:var(--bd);margin-top:8px"></div>
 </section>
 
 <div id="gallery">
@@ -203,8 +208,7 @@ footer ul li a:hover{color:var(--ac)}
 </div>
 
 <footer>
-  <div class="footer-inner" id="footerInner"></div>
-  <div class="footer-bottom"><p id="ftCopy"></p></div>
+  <div id="footerInner"></div>
 </footer>
 
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
@@ -222,7 +226,6 @@ footer ul li a:hover{color:var(--ac)}
 const THEME_COLORS={warm:'#c8a97e',cool:'#4a90d9',dark:'#7c6af5',green:'#4a9460',rose:'#d4607a'};
 let curSlide=0,slideTotal=0,autoT;
 let curPage=1,loading=false,hasMore=true,curCats=[],curSort='newest';
-const liked=new Set(JSON.parse(localStorage.getItem('g_liked')||'[]'));
 const itemMap={};
 
 function applyTheme(t){
@@ -279,18 +282,32 @@ function chSlide(d){clearTimeout(autoT);goSlide(curSlide+d);startAuto();}
 function startAuto(){if(slideTotal>1)autoT=setTimeout(()=>{goSlide(curSlide+1);startAuto();},5000);}
 
 function renderFooter(ft){
-  const colData=ft.columns||[];
-  const cols=colData.map(c=>`<div><h4>${c.title}</h4><ul>${(c.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
-  const el=document.getElementById('footerInner');
-  el.innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
-  // 动态设置列数：品牌列 2fr，每个导航栏目 1fr
-  const navCount=colData.length;
-  el.style.gridTemplateColumns=navCount>0?`2fr ${Array(navCount).fill('1fr').join(' ')}`:'1fr';
-  document.getElementById('ftCopy').textContent=ft.copyright||'';
+  const colData = ft.columns||[];
+  const brand = ft.brand||{};
+  const copy = ft.copyright||'';
+
+  const brandHtml = `
+    <div style="flex:0 0 240px;padding-right:40px">
+      <p class="footer-brand-logo">${brand.logo||'GAL·LERY'}</p>
+      <p class="footer-brand-desc">${brand.desc||''}</p>
+    </div>`;
+
+  const navHtml = colData.map(c=>{
+    const links=(c.links||[]).map(l=>
+      `<li><a href="${l.href}">${l.label}</a></li>`
+    ).join('');
+    return `<div style="flex:1;min-width:120px">
+      <p class="footer-col-title">${c.title}</p>
+      <ul>${links}</ul>
+    </div>`;
+  }).join('');
+
+  document.getElementById('footerInner').innerHTML =
+    `<div class="footer-cols">${brandHtml}${navHtml}</div>` +
+    `<div class="footer-copy"><p>${copy}</p></div>`;
 }
 
 // ── 橱窗 ──
-const scLiked = new Set(JSON.parse(localStorage.getItem('g_sc_liked') || '[]'));
 const scMap = {};
 
 let scScrollRAF = null, scScrollPaused = false, scScrollPos = 0, scScrollSpeed = 0;
@@ -315,7 +332,6 @@ async function loadShowcase() {
   dynStyle.textContent = `.sc-thumb{height:${cardH}px!important}.sc-card{width:${cardW}px;flex-shrink:0}`;
   const makeCard = (item) => {
     const cover = item.cover || item.filename;
-    const isLiked = scLiked.has(item.id);
     return `<div class="sc-card" onclick="openScModal('${item.id}')">
       <div class="sc-thumb">
         <img src="/static/uploads/${cover}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">
@@ -324,7 +340,7 @@ async function loadShowcase() {
         </div>
       </div>
       <div class="sc-like">
-        <button class="sc-like-btn${isLiked?' liked':''}" onclick="scDoLike(event,'${item.id}',this)" title="${isLiked?'取消':'点赞'}">${isLiked?'❤️':'🤍'}</button>
+        <button class="sc-like-btn" onclick="scDoLike(event,'${item.id}',this)" title="点赞">🤍</button>
         <span class="sc-like-cnt">${item.likes||0}</span>
       </div>
       ${(item.title||item.description)?`<div class="sc-info">
@@ -337,6 +353,8 @@ async function loadShowcase() {
   const cards = items.map(makeCard).join('');
   row.innerHTML = scScrollSpeed > 0 ? cards + cards : cards;
   document.getElementById('showcase-section').style.display = 'block';
+  // 恢复点赞状态
+  restoreScLiked(items.map(i=>i.id));
   // 启动自动滚动
   if (scScrollRAF) cancelAnimationFrame(scScrollRAF);
   scScrollPos = 0; row.style.transform = 'translateX(0)';
@@ -387,23 +405,26 @@ function scDragMove(e) {
 }
 function scDragEnd() {
   scIsDragging = false;
-  setTimeout(() => scScrollPaused = false, 100);
+  setTimeout(() => { scScrollPaused = false; }, 100);
 }
 
 async function scDoLike(e, id, btn) {
   e.stopPropagation();
+  if(btn.dataset.pending) return;
   const cnt = btn.nextElementSibling;
-  if (scLiked.has(id)) {
-    scLiked.delete(id); btn.classList.remove('liked'); btn.textContent='🤍';
-    cnt.textContent = Math.max(0, parseInt(cnt.textContent||'0') - 1);
-  } else {
-    const r = await fetch('/api/showcase/like/' + id, {method:'POST'});
+  btn.dataset.pending='1';
+  try{
+    const r = await fetch('/api/showcase/like/'+id, {method:'POST'});
     const d = await r.json();
-    if (r.status === 429) { showToast(d.error||'今日点赞已达上限'); return; }
-    scLiked.add(id); btn.classList.add('liked'); btn.textContent='❤️';
-    cnt.textContent = d.likes; if(scMap[id]) scMap[id].likes=d.likes;
-  }
-  localStorage.setItem('g_sc_liked', JSON.stringify([...scLiked]));
+    if(d.liked){
+      btn.classList.add('liked'); btn.textContent='❤️'; btn.title='取消点赞';
+    } else {
+      btn.classList.remove('liked'); btn.textContent='🤍'; btn.title='点赞';
+    }
+    cnt.textContent = d.likes;
+    if(scMap[id]) scMap[id].likes = d.likes;
+  }catch(err){console.error(err);}
+  delete btn.dataset.pending;
 }
 
 function openScModal(id) {
@@ -420,7 +441,6 @@ function openScModal(id) {
   document.getElementById('modal').classList.add('open');
 }
 
-
 async function loadCats(){
   const cats=await fetch('/api/categories').then(r=>r.json());
   const bar=document.getElementById('toolbar');
@@ -436,7 +456,96 @@ function toggleCat(cat,btn){
 }
 function filterCat(cat,btn){curCats=[];document.querySelectorAll('.cat-btn').forEach(b=>b.classList.toggle('active',b.dataset.cat===''));reset();}
 function changeSort(v){curSort=v;reset();}
-function reset(){curPage=1;hasMore=true;document.getElementById('masonry').innerHTML='';document.getElementById('endMsg').style.display='none';loadMore();}
+// ── 绝对定位瀑布流（Pinterest 风格）──
+const GAP = 14;
+const COL_MIN_W = 220;
+let _colCount = 0;
+let _colTops = [];
+let _colWidth = 0;
+let _msnTotalCount = 0;
+let _msnReady = false;  // masonry 宽度是否可用
+
+function _msnCalcCols() {
+  const wrap = document.getElementById('masonry');
+  const W = wrap.offsetWidth || (window.innerWidth - 32);
+  const cols = Math.max(2, Math.floor((W + GAP) / (COL_MIN_W + GAP)));
+  const colW = Math.floor((W - GAP * (cols - 1)) / cols);
+  return { cols, colW, W };
+}
+
+// 建立列状态（只在 reset 时调用，追加时不调用）
+function _msnSetup() {
+  const { cols, colW } = _msnCalcCols();
+  _colCount = cols;
+  _colWidth = colW;
+  _colTops = new Array(cols).fill(0);
+  _msnReady = true;
+}
+
+// 追加一张卡片到最短列（先隐藏插入，读真实高度，再定位显示）
+function _msnAppend(card) {
+  const wrap = document.getElementById('masonry');
+  // 先隐藏插入 DOM 以便读取真实高度
+  card.style.visibility = 'hidden';
+  card.style.width = _colWidth + 'px';
+  card.style.position = 'absolute';
+  card.style.top = '0px';
+  card.style.left = '0px';
+  wrap.appendChild(card);
+
+  // 强制浏览器计算布局，读取真实高度
+  const h = card.offsetHeight;
+
+  // 找最短列定位
+  let minIdx = 0;
+  for (let i = 1; i < _colCount; i++) {
+    if (_colTops[i] < _colTops[minIdx]) minIdx = i;
+  }
+  card.style.left = (minIdx * (_colWidth + GAP)) + 'px';
+  card.style.top = _colTops[minIdx] + 'px';
+  card.style.visibility = '';
+  _colTops[minIdx] += h + GAP;
+  wrap.style.height = Math.max(..._colTops) + 'px';
+}
+
+// resize 时整体重排（列宽变了才执行）
+function _msnReflow() {
+  const { cols, colW } = _msnCalcCols();
+  if (cols === _colCount && colW === _colWidth) return;
+  _colCount = cols;
+  _colWidth = colW;
+  _colTops = new Array(cols).fill(0);
+  const wrap = document.getElementById('masonry');
+  wrap.querySelectorAll('.m-item').forEach(card => {
+    card.style.width = _colWidth + 'px';
+    card.style.visibility = 'hidden';
+    card.style.top = '0px';
+    card.style.left = '0px';
+  });
+  // 读完所有高度再批量定位（减少回流）
+  const cards = wrap.querySelectorAll('.m-item');
+  const heights = Array.from(cards).map(c => c.offsetHeight);
+  cards.forEach((card, i) => {
+    let minIdx = 0;
+    for (let j = 1; j < _colCount; j++) {
+      if (_colTops[j] < _colTops[minIdx]) minIdx = j;
+    }
+    card.style.left = (minIdx * (_colWidth + GAP)) + 'px';
+    card.style.top = _colTops[minIdx] + 'px';
+    card.style.visibility = '';
+    _colTops[minIdx] += heights[i] + GAP;
+  });
+  wrap.style.height = Math.max(..._colTops) + 'px';
+}
+
+let _reflowTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_reflowTimer);
+  _reflowTimer = setTimeout(_msnReflow, 200);
+});
+
+
+function reset(){curPage=1;hasMore=true;_msnReady=false;_msnTotalCount=0;const w=document.getElementById('masonry');w.innerHTML='';w.style.height='';document.getElementById('endMsg').style.display='none';loadMore();}
 
 async function loadMore(){
   await loadMoreWithSize(autoPageSize||20);
@@ -448,7 +557,7 @@ function mkCard(item,idx){
   const isVid=item.type==='video';
   const cover=item.cover||(!isVid?item.filename:null);
   const ratio=item.height&&item.width?(item.height/item.width*100).toFixed(1):75;
-  const isLiked=liked.has(item.id);
+
   const hasTitle=item.title?.trim();
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   div.innerHTML=`
@@ -460,26 +569,55 @@ function mkCard(item,idx){
       ${isVid?`<div class="vid-play"><svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,.95)"><polygon points="5,3 19,12 5,21"/></svg></div>`:''}
     </div>
     <div class="like-corner">
-      <button class="like-btn${isLiked?' liked':''}" onclick="doLike(event,'${item.id}',this)" title="${isLiked?'取消':'点赞'}">${isLiked?'❤️':'🤍'}</button>
+      <button class="like-btn" onclick="doLike(event,'${item.id}',this)" title="点赞">🤍</button>
       <span class="like-badge">${item.likes||0}</span>
     </div>`;
   return div;
 }
 
+async function restoreScLiked(ids) {
+  if(!ids.length) return;
+  try{
+    const d = await fetch('/api/liked-status?ids='+ids.map(id=>'sc_'+id).join(',')).then(r=>r.json());
+    ids.forEach(id => {
+      if(!d['sc_'+id]) return;
+      // 找所有匹配该 id 的按钮（无缝滚动时有两份）
+      document.querySelectorAll(`[onclick*="scDoLike"][onclick*="'${id}'"]`).forEach(btn=>{
+        btn.classList.add('liked'); btn.textContent='❤️'; btn.title='取消点赞';
+      });
+    });
+  }catch(e){}
+}
+
+async function restoreItemLiked(ids) {
+  if(!ids.length) return;
+  try{
+    const d = await fetch('/api/liked-status?ids='+ids.join(',')).then(r=>r.json());
+    ids.forEach(id => {
+      if(!d[id]) return;
+      const btn = document.querySelector(`[onclick*="doLike"][onclick*="'${id}'"]`);
+      if(btn){ btn.classList.add('liked'); btn.textContent='❤️'; btn.title='取消点赞'; }
+    });
+  }catch(e){}
+}
+
 async function doLike(e,id,btn){
   e.stopPropagation();
+  if(btn.dataset.pending) return;
   const badge=btn.nextElementSibling;
-  if(liked.has(id)){
-    liked.delete(id);btn.classList.remove('liked');btn.textContent='🤍';btn.title='点赞';
-    badge.textContent=Math.max(0,parseInt(badge.textContent||'0')-1);
-  }else{
+  btn.dataset.pending='1';
+  try{
     const r=await fetch(`/api/like/${id}`,{method:'POST'});
     const d=await r.json();
-    if(r.status===429){showToast(d.error||'今日点赞已达上限');return;}
-    liked.add(id);btn.classList.add('liked');btn.textContent='❤️';btn.title='取消';
-    badge.textContent=d.likes;if(itemMap[id])itemMap[id].likes=d.likes;
-  }
-  localStorage.setItem('g_liked',JSON.stringify([...liked]));
+    if(d.liked){
+      btn.classList.add('liked'); btn.textContent='❤️'; btn.title='取消点赞';
+    } else {
+      btn.classList.remove('liked'); btn.textContent='🤍'; btn.title='点赞';
+    }
+    badge.textContent=d.likes;
+    if(itemMap[id]) itemMap[id].likes=d.likes;
+  }catch(err){console.error(err);}
+  delete btn.dataset.pending;
 }
 
 // ── 自动加载：每次加载一整屏内容 ──
@@ -500,11 +638,20 @@ async function loadMoreWithSize(size){
   const p=new URLSearchParams({page:curPage,per_page:size,sort:curSort});
   curCats.forEach(c=>p.append('category',c));
   const data=await fetch('/api/items?'+p).then(r=>r.json());
-  let idx=document.getElementById('masonry').children.length;
-  data.items.forEach(item=>{itemMap[item.id]=item;document.getElementById('masonry').appendChild(mkCard(item,idx++));});
+  let idx=_msnTotalCount;
+  const newIds=data.items.map(i=>i.id);
+  if (!_msnReady) _msnSetup();
+  data.items.forEach(item=>{
+    itemMap[item.id]=item;
+    const card=mkCard(item,idx++);
+    _msnAppend(card);
+    _msnTotalCount++;
+  });
   hasMore=data.has_more; curPage++; loading=false;
   document.getElementById('loader').style.display='none';
   if(!hasMore) document.getElementById('endMsg').style.display='block';
+  // 恢复点赞状态
+  restoreItemLiked(newIds);
   // 加载完一批后检查：若当前内容未填满屏幕则继续加载
   checkFillScreen();
 }

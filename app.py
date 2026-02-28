@@ -333,45 +333,41 @@ def api_reply_message(msg_id):
     return jsonify({'success': False, 'error': '留言不存在'}), 404
 
 
-# 点赞 IP 限制（内存，重启清零；Volume 下可跨部署保留计数文件）
-_like_ip_counts = {}  # "ip:YYYY-MM-DD:item_id" -> count
+# IP 点赞状态（内存，重启清零）key: "ip:item_id" -> True/False
+def _ip_key(ip, item_id):
+    return f"ip:{ip}:{item_id}"
 
-def check_like_ip(item_id, ip):
-    """返回 (allowed, current_count, limit)"""
-    from datetime import date
-    site = load_site()
-    limit = int(site.get('site', {}).get('likeIpDailyLimit', 0))
-    if limit <= 0:
-        return True, 0, 0
-    today = str(date.today())
-    # 统计该 IP 今日总点赞数（跨所有内容）
-    prefix = f"{ip}:{today}:"
-    total = sum(v for k, v in _like_ip_counts.items() if k.startswith(f"{ip}:{today}"))
-    key = f"{ip}:{today}:{item_id}"
-    already = _like_ip_counts.get(key, 0)
-    if already > 0:  # 已对该项目点赞，允许取消
-        return True, total, limit
-    if total >= limit:
-        return False, total, limit
-    return True, total, limit
+def ip_like_toggle(item_id, ip):
+    """切换点赞状态并持久化，返回 (is_liked_after, delta)"""
+    likes = load_likes()
+    key = _ip_key(ip, item_id)
+    currently = likes.get(key, False)
+    likes[key] = not currently
+    save_likes(likes)
+    return not currently, (1 if not currently else -1)
 
-def record_like_ip(item_id, ip):
-    from datetime import date
-    today = str(date.today())
-    key = f"{ip}:{today}:{item_id}"
-    _like_ip_counts[key] = _like_ip_counts.get(key, 0) + 1
 
 @app.route('/api/like/<item_id>', methods=['POST'])
 def api_like(item_id):
     ip = request.remote_addr or 'unknown'
-    allowed, count, limit = check_like_ip(item_id, ip)
-    if not allowed:
-        return jsonify({'success': False, 'error': f'今日点赞已达上限（{limit} 次）', 'likes': load_likes().get(item_id, 0)}), 429
-    record_like_ip(item_id, ip)
     likes = load_likes()
-    likes[item_id] = likes.get(item_id, 0) + 1
+    key = _ip_key(ip, item_id)
+    currently = likes.get(key, False)
+    is_liked = not currently
+    likes[key] = is_liked
+    likes[item_id] = max(0, likes.get(item_id, 0) + (1 if is_liked else -1))
     save_likes(likes)
-    return jsonify({'success': True, 'likes': likes[item_id]})
+    return jsonify({'success': True, 'liked': is_liked, 'likes': likes[item_id]})
+
+@app.route('/api/liked-status')
+def api_liked_status():
+    """返回当前 IP 对指定 item 列表的点赞状态"""
+    ip = request.remote_addr or 'unknown'
+    ids = request.args.get('ids', '').split(',')
+    likes = load_likes()
+    result = {item_id: bool(likes.get(_ip_key(ip, item_id), False)) for item_id in ids if item_id}
+    return jsonify(result)
+
 
 # ── Admin Routes (protected) ──
 
@@ -625,8 +621,6 @@ def admin_site_basic():
     site['site']['title'] = body.get('title', site['site'].get('title', ''))
     site['site']['subtitle'] = body.get('subtitle', site['site'].get('subtitle', ''))
     site['theme'] = body.get('theme', site.get('theme', 'warm'))
-    if 'likeIpDailyLimit' in body:
-        site['site']['likeIpDailyLimit'] = max(0, int(body.get('likeIpDailyLimit', 0)))
     save_site(site)
     return jsonify({'success': True})
 
@@ -891,16 +885,16 @@ def api_showcase():
 @app.route('/api/showcase/like/<item_id>', methods=['POST'])
 def api_showcase_like(item_id):
     ip = request.remote_addr or 'unknown'
-    sc_id = 'sc_' + item_id
-    allowed, count, limit = check_like_ip(sc_id, ip)
-    if not allowed:
-        return jsonify({'success': False, 'error': f'今日点赞已达上限（{limit} 次）', 'likes': load_likes().get(sc_id, 0)}), 429
-    record_like_ip(sc_id, ip)
     likes = load_likes()
-    key = 'sc_' + item_id
-    likes[key] = likes.get(key, 0) + 1
+    sc_id = 'sc_' + item_id
+    ip_key = _ip_key(ip, sc_id)
+    currently = likes.get(ip_key, False)
+    is_liked = not currently
+    likes[ip_key] = is_liked
+    likes[sc_id] = max(0, likes.get(sc_id, 0) + (1 if is_liked else -1))
     save_likes(likes)
-    return jsonify({'success': True, 'likes': likes[key]})
+    return jsonify({'success': True, 'liked': is_liked, 'likes': likes[sc_id]})
+
 
 @app.route('/admin/showcase')
 @login_required

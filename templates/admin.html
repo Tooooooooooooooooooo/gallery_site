@@ -543,17 +543,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card"><div class="ct">🌐 基本信息</div>
     <div class="fg" style="margin-bottom:11px"><label>网站标题</label><input class="inp" type="text" id="siteTitle" placeholder="GALLERY · 视觉创作集"></div>
     <div class="fg" style="margin-bottom:16px"><label>副标题</label><input class="inp" type="text" id="siteSub" placeholder="记录生活之美..."></div>
-    <div class="fg" style="margin-top:14px">
-      <label>点赞每日 IP 上限（0 = 不限制）</label>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-        <input class="inp" type="number" id="likeIpDailyLimit" min="0" max="9999" step="1" value="0" style="width:90px"
-          oninput="document.getElementById('likeIpLimitRange').value=Math.min(this.value,100)">
-        <span style="font-size:13px;color:var(--mu)">次 / 天</span>
-        <input type="range" id="likeIpLimitRange" min="0" max="100" step="1" value="0" style="flex:1;accent-color:var(--ac)"
-          oninput="document.getElementById('likeIpDailyLimit').value=this.value">
-      </div>
-      <div style="font-size:10px;color:var(--mu);margin-top:3px">含作品点赞和橱窗点赞，计数重启后清零</div>
-    </div>
     <button class="btn btn-p" onclick="saveBasic()" style="margin-top:14px">保存</button>
   </div>
   <div class="card"><div class="ct">🎨 网站图标 (Favicon)</div>
@@ -1156,8 +1145,8 @@ async function addCat(){const v=document.getElementById('newCatInp').value.trim(
 async function removeCat(cat){await fetch('/admin/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',category:cat})});categories=categories.filter(c=>c!==cat);loadCats();populateCatSelects();toast('已删除');}
 
 // BASIC
-function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const lv=b.likeIpDailyLimit??0;document.getElementById('likeIpDailyLimit').value=lv;document.getElementById('likeIpLimitRange').value=Math.min(lv,100);if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
-async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value,likeIpDailyLimit=parseInt(document.getElementById('likeIpDailyLimit').value)||0;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,likeIpDailyLimit})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.site.likeIpDailyLimit=likeIpDailyLimit;toast('已保存');}else toast('失败','err');}
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
+async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;toast('已保存');}else toast('失败','err');}
 async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;const p=document.getElementById('faviconPrev');p.src=d.url;p.style.display='block';toast('图标已上传');}else toast('失败','err');}
 
 // HERO

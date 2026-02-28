@@ -13,8 +13,9 @@
 [data-theme=rose]{--bg:#fdf6f8;--s:#fff;--tx:#2e1a20;--mu:#9a6875;--ac:#d4607a;--bd:#f0d8de;--nav-bg:rgba(253,246,248,.93)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;transition:background .3s,color .3s}
-nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 28px;transition:background .3s}
+nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 28px;gap:8px;transition:background .3s}
 .nav-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:.15em;color:var(--tx);text-decoration:none;margin-right:auto}
+.nav-links{display:flex;gap:4px}
 .nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:7px 13px;border-radius:20px;transition:all .2s}
 .nav-links a:hover{color:var(--tx);background:var(--bd)}
 /* HERO */
@@ -65,6 +66,19 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .reply-form-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap}
 .reply-form-footer input{flex:1;min-width:120px;padding:7px 12px;background:var(--s);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-family:inherit;font-size:12px;outline:none;transition:border-color .2s}
 .reply-form-footer input:focus{border-color:var(--ac)}
+/* FOOTER */
+footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:48px 0 28px}
+.footer-cols{max-width:960px;margin:0 auto;padding:0 48px;display:flex;align-items:flex-start;box-sizing:border-box}
+.footer-copy{max-width:960px;margin:32px auto 0;padding:20px 48px 0;box-sizing:border-box;border-top:1px solid rgba(255,255,255,.12);text-align:center;font-size:12px;color:rgba(255,255,255,.35)}
+.footer-brand-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#fff;letter-spacing:.15em;margin-bottom:12px}
+.footer-brand-desc{font-size:13px;line-height:1.75;color:rgba(255,255,255,.55);white-space:pre-line}
+.footer-col-title{color:#fff;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+footer ul{list-style:none;padding:0;margin:0}
+footer ul li{margin-bottom:9px}
+footer ul li a{color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;transition:color .2s}
+footer ul li a:hover{color:rgba(255,255,255,.9)}
+@media(max-width:640px){.footer-cols{flex-direction:column;padding:0 24px;gap:32px}.footer-copy{padding:16px 24px 0}}
+
 /* REPLIES */
 .replies{margin-top:12px;padding-left:14px;border-left:2px solid var(--bd);display:flex;flex-direction:column;gap:10px}
 .reply-card{display:flex;gap:10px;animation:fadeIn .3s ease}
@@ -76,16 +90,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .reply-text{font-size:13px;line-height:1.6;color:var(--mu);word-break:break-word}
 /* FOOTER */
 .no-msgs{text-align:center;padding:48px;color:var(--mu);font-size:14px}
-footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:36px 36px 22px}
-.footer-inner{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:32px;margin-bottom:28px}
-.footer-brand h2{font-family:'Cormorant Garamond',serif;font-size:22px;color:#fff;letter-spacing:.15em;margin-bottom:8px}
-.footer-brand p{font-size:13px;line-height:1.7;white-space:pre-line}
-footer h4{color:#fff;font-size:13px;margin-bottom:11px}
-footer ul{list-style:none}footer ul li{margin-bottom:6px}
-footer ul li a{color:rgba(255,255,255,.6);text-decoration:none;font-size:13px;transition:color .2s}
-footer ul li a:hover{color:var(--ac)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:18px;text-align:center;font-size:12px;color:rgba(255,255,255,.4)}
-@media(max-width:768px){nav{padding:0 14px}.msg-wrap{padding:28px 16px 60px}.form-row{flex-direction:column}.footer-inner{grid-template-columns:1fr}}
+
+@media(max-width:768px){nav{padding:0 16px;gap:6px}.msg-wrap{padding:28px 16px 60px}.form-row{flex-direction:column}}
 
 /* Theme switcher */
 .theme-trigger{width:30px;height:30px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;transition:all .2s;flex-shrink:0}
@@ -156,8 +162,7 @@ footer ul li a:hover{color:var(--ac)}
 </div>
 
 <footer>
-  <div class="footer-inner" id="footerInner"></div>
-  <div class="footer-bottom"><p id="footerCopy"></p></div>
+  <div id="footerInner"></div>
 </footer>
 <div class="toast-bar" id="toast"></div>
 
@@ -166,6 +171,32 @@ footer ul li a:hover{color:var(--ac)}
 
 let uploadedAvatarUrl='', defaultAvatarUrl='', allMsgsData=[];
 let avatarMaxSizeMB=2, avatarFormats=['jpg','jpeg','png','webp'], avatarDailyLimit=0;
+
+function renderFooter(ft){
+  const colData = ft.columns||[];
+  const brand = ft.brand||{};
+  const copy = ft.copyright||'';
+
+  const brandHtml = `
+    <div style="flex:0 0 240px;padding-right:40px">
+      <p class="footer-brand-logo">${brand.logo||'GAL·LERY'}</p>
+      <p class="footer-brand-desc">${brand.desc||''}</p>
+    </div>`;
+
+  const navHtml = colData.map(c=>{
+    const links=(c.links||[]).map(l=>
+      `<li><a href="${l.href}">${l.label}</a></li>`
+    ).join('');
+    return `<div style="flex:1;min-width:120px">
+      <p class="footer-col-title">${c.title}</p>
+      <ul>${links}</ul>
+    </div>`;
+  }).join('');
+
+  document.getElementById('footerInner').innerHTML =
+    `<div class="footer-cols">${brandHtml}${navHtml}</div>` +
+    `<div class="footer-copy"><p>${copy}</p></div>`;
+}
 
 async function init(){
   const site=await fetch('/api/site').then(r=>r.json());
@@ -204,10 +235,7 @@ async function init(){
   const uploadBtn=document.querySelector('[onclick*="avatarFile"]');
   if(uploadBtn) uploadBtn.style.display=avatarMaxSizeMB===0?'none':'';
   // Footer
-  const ft=site.footer||{};
-  const cols=(ft.columns||[]).map(col=>`<div><h4>${col.title}</h4><ul>${(col.links||[]).map(l=>`<li><a href="${l.href}">${l.label}</a></li>`).join('')}</ul></div>`).join('');
-  document.getElementById('footerInner').innerHTML=`<div class="footer-brand"><h2>${ft.brand?.logo||'GAL·LERY'}</h2><p>${ft.brand?.desc||''}</p></div>${cols}`;
-  document.getElementById('footerCopy').textContent=ft.copyright||'';
+  renderFooter(site.footer||{});
   loadMessages();
 }
 
