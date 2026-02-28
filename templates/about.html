@@ -32,7 +32,11 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .sec-label{font-size:10px;letter-spacing:.25em;text-transform:uppercase;color:var(--ac);margin-bottom:14px}
 .sec-title{font-family:'Playfair Display',serif;font-size:28px;margin-bottom:20px}
 .sec-title span{color:var(--ac)}
-.story-text p{font-size:15px;line-height:1.9;color:var(--mu);margin-bottom:14px;font-weight:300}
+.story-text p,.story-text li{font-size:15px;line-height:1.9;color:var(--mu);margin-bottom:14px;font-weight:300}
+.story-text strong{font-weight:600;color:var(--tx)}
+.story-text em{font-style:italic}
+.story-text a{color:var(--ac);text-decoration:none}
+.story-text ul,.story-text ol{padding-left:1.5em;margin-bottom:14px}
 .skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
 .skill-item{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:20px;transition:background .3s,border-color .3s}
 .skill-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -188,7 +192,7 @@ async function init(){
   else avatarEl.textContent=ab.emoji||'🎨';
   document.getElementById('aboutName').textContent=ab.name||'创作者';
   document.getElementById('aboutTagline').textContent=ab.tagline||'';
-  document.getElementById('storyText').innerHTML=(ab.paragraphs||[]).map(p=>`<p>${esc(p)}</p>`).join('');
+  document.getElementById('storyText').innerHTML=ab.bio||(ab.paragraphs||[]).map(p=>`<p>${esc(p)}</p>`).join('');
 
   // Skills with icon support (需求6)
   const skills=ab.skills||[];

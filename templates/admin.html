@@ -86,9 +86,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .clr input{background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:5px 8px;color:var(--tx);font-family:inherit;font-size:11px;outline:none;min-width:0;width:100%}
 .clr input:focus{border-color:var(--ac)}
 /* CONTACT EDITOR */
-.contact-list{display:flex;flex-direction:column;gap:8px;margin-bottom:11px}
-.contact-row{display:grid;grid-template-columns:52px 1fr 1fr auto;gap:6px;align-items:center;background:var(--s2);padding:8px 10px;border-radius:7px;border:1px solid var(--bd)}
-.contact-row input{background:transparent;border:none;color:var(--tx);font-family:inherit;font-size:12px;outline:none;width:100%}
 /* ABOUT EDITOR */
 .about-skill-list{display:flex;flex-direction:column;gap:7px;margin-bottom:10px}
 .skill-row{display:grid;grid-template-columns:36px 1fr 80px auto;gap:6px;align-items:center;background:var(--s2);padding:8px 10px;border-radius:7px;border:1px solid var(--bd)}
@@ -154,6 +151,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .uc-mi.danger{color:#e05c5c}
 .uc-mi.danger:hover{background:rgba(224,92,92,.1)}
 </style>
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 </head>
 <body>
 <aside class="sb">
@@ -170,7 +169,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="ni" onclick="showPage('hero',this)"><span class="ic">🎠</span>轮播海报</div>
   <div class="ni" onclick="showPage('nav',this)"><span class="ic">🔗</span>导航菜单</div>
   <div class="ni" onclick="showPage('about',this)"><span class="ic">👤</span>关于我页面</div>
-  <div class="ni" onclick="showPage('contact',this)"><span class="ic">📞</span>联系方式</div>
   <div class="ni" onclick="showPage('footer',this)"><span class="ic">📋</span>底部内容</div>
   <div class="sg">数据</div>
   <div class="ni" onclick="showPage('visitors',this)"><span class="ic">👥</span>访客记录</div>
@@ -644,9 +642,9 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
-  <div class="card"><div class="ct">📖 个人简介段落</div>
-    <div id="paragraphList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
-    <button class="btn btn-s btn-sm" onclick="addParagraph()">+ 添加段落</button>
+  <div class="card"><div class="ct">📖 个人简介</div>
+    <div id="bioEditor" style="background:#fff;border-radius:8px;min-height:200px;font-size:14px"></div>
+    <p style="font-size:11px;color:var(--mu);margin-top:6px">支持加粗、斜体、链接、列表等富文本格式</p>
   </div>
 
   <div class="card"><div class="ct">📊 技能条 <button class="btn btn-s btn-xs" onclick="addSkill()" style="margin-left:auto">+ 添加</button></div>
@@ -660,16 +658,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 
   <button class="btn btn-p" onclick="saveAbout()" style="margin-top:4px">保存关于我页面</button>
-</div>
-
-<!-- CONTACT -->
-<div class="page" id="page-contact">
-  <div class="pt">联系方式</div><div class="ps">编辑联系方式卡片</div>
-  <div class="card"><div class="ct">📞 联系信息 <button class="btn btn-s btn-xs" onclick="addContact()" style="margin-left:auto">+ 添加</button></div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:11px">图标列支持 Emoji：📮 💬 🌐 📍 📱 🐦</p>
-    <div class="contact-list" id="contactList"></div>
-    <button class="btn btn-p" onclick="saveContact()">保存</button>
-  </div>
 </div>
 
 <!-- FOOTER -->
@@ -962,7 +950,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,contact:loadContact,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
+  const a={account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
   if(a[p])a[p]();
 }
 
@@ -1298,13 +1286,43 @@ function loadAbout(){
   document.getElementById('aboutHeroHeight').value=abH;
   document.getElementById('aboutHeroHeightRange').value=abH;
   if(ab.avatarImage){document.getElementById('avatarImgPreview').innerHTML=`<img class="img-thumb" src="/static/uploads/${ab.avatarImage}" style="border-radius:50%">`;}
-  renderParagraphs(ab.paragraphs||[]);
+  const bioHtml = ab.bio || (ab.paragraphs||[]).map(p=>`<p>${p}</p>`).join('');
+  initBioEditor(bioHtml);
   renderSkills(ab.skills||[]);
   renderSocialLinks(ab.socials||[]);
 }
-function renderParagraphs(paras){document.getElementById('paragraphList').innerHTML=paras.map((p,i)=>`<div style="display:flex;gap:6px;align-items:flex-start"><textarea class="inp" rows="2" oninput="siteData.about.paragraphs[${i}]=this.value">${esc(p)}</textarea><button class="btn btn-d btn-xs" style="flex-shrink:0" onclick="removePara(${i})">×</button></div>`).join('');}
-function addParagraph(){if(!siteData.about)siteData.about={};if(!siteData.about.paragraphs)siteData.about.paragraphs=[];siteData.about.paragraphs.push('');renderParagraphs(siteData.about.paragraphs);}
-function removePara(i){siteData.about.paragraphs.splice(i,1);renderParagraphs(siteData.about.paragraphs);}
+let _bioQuill = null;
+function initBioEditor(html) {
+  if (!_bioQuill) {
+    _bioQuill = new Quill('#bioEditor', {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          ['bold','italic','underline'],
+          [{'list':'ordered'},{'list':'bullet'}],
+          ['link','clean']
+        ]
+      },
+      placeholder: '在这里编写个人简介...'
+    });
+    // 内容变化时同步到 siteData
+    _bioQuill.on('text-change', () => {
+      if (!siteData.about) siteData.about = {};
+      siteData.about.bio = _bioQuill.root.innerHTML;
+      // 兼容旧 paragraphs：清空（保存时用 bio 字段）
+      siteData.about.paragraphs = [];
+    });
+  }
+  // 设置初始内容
+  if (html) {
+    _bioQuill.root.innerHTML = html;
+  } else {
+    _bioQuill.root.innerHTML = '';
+  }
+}
+function getBioHtml() {
+  return _bioQuill ? _bioQuill.root.innerHTML : '';
+}
 function iconThumbHtml(icon, type, idx){
   const src=icon?`/static/uploads/${icon}`:'';
   const thumb=src?`<img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:(type==='skill'?'🔧':'🔗');
@@ -1396,13 +1414,6 @@ async function saveAbout(){
   const res=await fetch('/admin/site/about',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.about)});
   if(res.ok)toast('关于我页面已保存');else toast('保存失败','err');
 }
-
-// CONTACT
-function loadContact(){renderContactList(siteData.contact||[]);}
-function renderContactList(items){document.getElementById('contactList').innerHTML=items.map((c,i)=>`<div class="contact-row"><input placeholder="图标" value="${esc(c.icon||'')}" oninput="siteData.contact[${i}].icon=this.value" style="text-align:center;font-size:17px"><input placeholder="标题" value="${esc(c.title||'')}" oninput="siteData.contact[${i}].title=this.value"><input placeholder="内容" value="${esc(c.value||'')}" oninput="siteData.contact[${i}].value=this.value"><button class="btn btn-d btn-xs" onclick="removeContact(${i})">×</button></div>`).join('');}
-function addContact(){if(!siteData.contact)siteData.contact=[];siteData.contact.push({icon:'📌',title:'',value:''});renderContactList(siteData.contact);}
-function removeContact(i){siteData.contact.splice(i,1);renderContactList(siteData.contact);}
-async function saveContact(){const rows=document.querySelectorAll('#contactList .contact-row');const contact=Array.from(rows).map(r=>{const ins=r.querySelectorAll('input');return{icon:ins[0].value,title:ins[1].value,value:ins[2].value};});siteData.contact=contact;const res=await fetch('/admin/site/contact',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({contact})});if(res.ok)toast('已保存');else toast('失败','err');}
 
 // FOOTER
 function loadFooter(){const ft=siteData.footer||{};document.getElementById('ftLogo').value=ft.brand?.logo||'';document.getElementById('ftDesc').value=ft.brand?.desc||'';document.getElementById('ftCopy').value=ft.copyright||'';renderFtCols(ft.columns||[]);}

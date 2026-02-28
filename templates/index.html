@@ -466,11 +466,14 @@ let _msnTotalCount = 0;
 let _msnReady = false;  // masonry 宽度是否可用
 
 function _msnCalcCols() {
-  const wrap = document.getElementById('masonry');
-  const W = wrap.offsetWidth || (window.innerWidth - 32);
+  // 优先用 masonry-wrap 宽度（更早可用），fallback 到窗口宽度
+  const mwrap = document.querySelector('.masonry-wrap');
+  const W = (mwrap ? mwrap.clientWidth - 32 : 0) ||
+            document.getElementById('masonry').offsetWidth ||
+            (window.innerWidth - 32);
   const cols = Math.max(2, Math.floor((W + GAP) / (COL_MIN_W + GAP)));
   const colW = Math.floor((W - GAP * (cols - 1)) / cols);
-  return { cols, colW, W };
+  return { cols, colW };
 }
 
 // 建立列状态（只在 reset 时调用，追加时不调用）
@@ -511,7 +514,8 @@ function _msnAppend(card) {
 // resize 时整体重排（列宽变了才执行）
 function _msnReflow() {
   const { cols, colW } = _msnCalcCols();
-  if (cols === _colCount && colW === _colWidth) return;
+  // 列数和列宽都没变则跳过重排
+  if (cols === _colCount && Math.abs(colW - _colWidth) < 2) return;
   _colCount = cols;
   _colWidth = colW;
   _colTops = new Array(cols).fill(0);

@@ -1,19 +1,10 @@
 [
   {
-    "id": "58873c87-e2cf-441d-88b6-dbcf5238c264",
-    "name": "八十万萝莉总教头",
+    "id": "2cf03440-9426-4c9c-8446-163e1354cb0c",
+    "name": "匿名",
     "avatar": "",
-    "content": "测试留言内容",
-    "time": "2026-02-28 11:41",
-    "approved": true,
-    "replies": [
-      {
-        "id": "f8aaebf8-93a0-4ca7-a0eb-eb2307bd3790",
-        "name": "未填写昵称",
-        "content": "测试回复内容",
-        "avatar": "",
-        "time": "2026-02-28 11:41"
-      }
-    ]
+    "content": "请联系我",
+    "time": "2026-02-28 12:53",
+    "approved": true
   }
 ]

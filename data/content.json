@@ -8,6 +8,54 @@
   ],
   "items": [
     {
+      "id": "ad458b73-b6e9-4247-9cfd-9abf58013d40",
+      "title": "",
+      "categories": [
+        "AI"
+      ],
+      "category": "AI",
+      "description": "",
+      "filename": "Gemini_Generated_Image_byy98qbyy98qbyy9.jpg",
+      "cover": null,
+      "type": "image",
+      "created_at": "2026-02-28 13:52:15",
+      "width": 800,
+      "height": 1200,
+      "sort_order": 0
+    },
+    {
+      "id": "fdcba771-328d-4482-8c9e-9a6c47d9e2dc",
+      "title": "",
+      "categories": [
+        "AI"
+      ],
+      "category": "AI",
+      "description": "",
+      "filename": "Gemini_Generated_Image_u0s7mgu0s7mgu0s7.jpg",
+      "cover": null,
+      "type": "image",
+      "created_at": "2026-02-28 13:42:17",
+      "width": 800,
+      "height": 1200,
+      "sort_order": 0
+    },
+    {
+      "id": "4039cf1f-6d94-43a8-bb22-080f34374a45",
+      "title": "",
+      "categories": [
+        "AI"
+      ],
+      "category": "AI",
+      "description": "",
+      "filename": "Gemini_Generated_Image_49zno349zno349zn.jpg",
+      "cover": null,
+      "type": "image",
+      "created_at": "2026-02-28 13:17:47",
+      "width": 800,
+      "height": 1200,
+      "sort_order": 0
+    },
+    {
       "id": "a7c1cad8-a3fb-4b4a-883e-9015431962b7",
       "title": "",
       "categories": [
