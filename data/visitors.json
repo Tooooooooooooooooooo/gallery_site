@@ -1,5 +1,13 @@
 [
   {
+    "id": "a62b7d6b-0d3b-41cc-ae8f-3297515adc91",
+    "time": "2026-02-28 14:47:34",
+    "ip": "127.0.0.1",
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+    "path": "/",
+    "referer": "http://127.0.0.1:5000/"
+  },
+  {
     "id": "7723750f-3bf1-4e16-9777-888133facc43",
     "time": "2026-02-28 14:11:43",
     "ip": "127.0.0.1",

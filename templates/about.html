@@ -62,7 +62,7 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 @media(max-width:768px){nav{padding:0 16px;gap:6px}.about-hero-content{flex-direction:column;align-items:center;text-align:center;padding:40px 20px 36px}.about-main{padding:36px 20px 60px}.skills-grid{grid-template-columns:1fr}.gallery-preview{grid-template-columns:repeat(2,1fr)}}
 /* FOOTER */
 footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:48px 0 28px}
-.footer-cols{max-width:960px;margin:0 auto;padding:0 48px;display:flex;align-items:flex-start;box-sizing:border-box}
+.footer-cols{max-width:960px;margin:0 auto;padding:0 48px;display:flex;align-items:flex-start;box-sizing:border-box;flex-wrap:nowrap;overflow:hidden}
 .footer-copy{max-width:960px;margin:32px auto 0;padding:20px 48px 0;box-sizing:border-box;border-top:1px solid rgba(255,255,255,.12);text-align:center;font-size:12px;color:rgba(255,255,255,.35)}
 .footer-brand-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#fff;letter-spacing:.15em;margin-bottom:12px}
 .footer-brand-desc{font-size:13px;line-height:1.75;color:rgba(255,255,255,.55);white-space:pre-line}
@@ -71,7 +71,7 @@ footer ul{list-style:none;padding:0;margin:0}
 footer ul li{margin-bottom:9px}
 footer ul li a{color:rgba(255,255,255,.5);text-decoration:none;font-size:13px;transition:color .2s}
 footer ul li a:hover{color:rgba(255,255,255,.9)}
-@media(max-width:640px){.footer-cols{flex-direction:column;padding:0 24px;gap:32px}.footer-copy{padding:16px 24px 0}}
+@media(max-width:640px){.footer-cols{padding:0 24px;overflow-x:auto;-webkit-overflow-scrolling:touch}.footer-copy{padding:16px 24px 0}}
 
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
 .modal.open{opacity:1;pointer-events:all}
@@ -246,7 +246,7 @@ function renderFooter(ft){
   const copy = ft.copyright||'';
 
   const brandHtml = `
-    <div style="flex:0 0 240px;padding-right:40px">
+    <div style="flex:0 0 240px;padding-right:40px;flex-shrink:0">
       <p class="footer-brand-logo">${brand.logo||'GAL·LERY'}</p>
       <p class="footer-brand-desc">${brand.desc||''}</p>
     </div>`;
