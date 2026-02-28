@@ -1,6 +1,11 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
 from functools import wraps
 import json, os, uuid, hashlib, smtplib, secrets, time
+try:
+    from PIL import Image, ImageOps
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -11,6 +16,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 
 UPLOAD_FOLDER = 'static/uploads'
+THUMBS_FOLDER = 'static/thumbs'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 DATA_FILE     = 'data/content.json'
@@ -23,6 +29,41 @@ SMTP_FILE     = 'data/smtp.json'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
+
+def make_thumb(src_filename, scale_pct=50):
+    """从 uploads 里的图片生成缩图，存到 thumbs 目录，返回缩图文件名"""
+    if not HAS_PIL:
+        return None
+    src = os.path.join(UPLOAD_FOLDER, src_filename)
+    if not os.path.exists(src):
+        return None
+    try:
+        with Image.open(src) as img:
+            # 保持 EXIF 方向
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+            w, h = img.size
+            scale = max(10, min(100, int(scale_pct))) / 100
+            nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+            img_resized = img.resize((nw, nh), Image.LANCZOS)
+            # 缩图文件名：thumb_ 前缀 + 原名（保留 jpg/png/webp）
+            base, ext = os.path.splitext(src_filename)
+            ext = ext.lower()
+            if ext not in ('.jpg', '.jpeg', '.png', '.webp'):
+                ext = '.jpg'
+            thumb_name = 'thumb_' + base + ext
+            thumb_path = os.path.join(THUMBS_FOLDER, thumb_name)
+            fmt = 'JPEG' if ext in ('.jpg', '.jpeg') else ('PNG' if ext == '.png' else 'WEBP')
+            if fmt == 'JPEG' and img_resized.mode in ('RGBA', 'LA', 'P'):
+                img_resized = img_resized.convert('RGB')
+            img_resized.save(thumb_path, fmt, quality=82, optimize=True)
+            return thumb_name
+    except Exception as e:
+        print(f'make_thumb error: {e}')
+        return None
+
 
 def allowed_file(f): return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def allowed_img(f): return '.' in f and f.rsplit('.', 1)[1].lower() in IMG_EXTENSIONS
@@ -102,6 +143,7 @@ def get_default_site():
     return {
         "site": {"title": "GALLERY · 视觉创作集", "subtitle": "记录生活之美，分享视觉灵感", "favicon": ""},
         "theme": "warm",
+        "thumb_scale": 50,
         "nav": {
             "logo": "GAL·LERY",
             "links": [
@@ -172,6 +214,7 @@ def load_site():
             if k not in d['about']: d['about'][k] = v
     if 'messages_page' not in d: d['messages_page'] = default['messages_page']
     if 'theme' not in d: d['theme'] = 'warm'
+    if 'thumb_scale' not in d: d['thumb_scale'] = 50
     if 'enabled' not in d.get('hero', {}): d['hero']['enabled'] = True
     return d
 
@@ -410,6 +453,7 @@ def admin_upload():
         'description': request.form.get('description', ''),
         'filename': filename, 'cover': cover_filename,
         'type': 'video' if is_video(filename) else 'image',
+        'thumb': None,
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'width': int(request.form.get('width', 800)),
         'height': int(request.form.get('height', 600)),
@@ -418,6 +462,13 @@ def admin_upload():
     likes[item_id] = max(0, int(request.form.get('likes', 0)))
     save_likes(likes)
     data['items'].insert(0, item)
+    # 自动生成缩图（仅图片）
+    if not is_video(filename):
+        scale = load_site().get('thumb_scale', 50)
+        src_fn = cover_filename if cover_filename else filename
+        thumb_fn = make_thumb(src_fn, scale)
+        if thumb_fn:
+            item['thumb'] = thumb_fn
     save_data(data)
     return jsonify({'success': True, 'item': item})
 
@@ -464,6 +515,13 @@ def admin_reorder_items():
 def admin_bulk_delete():
     data = load_data()
     ids = set(request.json.get('ids', []))
+    for item in data['items']:
+        if item['id'] in ids:
+            thumb = item.get('thumb')
+            if thumb:
+                tp = os.path.join(THUMBS_FOLDER, thumb)
+                if os.path.exists(tp):
+                    os.remove(tp)
     data['items'] = [i for i in data['items'] if i['id'] not in ids]
     save_data(data)
     return jsonify({'success': True})
@@ -511,7 +569,15 @@ def admin_replace_cover(item_id):
 @login_required
 def admin_delete(item_id):
     data = load_data()
-    data['items'] = [i for i in data['items'] if i['id'] != item_id]
+    item = next((i for i in data['items'] if i['id'] == item_id), None)
+    if item:
+        # 删除缩图文件
+        thumb = item.get('thumb')
+        if thumb:
+            tp = os.path.join(THUMBS_FOLDER, thumb)
+            if os.path.exists(tp):
+                os.remove(tp)
+        data['items'] = [i for i in data['items'] if i['id'] != item_id]
     save_data(data)
     return jsonify({'success': True})
 
@@ -621,6 +687,8 @@ def admin_site_basic():
     site['site']['title'] = body.get('title', site['site'].get('title', ''))
     site['site']['subtitle'] = body.get('subtitle', site['site'].get('subtitle', ''))
     site['theme'] = body.get('theme', site.get('theme', 'warm'))
+    if 'thumb_scale' in body:
+        site['thumb_scale'] = max(10, min(100, int(body.get('thumb_scale', 50))))
     save_site(site)
     return jsonify({'success': True})
 
@@ -1240,6 +1308,7 @@ def admin_account_email():
 
 def init_app():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(THUMBS_FOLDER, exist_ok=True)
     os.makedirs('data', exist_ok=True)
     if not os.path.exists(DATA_FILE):
         save_data({"categories": ["摄影", "插画", "设计", "视频", "其他"], "items": []})
@@ -1250,6 +1319,113 @@ def init_app():
 
 # 模块加载时初始化（兼容 gunicorn / Railway）
 init_app()
+
+@app.route('/admin/thumbs', methods=['GET'])
+@login_required
+def admin_thumbs():
+    """缩图库列表，含引用状态"""
+    page = int(request.args.get('page', 1))
+    per = int(request.args.get('per_page', 30))
+    # 建立引用表：thumb文件名 -> item title
+    data = load_data()
+    ref_map = {}
+    for item in data['items']:
+        t = item.get('thumb')
+        if t:
+            ref_map[t] = item.get('title') or item.get('filename', '')
+    files = sorted([f for f in os.listdir(THUMBS_FOLDER)
+                    if f.lower().endswith(('.jpg','.jpeg','.png','.webp'))],
+                   key=lambda f: os.path.getmtime(os.path.join(THUMBS_FOLDER, f)),
+                   reverse=True)
+    total = len(files)
+    chunk = files[(page-1)*per : page*per]
+    items = []
+    for f in chunk:
+        p = os.path.join(THUMBS_FOLDER, f)
+        items.append({
+            'filename': f,
+            'size': os.path.getsize(p),
+            'mtime': os.path.getmtime(p),
+            'referenced': f in ref_map,
+            'ref_title': ref_map.get(f, '')
+        })
+    return jsonify({'items': items, 'total': total, 'page': page,
+                    'per_page': per, 'pages': max(1, (total + per - 1) // per),
+                    'has_more': page*per < total})
+
+@app.route('/admin/thumbs/<filename>', methods=['DELETE'])
+@login_required
+def admin_delete_thumb(filename):
+    path = os.path.join(THUMBS_FOLDER, os.path.basename(filename))
+    if os.path.exists(path):
+        os.remove(path)
+    return jsonify({'success': True})
+
+@app.route('/admin/thumbs/regenerate', methods=['POST'])
+@login_required
+def admin_regenerate_thumbs():
+    """批量重新生成所有图片的缩图"""
+    data = load_data()
+    site = load_site()
+    scale = site.get('thumb_scale', 50)
+    count = 0
+    for item in data['items']:
+        if item.get('type') == 'video':
+            continue
+        src = item.get('cover') or item.get('filename', '')
+        if not src:
+            continue
+        thumb_fn = make_thumb(src, scale)
+        if thumb_fn:
+            item['thumb'] = thumb_fn
+            count += 1
+    save_data(data)
+    return jsonify({'success': True, 'count': count})
+
+
+@app.route('/admin/thumbs/check', methods=['GET'])
+@login_required
+def admin_check_thumbs():
+    """检测哪些图片内容缺少缩图或缩图文件不存在"""
+    data = load_data()
+    missing = []
+    for item in data['items']:
+        if item.get('type') == 'video':
+            continue
+        thumb = item.get('thumb')
+        if not thumb or not os.path.exists(os.path.join(THUMBS_FOLDER, thumb)):
+            missing.append({
+                'id': item['id'],
+                'title': item.get('title', '(无标题)'),
+                'filename': item.get('filename', ''),
+                'cover': item.get('cover', ''),
+            })
+    return jsonify({'missing': missing, 'count': len(missing)})
+
+@app.route('/admin/thumbs/fill-missing', methods=['POST'])
+@login_required
+def admin_fill_missing_thumbs():
+    """只为缺少缩图的图片生成缩图"""
+    data = load_data()
+    site = load_site()
+    scale = site.get('thumb_scale', 50)
+    count = 0
+    for item in data['items']:
+        if item.get('type') == 'video':
+            continue
+        thumb = item.get('thumb')
+        if thumb and os.path.exists(os.path.join(THUMBS_FOLDER, thumb)):
+            continue
+        src = item.get('cover') or item.get('filename', '')
+        if not src:
+            continue
+        thumb_fn = make_thumb(src, scale)
+        if thumb_fn:
+            item['thumb'] = thumb_fn
+            count += 1
+    save_data(data)
+    return jsonify({'success': True, 'count': count})
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

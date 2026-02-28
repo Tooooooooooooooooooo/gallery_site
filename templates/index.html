@@ -561,13 +561,15 @@ function mkCard(item,idx){
   div.className='m-item';div.style.animationDelay=(idx%8*.05)+'s';
   const isVid=item.type==='video';
   const cover=item.cover||(!isVid?item.filename:null);
+  const cardSrc=(!isVid&&item.thumb)?item.thumb:cover;
+  const cardBase=(!isVid&&item.thumb)?'/static/thumbs/':'/static/uploads/';
   const ratio=item.height&&item.width?(item.height/item.width*100).toFixed(1):75;
 
   const hasTitle=item.title?.trim();
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   div.innerHTML=`
     <div class="thumb-wrap" style="padding-top:${ratio}%" onclick="openModal('${item.id}')">
-      ${cover?`<img src="/static/uploads/${cover}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">`:''}
+      ${cardSrc?`<img src="${cardBase}${cardSrc}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">`:''}
       <div class="thumb-ph" style="${cover?'display:none':''}">📷</div>
       ${(hasTitle||cats.length)?`<div class="item-overlay">${hasTitle?`<div class="overlay-title">${esc(item.title)}</div>`:''}${cats.length?`<div class="overlay-cats">${cats.map(esc).join(' · ')}</div>`:''}</div>`:''}
       ${isVid?'<span class="vid-badge">▶ 视频</span>':''}

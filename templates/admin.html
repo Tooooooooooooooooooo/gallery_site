@@ -179,6 +179,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="ni" onclick="showPage('upload',this)"><span class="ic">⬆️</span>上传内容</div>
   <div class="ni" onclick="showPage('manage',this)"><span class="ic">🖼️</span>内容管理</div>
   <div class="ni" onclick="showPage('media',this)"><span class="ic">📁</span>媒体库</div>
+  <div class="ni" onclick="showPage('thumblib',this)"><span class="ic">🖼️</span>缩图库</div>
   <div class="ni" onclick="showPage('showcase',this)"><span class="ic">🎬</span>橱窗管理</div>
   <div class="ni" onclick="showPage('categories',this)"><span class="ic">🏷️</span>分类管理</div>
   <div class="sg">外观</div>
@@ -589,6 +590,25 @@ tr:hover td{background:rgba(255,255,255,.012)}
         </label>
       </div>
     </div>
+    <div class="fg" style="margin-top:14px">
+      <label>缩图比例（原图的百分比）</label>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:8px">前端瀑布流卡片使用缩图加载，降低流量消耗。10%~100%，建议 40~60%。</p>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input class="inp" type="number" id="thumbScale" min="10" max="100" value="50" style="width:80px" oninput="document.getElementById('thumbScaleRange').value=this.value">
+        <span style="font-size:13px;color:var(--mu)">%</span>
+        <input type="range" id="thumbScaleRange" min="10" max="100" value="50" style="flex:1;accent-color:var(--ac)" oninput="document.getElementById('thumbScale').value=this.value">
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-s btn-sm" onclick="checkMissingThumbs()">🔍 检测缺少缩图</button>
+        <button class="btn btn-s btn-sm" id="fillMissingBtn" onclick="fillMissingThumbs()" style="display:none">⚡ 补全缺失缩图</button>
+        <button class="btn btn-s btn-sm" onclick="regenThumbs()">🔄 重新生成全部</button>
+        <span id="regenStatus" style="font-size:12px;color:var(--mu)"></span>
+      </div>
+      <div id="missingThumbList" style="margin-top:10px;display:none">
+        <div style="font-size:12px;color:var(--mu);margin-bottom:6px" id="missingThumbSummary"></div>
+        <div id="missingThumbItems" style="display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto"></div>
+      </div>
+    </div>
     <button class="btn btn-p" onclick="saveBasic()" style="margin-top:14px">保存</button>
   </div>
   <div class="card"><div class="ct">🎨 网站图标 (Favicon)</div>
@@ -719,6 +739,24 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="col-list" id="ftColList"></div>
     <button class="btn btn-p" onclick="saveFooter()">保存底部</button>
   </div>
+</div>
+
+
+<!-- THUMBLIB -->
+<div class="page" id="page-thumblib">
+  <div class="pt">缩图库</div><div class="ps">前端瀑布流专用缩图，不与媒体库混用</div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+    <select class="inp" id="thumbRefFilter" style="max-width:140px" onchange="renderThumbGrid()">
+      <option value="">全部缩图</option>
+      <option value="used">已引用</option>
+      <option value="unused">未引用</option>
+    </select>
+    <span id="thumbCount" style="font-size:12px;color:var(--mu);margin-left:auto"></span>
+    <button class="btn btn-d btn-sm" onclick="loadThumbLib(1)">🔄 刷新</button>
+    <button class="btn btn-d btn-sm" onclick="thumbCleanUnused()" title="删除所有未被引用的缩图">🧹 清理未引用</button>
+  </div>
+  <div id="thumbGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px"></div>
+  <div id="thumbPager" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 0;flex-wrap:wrap"></div>
 </div>
 
 <!-- VISITORS -->
@@ -991,6 +1029,8 @@ async function init(){
   document.getElementById('sMsg').textContent=mr.length;
   renderRecentTable(allItems.slice(0,6));
   populateCatSelects();
+  // 静默补全缺失缩图（后台进行，不阻塞加载）
+  fetch('/admin/thumbs/fill-missing',{method:'POST'}).catch(()=>{});
 }
 
 function showPage(p,el){
@@ -1002,7 +1042,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
+  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,account:()=>{}};
   if(a[p])a[p]();
 }
 
@@ -1092,9 +1132,28 @@ function loadManage(){
     <td style="cursor:grab;color:var(--mu);font-size:16px;text-align:center;padding:10px 6px">⠿</td>
     <td>${thumbHtml(i)}</td>
     <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(i.title||'(无标题)')}</td>
-    <td>${esc(i.category||'—')}</td>
+    <td style="min-width:160px">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+        ${categories.map(cat=>{
+          const checked=(i.categories||[i.category]||[]).includes(cat);
+          return `<label style="display:flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;white-space:nowrap;padding:2px 6px;border-radius:4px;border:1px solid ${checked?'var(--ac)':'var(--bd)'};background:${checked?'rgba(var(--ac-rgb,200,169,126),.12)':'var(--s2)'}">
+            <input type="checkbox" data-id="${i.id}" data-cat="${cat}" ${checked?'checked':''} onchange="rowCatChange('${i.id}',this)" style="width:11px;height:11px;accent-color:var(--ac)">
+            ${esc(cat)}
+          </label>`;
+        }).join('')}
+        <button class="btn btn-s btn-xs" id="cat-save-${i.id}" onclick="saveRowCats('${i.id}')" style="display:none;margin-left:2px">保存</button>
+      </div>
+    </td>
     <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图':'视'}</span></td>
-    <td style="color:var(--ac)">❤️ ${i.likes||0}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="color:var(--ac);font-size:13px" id="lc-${i.id}">❤️ ${i.likes||0}</span>
+        <div style="display:flex;flex-direction:column;gap:1px">
+          <button onclick="adjLikes('${i.id}',1,this)" style="width:16px;height:14px;padding:0;border:1px solid var(--bd);border-radius:3px;background:var(--s2);cursor:pointer;font-size:9px;line-height:1;color:var(--tx)">▲</button>
+          <button onclick="adjLikes('${i.id}',-1,this)" style="width:16px;height:14px;padding:0;border:1px solid var(--bd);border-radius:3px;background:var(--s2);cursor:pointer;font-size:9px;line-height:1;color:var(--tx)">▼</button>
+        </div>
+      </div>
+    </td>
     <td style="color:var(--mu);font-size:11px">${(i.created_at||'').split(' ')[0]}</td>
     <td style="display:flex;gap:4px;flex-wrap:wrap">
       <button class="btn btn-s btn-sm" onclick='openEdit(${JSON.stringify(i).replace(/'/g,"&#39;")})'>编辑</button>
@@ -1174,6 +1233,237 @@ async function replaceCover(){
   if(res.ok){const d=await res.json();const item=allItems.find(i=>i.id===id);if(item)item.cover=d.cover;loadManage();toast('封面已更新');}else toast('失败','err');
 }
 
+function rowCatChange(id, cb) {
+  // 显示保存按钮
+  const saveBtn = document.getElementById('cat-save-' + id);
+  if (saveBtn) saveBtn.style.display = '';
+  // 更新 label 样式
+  const lbl = cb.closest('label');
+  if (lbl) {
+    lbl.style.borderColor = cb.checked ? 'var(--ac)' : 'var(--bd)';
+    lbl.style.background = cb.checked ? 'rgba(200,169,126,.12)' : 'var(--s2)';
+  }
+}
+
+async function saveRowCats(id) {
+  const checks = document.querySelectorAll(`input[data-id="${id}"]`);
+  const cats = Array.from(checks).filter(cb=>cb.checked).map(cb=>cb.dataset.cat);
+  if (!cats.length) { toast('至少选一个分类','err'); return; }
+  const btn = document.getElementById('cat-save-' + id);
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const res = await fetch('/admin/item/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({categories: cats, category: cats[0]})
+    });
+    if (res.ok) {
+      const item = itemList.find(x=>x.id===id);
+      if (item) { item.categories = cats; item.category = cats[0]; }
+      btn.style.display = 'none';
+      toast('✓ 分类已保存');
+    } else {
+      toast('保存失败','err');
+    }
+  } catch(e) {
+    toast('保存失败','err');
+  }
+  btn.disabled = false;
+  btn.textContent = '保存';
+}
+
+// ── 缩图库 ──
+const THUMB_PAGE_SIZE = 30;
+let _thumbAllItems = [], _thumbFiltered = [], _thumbPage = 1;
+
+async function loadThumbLib(pg) {
+  pg = pg || 1;
+  _thumbPage = pg;
+  document.getElementById('thumbGrid').innerHTML = '<div style="color:var(--mu);padding:20px">加载中...</div>';
+  const data = await fetch(`/admin/thumbs?page=1&per_page=9999`).then(r=>r.json()).catch(()=>({items:[]}));
+  _thumbAllItems = data.items || [];
+  renderThumbGrid();
+}
+
+function renderThumbGrid() {
+  const filter = document.getElementById('thumbRefFilter').value;
+  _thumbFiltered = filter === 'used'   ? _thumbAllItems.filter(i=>i.referenced)
+                 : filter === 'unused' ? _thumbAllItems.filter(i=>!i.referenced)
+                 : _thumbAllItems;
+
+  const totalPages = Math.max(1, Math.ceil(_thumbFiltered.length / THUMB_PAGE_SIZE));
+  if (_thumbPage > totalPages) _thumbPage = totalPages;
+  const start = (_thumbPage - 1) * THUMB_PAGE_SIZE;
+  const chunk = _thumbFiltered.slice(start, start + THUMB_PAGE_SIZE);
+
+  document.getElementById('thumbCount').textContent =
+    `共 ${_thumbFiltered.length} 张，第 ${_thumbPage}/${totalPages} 页`;
+
+  const grid = document.getElementById('thumbGrid');
+  grid.innerHTML = '';
+  if (!chunk.length) {
+    grid.innerHTML = '<div style="color:var(--mu);padding:20px">暂无缩图</div>';
+    document.getElementById('thumbPager').innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = chunk.map(item => {
+    const size = item.size > 1024*1024
+      ? (item.size/1024/1024).toFixed(1)+'MB'
+      : (item.size/1024).toFixed(0)+'KB';
+    const ext = item.filename.split('.').pop().toUpperCase();
+    const displayName = item.filename.replace(/^thumb_/,'');
+    const refBadge = item.referenced
+      ? `<div style="position:absolute;top:6px;left:6px;background:rgba(92,184,92,.85);color:#fff;font-size:9px;padding:2px 6px;border-radius:8px;backdrop-filter:blur(4px)">引用中</div>`
+      : `<div style="position:absolute;top:6px;left:6px;background:rgba(150,150,150,.7);color:#fff;font-size:9px;padding:2px 6px;border-radius:8px">未引用</div>`;
+    const refRow = item.ref_title
+      ? `<div style="font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.ref_title)}">→ ${esc(item.ref_title)}</div>`
+      : '';
+    return `<div style="background:var(--s2);border:2px solid var(--bd);border-radius:10px;overflow:hidden;cursor:default;transition:all .15s">
+      <div style="height:120px;position:relative;background:var(--s3)">
+        <img src="/static/thumbs/${item.filename}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.style.display='none'">
+        ${refBadge}
+        <div class="media-overlay">
+          <button class="media-act" onclick="deleteThumb('${item.filename}',this)" title="删除">🗑</button>
+        </div>
+      </div>
+      <div style="padding:8px 10px">
+        <div style="font-size:11px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:2px" title="${item.filename}">${displayName.slice(0,28)}</div>
+        <div style="font-size:10px;color:var(--mu)">${size} · ${ext}</div>
+        ${refRow}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 分页器（与媒体库一致）
+  const btnStyle = () => 'padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);color:var(--tx);cursor:pointer;font-size:12px';
+  const pager = document.getElementById('thumbPager');
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  let html = `<button style="${btnStyle()}" onclick="thumbGoPage(1)" ${_thumbPage===1?'disabled':''}>«</button>`;
+  html += `<button style="${btnStyle()}" onclick="thumbGoPage(${_thumbPage-1})" ${_thumbPage===1?'disabled':''}>‹</button>`;
+  const lo = Math.max(1, _thumbPage-2), hi = Math.min(totalPages, _thumbPage+2);
+  for (let i = lo; i <= hi; i++) {
+    const active = i === _thumbPage;
+    html += `<button style="${btnStyle()}${active?';background:var(--ac);color:#fff;border-color:var(--ac)':''}" onclick="thumbGoPage(${i})">${i}</button>`;
+  }
+  html += `<button style="${btnStyle()}" onclick="thumbGoPage(${_thumbPage+1})" ${_thumbPage===totalPages?'disabled':''}>›</button>`;
+  html += `<button style="${btnStyle()}" onclick="thumbGoPage(${totalPages})" ${_thumbPage===totalPages?'disabled':''}>»</button>`;
+  pager.innerHTML = html;
+}
+
+function thumbGoPage(pg) {
+  const totalPages = Math.ceil(_thumbFiltered.length / THUMB_PAGE_SIZE);
+  if (pg < 1 || pg > totalPages) return;
+  _thumbPage = pg;
+  renderThumbGrid();
+  document.getElementById('page-thumblib').scrollTop = 0;
+}
+
+function deleteThumb(filename, btn) {
+  if (!confirm('确认删除此缩图？')) return;
+  btn.disabled = true;
+  fetch('/admin/thumbs/' + filename, {method:'DELETE'}).then(() => {
+    _thumbAllItems = _thumbAllItems.filter(i => i.filename !== filename);
+    renderThumbGrid();
+    toast('已删除');
+  }).catch(() => { toast('删除失败','err'); btn.disabled = false; });
+}
+
+async function thumbCleanUnused() {
+  const unused = _thumbAllItems.filter(i => !i.referenced);
+  if (!unused.length) { toast('没有未引用的缩图'); return; }
+  if (!confirm(`确认删除 ${unused.length} 张未引用缩图？`)) return;
+  let done = 0;
+  for (const item of unused) {
+    await fetch('/admin/thumbs/' + item.filename, {method:'DELETE'}).catch(()=>{});
+    done++;
+  }
+  toast(`✓ 已清理 ${done} 张`);
+  loadThumbLib(1);
+}
+async function checkMissingThumbs() {
+  const st = document.getElementById('regenStatus');
+  const listWrap = document.getElementById('missingThumbList');
+  const fillBtn = document.getElementById('fillMissingBtn');
+  st.textContent = '检测中...';
+  listWrap.style.display = 'none';
+  fillBtn.style.display = 'none';
+  try {
+    const res = await fetch('/admin/thumbs/check').then(r=>r.json());
+    if (res.count === 0) {
+      st.textContent = '✅ 所有内容均已有缩图';
+      return;
+    }
+    st.textContent = `发现 ${res.count} 项缺少缩图`;
+    fillBtn.style.display = '';
+    // 显示列表
+    document.getElementById('missingThumbSummary').textContent = `以下 ${res.count} 项图片内容缺少缩图：`;
+    document.getElementById('missingThumbItems').innerHTML = res.missing.map(m =>
+      `<div style="font-size:11px;padding:4px 8px;background:var(--s2);border-radius:5px;border:1px solid var(--bd);display:flex;gap:8px;align-items:center">
+        <span style="color:var(--ac)">🖼</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.title)}</span>
+        <span style="color:var(--mu);font-size:10px;flex-shrink:0">${m.filename}</span>
+      </div>`
+    ).join('');
+    listWrap.style.display = '';
+  } catch(e) {
+    st.textContent = '检测失败';
+  }
+}
+
+async function fillMissingThumbs() {
+  const st = document.getElementById('regenStatus');
+  const fillBtn = document.getElementById('fillMissingBtn');
+  fillBtn.disabled = true;
+  st.textContent = '生成中...';
+  try {
+    const res = await fetch('/admin/thumbs/fill-missing', {method:'POST'}).then(r=>r.json());
+    st.textContent = `✅ 已补全 ${res.count} 张缩图`;
+    fillBtn.style.display = 'none';
+    document.getElementById('missingThumbList').style.display = 'none';
+    setTimeout(()=>st.textContent='', 5000);
+  } catch(e) {
+    st.textContent = '生成失败';
+  }
+  fillBtn.disabled = false;
+}
+
+async function regenThumbs(){
+  const st=document.getElementById('regenStatus');
+  st.textContent='生成中...';
+  const res=await fetch('/admin/thumbs/regenerate',{method:'POST'}).then(r=>r.json()).catch(()=>({count:0}));
+  st.textContent=`✓ 已生成 ${res.count} 张`;
+  setTimeout(()=>st.textContent='',4000);
+}
+
+function syncThumbScaleRange(){
+  const v=document.getElementById('thumbScale').value;
+  document.getElementById('thumbScaleRange').value=v;
+}
+
+
+async function adjLikes(id, delta, btn) {
+  btn.disabled = true;
+  try {
+    // 读当前值
+    const cell = document.getElementById('lc-' + id);
+    const cur = parseInt(cell.textContent.replace(/[^0-9]/g,'')) || 0;
+    const newVal = Math.max(0, cur + delta);
+    const res = await fetch('/admin/item/' + id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({likes: newVal})
+    });
+    if (res.ok) {
+      cell.textContent = '❤️ ' + newVal;
+      // 同步 itemList 数据
+      const item = itemList.find(x => x.id === id);
+      if (item) item.likes = newVal;
+    } else { toast('失败', 'err'); }
+  } catch(e) { toast('失败','err'); }
+  btn.disabled = false;
+}
+
 async function deleteItem(id){
   if(!confirm('确定删除？'))return;
   const res=await fetch(`/admin/delete/${id}`,{method:'DELETE'});
@@ -1186,8 +1476,8 @@ async function addCat(){const v=document.getElementById('newCatInp').value.trim(
 async function removeCat(cat){await fetch('/admin/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',category:cat})});categories=categories.filter(c=>c!==cat);loadCats();populateCatSelects();toast('已删除');}
 
 // BASIC
-function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
-async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,theme})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.theme=theme;toast('已保存');}else toast('失败','err');}
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const ts=siteData.thumb_scale||50;document.getElementById('thumbScale').value=ts;document.getElementById('thumbScaleRange').value=ts;const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
+async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const thumb_scale=parseInt(document.getElementById('thumbScale').value)||50;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,theme,thumb_scale})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.theme=theme;siteData.thumb_scale=thumb_scale;toast('已保存');}else toast('失败','err');}
 async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;const p=document.getElementById('faviconPrev');p.src=d.url;p.style.display='block';toast('图标已上传');}else toast('失败','err');}
 
 // HERO
