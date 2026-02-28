@@ -183,34 +183,49 @@
     },
     "columns": [
       {
+        "title": "",
         "links": [
           {
-            "href": "/about",
-            "label": "关于我"
-          },
-          {
-            "href": "/messages",
-            "label": "留言板"
+            "label": "留言",
+            "href": "/messages"
           }
-        ],
-        "title": "导航"
+        ]
       },
       {
+        "title": "",
         "links": [
           {
-            "href": "#",
-            "label": "隐私政策"
-          },
-          {
-            "href": "#",
-            "label": "版权声明"
-          },
-          {
-            "href": "#",
-            "label": "使用条款"
+            "label": "关于我",
+            "href": "/about"
           }
-        ],
-        "title": "关于"
+        ]
+      },
+      {
+        "title": "",
+        "links": [
+          {
+            "label": "联系我V:starjiekong",
+            "href": ""
+          }
+        ]
+      },
+      {
+        "title": "",
+        "links": [
+          {
+            "label": "订阅RSS",
+            "href": ""
+          }
+        ]
+      },
+      {
+        "title": "",
+        "links": [
+          {
+            "label": "版权:80万萝莉总教头",
+            "href": ""
+          }
+        ]
       }
     ],
     "copyright": "© 2026 GALLERY · 视觉创作集. All Rights Reserved. · Made 80万萝莉总教头 with ♥"
