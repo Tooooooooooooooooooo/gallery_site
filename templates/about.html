@@ -37,6 +37,7 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .story-text em{font-style:italic}
 .story-text a{color:var(--ac);text-decoration:none}
 .story-text ul,.story-text ol{padding-left:1.5em;margin-bottom:14px}
+.story-text blockquote{border-left:3px solid var(--ac);margin:12px 0;padding:8px 16px;color:var(--mu);font-style:italic;background:rgba(0,0,0,.04);border-radius:0 6px 6px 0}
 .skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
 .skill-item{background:var(--s);border:1px solid var(--bd);border-radius:14px;padding:20px;transition:background .3s,border-color .3s}
 .skill-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -176,6 +177,7 @@ async function init(){
     fetch('/api/items?per_page=6').then(r=>r.json())
   ]);
   const basic=site.site||{};
+  if(!localStorage.getItem('g_theme')) applyTheme(site.theme||'warm');
   if(basic.favicon)document.getElementById('faviconLink').href='/static/uploads/'+basic.favicon;
   if(basic.title)document.title='关于我 · '+basic.title;
   document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
@@ -311,7 +313,7 @@ window.addEventListener('storage',e=>{
 });
 
 // 初始化主题
-applyTheme(localStorage.getItem('g_theme')||'warm');
+applyTheme(localStorage.getItem('g_theme')||'warm'); // overridden by site.theme in init if no localStorage
 init();
 </script>
 </body>

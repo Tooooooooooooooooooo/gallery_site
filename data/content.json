@@ -8,6 +8,38 @@
   ],
   "items": [
     {
+      "id": "957fec4f-204e-4165-bed3-f395bee3cb54",
+      "title": "",
+      "categories": [
+        "AI"
+      ],
+      "category": "AI",
+      "description": "",
+      "filename": "Gemini_Generated_Image_fyn5g7fyn5g7fyn5.jpg",
+      "cover": null,
+      "type": "image",
+      "created_at": "2026-02-28 15:09:25",
+      "width": 800,
+      "height": 1200,
+      "sort_order": 0
+    },
+    {
+      "id": "442cbfae-e849-4e4b-9c54-706c028117fc",
+      "title": "",
+      "categories": [
+        "AI"
+      ],
+      "category": "AI",
+      "description": "",
+      "filename": "Gemini_Generated_Image_z9wo4cz9wo4cz9wo.jpg",
+      "cover": null,
+      "type": "image",
+      "created_at": "2026-02-28 15:01:03",
+      "width": 800,
+      "height": 600,
+      "sort_order": 0
+    },
+    {
       "id": "ad458b73-b6e9-4247-9cfd-9abf58013d40",
       "title": "",
       "categories": [

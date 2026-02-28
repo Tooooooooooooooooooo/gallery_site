@@ -66,6 +66,24 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .reply-form-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:8px;flex-wrap:wrap}
 .reply-form-footer input{flex:1;min-width:120px;padding:7px 12px;background:var(--s);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-family:inherit;font-size:12px;outline:none;transition:border-color .2s}
 .reply-form-footer input:focus{border-color:var(--ac)}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal.open{opacity:1;pointer-events:all}
+.modal-inner{max-width:92vw;max-height:92vh;position:relative;border-radius:18px;overflow:hidden}
+.modal-inner img,.modal-inner video{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
+.modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
+.modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
+.modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
+.modal-info p{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}
+.gallery-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.gallery-preview-item{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--bd);cursor:pointer;position:relative}
+.gallery-preview-item img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.gallery-preview-item:hover img{transform:scale(1.05)}
+.gallery-preview-more{aspect-ratio:1;border-radius:12px;background:var(--tx);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--bg);font-size:14px;font-weight:500;transition:background .2s}
+.gallery-preview-more:hover{background:var(--ac)}
+.msg-recent{max-width:700px;margin:48px auto 0;padding:0 24px 80px}
+.msg-recent .sec-label{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ac);margin-bottom:6px}
+.msg-recent .sec-title{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:16px;color:var(--tx)}
+.msg-recent .sec-title span{color:var(--ac)}
 /* FOOTER */
 footer{background:#1a1a1a;color:rgba(255,255,255,.7);padding:48px 0 28px}
 .footer-cols{max-width:960px;margin:0 auto;padding:0 48px;display:flex;align-items:flex-start;box-sizing:border-box;flex-wrap:nowrap;overflow:hidden}
@@ -161,9 +179,26 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div id="msgsList"><div class="no-msgs">暂无留言，来第一个留言吧！</div></div>
 </div>
 
+<div class="msg-recent">
+  <div class="sec-label">Recent Works</div>
+  <h2 class="sec-title">近期<span>作品</span></h2>
+  <div class="gallery-preview" id="msgGalleryPreview"></div>
+</div>
+
 <footer>
   <div id="footerInner"></div>
 </footer>
+
+<div class="modal" id="msgModal" onclick="if(event.target===this)closeMsgModal()">
+  <div class="modal-inner">
+    <button class="modal-close" onclick="closeMsgModal()">&#215;</button>
+    <div id="msgModalBody"></div>
+    <div class="modal-info">
+      <h2 id="msgModalTitle"></h2>
+      <p id="msgModalDesc"></p>
+    </div>
+  </div>
+</div>
 <div class="toast-bar" id="toast"></div>
 
 <script>
@@ -197,6 +232,48 @@ function renderFooter(ft){
     `<div class="footer-cols">${brandHtml}${navHtml}</div>` +
     `<div class="footer-copy"><p>${copy}</p></div>`;
 }
+
+async function loadMsgGallery(){
+  try{
+    const data=await fetch('/api/items?per_page=6').then(r=>r.json());
+    window._msgItems={};
+    data.items.forEach(i=>{window._msgItems[i.id]=i;});
+    const gp=document.getElementById('msgGalleryPreview');
+    if(!gp)return;
+    const preview=data.items.slice(0,5);
+    gp.innerHTML=preview.map(item=>{
+      const src=item.cover||(!item.type||item.type==='image'?item.filename:null);
+      const isVid=item.type==='video';
+      return src
+        ?`<div class="gallery-preview-item" onclick="openMsgModal('${item.id}')">
+            <img src="/static/uploads/${src}" alt="${esc(item.title||'')}">
+            ${isVid?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''}
+          </div>`
+        :`<div class="gallery-preview-item" onclick="openMsgModal('${item.id}')" style="display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
+    }).join('')+`<a class="gallery-preview-more" href="/">查看全部 →</a>`;
+  }catch(e){console.error(e);}
+}
+
+function openMsgModal(id){
+  const item=window._msgItems&&window._msgItems[id];if(!item)return;
+  const src='/static/uploads/'+item.filename;
+  const isVid=item.type==='video';
+  document.getElementById('msgModalBody').innerHTML=isVid
+    ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
+    :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+  const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
+  document.getElementById('msgModalTitle').textContent=item.title||'';
+  document.getElementById('msgModalDesc').textContent=[item.description,cats.join(' · ')].filter(Boolean).join(' — ');
+  document.getElementById('msgModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeMsgModal(){
+  document.getElementById('msgModal').classList.remove('open');
+  document.body.style.overflow='';
+  document.getElementById('msgModalBody').innerHTML='';
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMsgModal();});
 
 async function init(){
   const site=await fetch('/api/site').then(r=>r.json());
@@ -236,6 +313,7 @@ async function init(){
   if(uploadBtn) uploadBtn.style.display=avatarMaxSizeMB===0?'none':'';
   // Footer
   renderFooter(site.footer||{});
+  loadMsgGallery();
   loadMessages();
 }
 
@@ -409,7 +487,7 @@ window.addEventListener('storage',e=>{
 });
 
 // 初始化主题
-applyTheme(localStorage.getItem('g_theme')||'warm');
+applyTheme(localStorage.getItem('g_theme')||'warm'); // overridden by site.theme in init if no localStorage
 init();
 </script>
 </body>

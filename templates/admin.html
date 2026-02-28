@@ -152,6 +152,23 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .uc-mi.danger:hover{background:rgba(224,92,92,.1)}
 </style>
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<style>
+#bioEditor .ql-editor{background:rgb(34,34,46);color:#fff;border-radius:0 0 8px 8px;border:1px solid rgba(255,255,255,.1);border-top:none;min-height:180px}
+#bioEditor .ql-editor.ql-blank::before{color:rgba(255,255,255,.3)}
+#bioEditor .ql-editor a{color:#a78bfa}
+#bioEditor .ql-editor img{max-width:100%;border-radius:6px;margin:6px 0}
+#bioEditor .ql-container{border:none}
+#bioEditor .ql-toolbar.ql-snow{background:rgb(44,44,58);border:1px solid rgba(255,255,255,.1);border-radius:8px 8px 0 0;border-bottom:1px solid rgba(255,255,255,.08)}
+#bioEditor .ql-toolbar .ql-stroke{stroke:rgba(255,255,255,.7)}
+#bioEditor .ql-toolbar .ql-fill{fill:rgba(255,255,255,.7)}
+#bioEditor .ql-toolbar button:hover .ql-stroke{stroke:#fff}
+#bioEditor .ql-toolbar button.ql-active .ql-stroke{stroke:#a78bfa}
+#bioEditor .ql-toolbar button.ql-active .ql-fill{fill:#a78bfa}
+#bioEditor .ql-editor blockquote{border-left:3px solid #a78bfa;margin:8px 0;padding:6px 14px;color:rgba(255,255,255,.6);font-style:italic;background:rgba(167,139,250,.08);border-radius:0 6px 6px 0}
+#bioEditor .ql-toolbar .ql-picker-options{background:rgb(44,44,58);border:1px solid rgba(255,255,255,.15)}
+#bioEditor .ql-toolbar .ql-picker-item{color:rgba(255,255,255,.7)}
+#bioEditor .ql-toolbar .ql-picker-item:hover{color:#fff}
+</style>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 </head>
 <body>
@@ -541,6 +558,37 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card"><div class="ct">🌐 基本信息</div>
     <div class="fg" style="margin-bottom:11px"><label>网站标题</label><input class="inp" type="text" id="siteTitle" placeholder="GALLERY · 视觉创作集"></div>
     <div class="fg" style="margin-bottom:16px"><label>副标题</label><input class="inp" type="text" id="siteSub" placeholder="记录生活之美..."></div>
+    <div class="fg" style="margin-top:14px">
+      <label>前端默认配色方案</label>
+      <p style="font-size:11px;color:var(--mu);margin-bottom:10px">新访客首次打开网站时使用的配色（用户可自行切换）</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="radio" name="defaultTheme" value="warm" style="accent-color:var(--ac)">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#c8a97e,#f0e0c0);flex-shrink:0"></span>
+          暖金
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="radio" name="defaultTheme" value="cool" style="accent-color:var(--ac)">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#4a90d9,#a0c8f8);flex-shrink:0"></span>
+          清蓝
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="radio" name="defaultTheme" value="dark" style="accent-color:var(--ac)">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#333,#7c6af5);flex-shrink:0"></span>
+          暗夜
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="radio" name="defaultTheme" value="green" style="accent-color:var(--ac)">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#4a9460,#a8e0b0);flex-shrink:0"></span>
+          绿意
+        </label>
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer">
+          <input type="radio" name="defaultTheme" value="rose" style="accent-color:var(--ac)">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#d4607a,#f8b0c0);flex-shrink:0"></span>
+          玫瑰
+        </label>
+      </div>
+    </div>
     <button class="btn btn-p" onclick="saveBasic()" style="margin-top:14px">保存</button>
   </div>
   <div class="card"><div class="ct">🎨 网站图标 (Favicon)</div>
@@ -643,7 +691,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
 
   <div class="card"><div class="ct">📖 个人简介</div>
-    <div id="bioEditor" style="background:#fff;border-radius:8px;min-height:200px;font-size:14px"></div>
+    <div id="bioEditor" style="background:rgb(34,34,46);border-radius:8px;min-height:200px;font-size:14px"></div>
     <p style="font-size:11px;color:var(--mu);margin-top:6px">支持加粗、斜体、链接、列表等富文本格式</p>
   </div>
 
@@ -1133,8 +1181,8 @@ async function addCat(){const v=document.getElementById('newCatInp').value.trim(
 async function removeCat(cat){await fetch('/admin/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'remove',category:cat})});categories=categories.filter(c=>c!==cat);loadCats();populateCatSelects();toast('已删除');}
 
 // BASIC
-function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
-async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;toast('已保存');}else toast('失败','err');}
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
+async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,theme})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.theme=theme;toast('已保存');}else toast('失败','err');}
 async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;const p=document.getElementById('faviconPrev');p.src=d.url;p.style.display='block';toast('图标已上传');}else toast('失败','err');}
 
 // HERO
@@ -1297,28 +1345,56 @@ function initBioEditor(html) {
     _bioQuill = new Quill('#bioEditor', {
       theme: 'snow',
       modules: {
-        toolbar: [
-          ['bold','italic','underline'],
-          [{'list':'ordered'},{'list':'bullet'}],
-          ['link','clean']
-        ]
+        toolbar: {
+          container: [
+            ['bold','italic','underline'],
+            [{'align':[]},{'align':'center'},{'align':'right'}],
+            ['blockquote'],
+            [{'list':'ordered'},{'list':'bullet'}],
+            ['link','image','clean']
+          ],
+          handlers: {
+            image: function() {
+              // 调用媒体库选图
+              openMediaPicker((fn, url) => {
+                const range = _bioQuill.getSelection(true);
+                _bioQuill.insertEmbed(range ? range.index : 0, 'image', '/static/uploads/' + fn, 'user');
+                _bioQuill.setSelection((range ? range.index : 0) + 1);
+              }, 'image');
+            }
+          }
+        }
       },
       placeholder: '在这里编写个人简介...'
     });
-    // 内容变化时同步到 siteData
+
+    // 深色主题：编辑区文字白色
+    const editorEl = document.querySelector('#bioEditor .ql-editor');
+    if (editorEl) {
+      editorEl.style.color = '#fff';
+      editorEl.style.minHeight = '180px';
+    }
+
+    // toolbar 深色化
+    const tb = document.querySelector('#bioEditor').previousElementSibling;
+    if (tb && tb.classList.contains('ql-toolbar')) {
+      tb.style.background = 'rgb(44,44,58)';
+      tb.style.border = '1px solid rgba(255,255,255,.1)';
+      tb.style.borderRadius = '8px 8px 0 0';
+      tb.querySelectorAll('button,.ql-picker-label').forEach(el => {
+        el.style.color = 'rgba(255,255,255,.8)';
+        el.style.filter = 'invert(1)';
+      });
+    }
+
     _bioQuill.on('text-change', () => {
       if (!siteData.about) siteData.about = {};
       siteData.about.bio = _bioQuill.root.innerHTML;
-      // 兼容旧 paragraphs：清空（保存时用 bio 字段）
       siteData.about.paragraphs = [];
     });
   }
   // 设置初始内容
-  if (html) {
-    _bioQuill.root.innerHTML = html;
-  } else {
-    _bioQuill.root.innerHTML = '';
-  }
+  _bioQuill.root.innerHTML = html || '';
 }
 function getBioHtml() {
   return _bioQuill ? _bioQuill.root.innerHTML : '';

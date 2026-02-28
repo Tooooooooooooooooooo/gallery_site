@@ -238,9 +238,9 @@ function togglePicker(){document.getElementById('themePop').classList.toggle('op
 document.addEventListener('click',e=>{if(!e.target.closest('.theme-trigger')&&!e.target.closest('.theme-popup'))document.getElementById('themePop').classList.remove('open');});
 
 async function init(){
-  const t=localStorage.getItem('g_theme')||'warm';
-  applyTheme(t);
   const site=await fetch('/api/site').then(r=>r.json());
+  const t=localStorage.getItem('g_theme')||(site.theme||'warm');
+  applyTheme(t);
   const b=site.site||{};
   if(b.title)document.title=b.title;
   if(b.favicon)document.getElementById('faviconLink').href='/static/uploads/'+b.favicon;
