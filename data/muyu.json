@@ -1,0 +1,44 @@
+{
+  "messages": [
+    {
+      "text": "功德+1，佛祖保佑你",
+      "color": "#f5e6c8",
+      "size": 28,
+      "style": "float"
+    },
+    {
+      "text": "心想事成，万事如意",
+      "color": "#ffd700",
+      "size": 24,
+      "style": "burst"
+    },
+    {
+      "text": "健康平安，诸事顺遂",
+      "color": "#98ffb0",
+      "size": 26,
+      "style": "spin"
+    },
+    {
+      "text": "财源广进，福气满满",
+      "color": "#ffaa55",
+      "size": 25,
+      "style": "zoom"
+    }
+  ],
+  "vip": {
+    "name": "VIP自动敲",
+    "speed": 1000,
+    "enabled": true
+  },
+  "svip": {
+    "name": "SVIP自动狂敲",
+    "speed": 180,
+    "enabled": true
+  },
+  "title": "电子木鱼",
+  "subtitle": "敲电子木鱼，见机甲佛祖，修赛博真经",
+  "total_label": "功德",
+  "sound_enabled": true,
+  "custom_sound": "muyu_sound_b307ea33-78df-42d5-9e86-746aefd44661.mp3",
+  "custom_svg": "data/muyu_custom.svg"
+}
