@@ -234,7 +234,7 @@ async function init(){
     const isVid=item.type==='video';
     return src
       ?`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer">
-          <img src="/static/uploads/${src}" alt="${esc(item.title||'')}">
+          <img src="${fileSrc(src)}" alt="${esc(item.title||'')}">
           ${isVid?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;pointer-events:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''} 
         </div>`
       :`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
@@ -268,10 +268,11 @@ function renderFooter(ft){
     `<div class="footer-copy"><p>${copy}</p></div>`;
 }
 
+function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function openAboutModal(id){
   const item=window._aboutItems?.[id];if(!item)return;
-  const src='/static/uploads/'+item.filename;
+  const src=fileSrc(item.filename);
   const isVid=item.type==='video';
   document.getElementById('aboutModalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`

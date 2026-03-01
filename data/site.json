@@ -250,5 +250,6 @@
     "titleSize": 48,
     "overlayOpacity": 0.5,
     "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"
-  }
+  },
+  "thumb_scale": 50
 }

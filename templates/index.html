@@ -149,6 +149,45 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
 
 @media(max-width:768px){nav{padding:0 14px}.toolbar{padding:10px 12px}}
+
+/* ── 详情精选 ── */
+.featured-section{padding:32px 0 8px}
+.featured-header{display:flex;align-items:baseline;gap:12px;margin-bottom:20px;padding:0 24px}
+.featured-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--tx)}
+.featured-sub{font-size:12px;color:var(--mu);letter-spacing:.06em}
+.featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:0 24px}
+.featured-card{position:relative;border-radius:12px;overflow:hidden;cursor:pointer;background:var(--s2);border:1px solid var(--bd);transition:transform .2s,box-shadow .2s}
+.featured-card:hover{transform:translateY(-3px);box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.featured-card img{width:100%;height:280px;object-fit:cover;object-position:top;display:block;transition:opacity .2s}
+.featured-card-info{padding:12px 14px}
+.featured-card-title{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.featured-card-count{font-size:11px;color:var(--mu)}
+.featured-card-badge{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:3px 7px;border-radius:10px;backdrop-filter:blur(6px)}
+/* 查看器 */
+.fv-overlay{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:2000;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s}
+.fv-overlay.open{opacity:1;pointer-events:all}
+.fv-header{display:flex;align-items:center;gap:12px;padding:14px 18px;flex-shrink:0;position:relative;z-index:10}
+.fv-close{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.fv-close:hover{background:rgba(255,255,255,.22)}
+.fv-title{color:#fff;font-size:15px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fv-counter{color:rgba(255,255,255,.5);font-size:12px;flex-shrink:0}
+.fv-body{flex:1;display:flex;position:relative;overflow:hidden}
+.fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;position:relative}
+.fv-img-wrap::-webkit-scrollbar{width:4px}
+.fv-img-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.fv-img{width:100%;display:block;max-width:900px;margin:0 auto}
+.fv-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:44px;height:64px;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:24px;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s;backdrop-filter:blur(4px)}
+.fv-arrow:hover{background:rgba(255,255,255,.22)}
+.fv-arrow.prev{left:10px}
+.fv-arrow.next{right:10px}
+.fv-arrow:disabled{opacity:.2;cursor:default}
+.fv-thumbs{width:88px;flex-shrink:0;overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:6px;background:rgba(0,0,0,.4)}
+.fv-thumbs::-webkit-scrollbar{width:3px}
+.fv-thumbs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15)}
+.fv-thumb{width:72px;height:56px;object-fit:cover;border-radius:5px;cursor:pointer;opacity:.5;transition:opacity .15s,outline .15s;flex-shrink:0;border:2px solid transparent}
+.fv-thumb.active{opacity:1;border-color:var(--ac,#c8a97e)}
+.fv-thumb:hover{opacity:.85}
+
 </style>
 </head>
 <body>
@@ -190,6 +229,18 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div style="height:1px;background:var(--bd);margin-top:8px"></div>
 </section>
 
+<section id="featured-section-after-showcase" style="display:none">
+  <div class="featured-section" id="featuredBlock">
+    <div class="featured-header">
+      <span class="featured-title" id="featuredTitle">详情精选</span>
+      <span class="featured-sub" id="featuredSub">FEATURED</span>
+    </div>
+    <div class="featured-grid" id="featuredGrid"></div>
+  </div>
+  <div style="height:1px;background:var(--bd);margin-top:24px"></div>
+</section>
+
+
 <div id="gallery">
   <div class="toolbar" id="toolbar">
     <button class="cat-btn active" data-cat="" onclick="filterCat('',this)">全部</button>
@@ -207,6 +258,18 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div id="scrollSentinel" style="height:1px;margin-top:8px"></div>
   <div class="end-msg" id="endMsg">— 已显示全部内容 —</div>
 </div>
+
+<section id="featured-section-before-footer" style="display:none">
+  <div style="height:1px;background:var(--bd);margin-bottom:24px"></div>
+  <div class="featured-section">
+    <div class="featured-header">
+      <span class="featured-title" id="featuredTitleB">详情精选</span>
+      <span class="featured-sub" id="featuredSubB">FEATURED</span>
+    </div>
+    <div class="featured-grid" id="featuredGridB"></div>
+  </div>
+</section>
+
 
 <footer>
   <div id="footerInner"></div>
@@ -250,6 +313,7 @@ async function init(){
   renderFooter(site.footer||{});
   loadCats();
   loadShowcase();
+  loadFeatured();
   loadMore();
 }
 
@@ -266,7 +330,7 @@ function renderHero(hero){
   slideTotal=(hero.slides||[]).length;
   sl.innerHTML=(hero.slides||[]).map(s=>{
     const bgStyle=s.bgType==='image'
-      ?`background-image:url('/static/uploads/${s.bgValue}');background-size:cover;background-position:center`
+      ?`background-image:url('${fileSrc(s.bgValue)}');background-size:cover;background-position:center`
       :`background:${s.bgValue}`;
     return `<div class="slide"><div class="slide-bg" style="${bgStyle}"></div>
       <div class="slide-content"><div class="slide-tag">${s.tag||''}</div>
@@ -335,7 +399,7 @@ async function loadShowcase() {
     const cover = item.cover || item.filename;
     return `<div class="sc-card" onclick="openScModal('${item.id}')">
       <div class="sc-thumb">
-        <img src="/static/uploads/${cover}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">
+        <img src="${fileSrc(cover)}" loading="lazy" alt="${esc(item.title||'')}" onerror="this.style.display='none'">
         <div class="sc-play">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,.95)"><polygon points="5,3 19,12 5,21"/></svg>
         </div>
@@ -430,7 +494,7 @@ async function scDoLike(e, id, btn) {
 
 function openScModal(id) {
   const item = scMap[id]; if (!item) return;
-  const src = '/static/uploads/' + item.filename;
+  const src = fileSrc(item.filename);
   const isVid = item.type === 'video';
   document.getElementById('modalBody').innerHTML = isVid
     ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
@@ -561,8 +625,10 @@ function mkCard(item,idx){
   div.className='m-item';div.style.animationDelay=(idx%8*.05)+'s';
   const isVid=item.type==='video';
   const cover=item.cover||(!isVid?item.filename:null);
-  const cardSrc=(!isVid&&item.thumb)?item.thumb:cover;
-  const cardBase=(!isVid&&item.thumb)?'/static/thumbs/':'/static/uploads/';
+  const isExternalUrl = cover && (cover.startsWith('http://') || cover.startsWith('https://'));
+  // 外链直接用原URL，本地文件优先用缩图
+  const cardSrc = isExternalUrl ? cover : ((!isVid&&item.thumb)?item.thumb:cover);
+  const cardBase = isExternalUrl ? '' : ((!isVid&&item.thumb)?'/static/thumbs/':'/static/uploads/');
   const ratio=item.height&&item.width?(item.height/item.width*100).toFixed(1):75;
 
   const hasTitle=item.title?.trim();
@@ -690,7 +756,7 @@ window.addEventListener('scroll',()=>{
 
 function openModal(id){
   const item=itemMap[id];if(!item)return;
-  const src='/static/uploads/'+item.filename;
+  const src=fileSrc(item.filename);
   const isVid=item.type==='video';
   document.getElementById('modalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
@@ -706,8 +772,139 @@ function openModal(id){
 function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
+function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 init();
+
+// ════════════════════════════════════════
+// 详情精选
+// ════════════════════════════════════════
+let _fvImages = [], _fvIdx = 0;
+
+async function loadFeatured() {
+  const d = await fetch('/api/featured').then(r => r.json()).catch(() => null);
+  if (!d || !d.config.enabled || !d.items.length) return;
+
+  const cfg = d.config;
+  const pos = cfg.position || 'after_showcase';
+
+  // 填充标题
+  const titleA = document.getElementById('featuredTitle');
+  const subA   = document.getElementById('featuredSub');
+  const titleB = document.getElementById('featuredTitleB');
+  const subB   = document.getElementById('featuredSubB');
+  if (titleA) titleA.textContent = cfg.title || '详情精选';
+  if (subA)   subA.textContent   = cfg.subtitle || 'FEATURED';
+  if (titleB) titleB.textContent = cfg.title || '详情精选';
+  if (subB)   subB.textContent   = cfg.subtitle || 'FEATURED';
+
+  // 渲染卡片到两个 grid
+  const html = d.items.map(item => {
+    const first = item.images && item.images[0];
+    const cover = first ? fileSrc(first) : '';
+    const cnt   = item.images ? item.images.length : 0;
+    return `<div class="featured-card" onclick='openFv(${JSON.stringify(item).replace(/'/g,"&#39;")})'>
+      ${cover ? `<img src="${cover}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:280px;display:flex;align-items:center;justify-content:center;color:var(--mu)">🖼</div>`}
+      ${cnt > 1 ? `<div class="featured-card-badge">共 ${cnt} 张</div>` : ''}
+      <div class="featured-card-info">
+        <div class="featured-card-title">${esc(item.title||'(无标题)')}</div>
+        <div class="featured-card-count">${cnt} 张图片</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const gridA = document.getElementById('featuredGrid');
+  const gridB = document.getElementById('featuredGridB');
+  if (gridA) gridA.innerHTML = html;
+  if (gridB) gridB.innerHTML = html;
+
+  // 按位置显示对应区块
+  const secA = document.getElementById('featured-section-after-showcase');
+  const secB = document.getElementById('featured-section-before-footer');
+  if (pos === 'after_showcase') {
+    if (secA) secA.style.display = '';
+    if (secB) secB.style.display = 'none';
+  } else {
+    if (secA) secA.style.display = 'none';
+    if (secB) secB.style.display = '';
+  }
+}
+
+function openFv(item) {
+  _fvImages = item.images || [];
+  _fvIdx = 0;
+  document.getElementById('fvTitle').textContent = item.title || '';
+  renderFvThumbs();
+  fvShow(0);
+  document.getElementById('fvOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFv() {
+  document.getElementById('fvOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function fvShow(idx) {
+  _fvIdx = Math.max(0, Math.min(_fvImages.length - 1, idx));
+  const src = fileSrc(_fvImages[_fvIdx]);
+  const img = document.getElementById('fvImg');
+  img.src = src;
+  // 滚回顶部
+  document.getElementById('fvImgWrap').scrollTop = 0;
+  // 更新计数
+  document.getElementById('fvCounter').textContent =
+    _fvImages.length > 1 ? `${_fvIdx + 1} / ${_fvImages.length}` : '';
+  // 箭头状态
+  document.getElementById('fvPrev').disabled = _fvIdx === 0;
+  document.getElementById('fvNext').disabled = _fvIdx === _fvImages.length - 1;
+  // 缩略图高亮
+  document.querySelectorAll('.fv-thumb').forEach((t, i) => {
+    t.classList.toggle('active', i === _fvIdx);
+    if (i === _fvIdx) t.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  });
+  // 单张图时隐藏箭头和缩略图栏
+  const single = _fvImages.length <= 1;
+  document.getElementById('fvPrev').style.display  = single ? 'none' : '';
+  document.getElementById('fvNext').style.display  = single ? 'none' : '';
+  document.getElementById('fvThumbs').style.display = single ? 'none' : '';
+}
+
+function fvMove(delta) { fvShow(_fvIdx + delta); }
+
+function renderFvThumbs() {
+  document.getElementById('fvThumbs').innerHTML = _fvImages.map((fn, i) =>
+    `<img class="fv-thumb" src="${fileSrc(fn)}" loading="lazy"
+      onclick="fvShow(${i})" onerror="this.style.display='none'">`
+  ).join('');
+}
+
+// 键盘控制
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('fvOverlay').classList.contains('open')) return;
+  if (e.key === 'Escape')     closeFv();
+  if (e.key === 'ArrowLeft')  fvMove(-1);
+  if (e.key === 'ArrowRight') fvMove(1);
+});
+
 </script>
+
+<!-- 详情精选查看器 -->
+<div class="fv-overlay" id="fvOverlay">
+  <div class="fv-header">
+    <button class="fv-close" onclick="closeFv()">×</button>
+    <span class="fv-title" id="fvTitle"></span>
+    <span class="fv-counter" id="fvCounter"></span>
+  </div>
+  <div class="fv-body">
+    <button class="fv-arrow prev" id="fvPrev" onclick="fvMove(-1)">&#8249;</button>
+    <div class="fv-img-wrap" id="fvImgWrap">
+      <img class="fv-img" id="fvImg" src="" alt="">
+    </div>
+    <button class="fv-arrow next" id="fvNext" onclick="fvMove(1)">&#8250;</button>
+    <div class="fv-thumbs" id="fvThumbs"></div>
+  </div>
+</div>
+
 </body>
 </html>

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
 from functools import wraps
 import json, os, uuid, hashlib, smtplib, secrets, time
+import urllib.request, urllib.parse, mimetypes
 try:
     from PIL import Image, ImageOps
     HAS_PIL = True
@@ -15,17 +16,19 @@ from email.utils import formataddr
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 
-UPLOAD_FOLDER = 'static/uploads'
-THUMBS_FOLDER = 'static/thumbs'
+# 基于 app.py 所在目录的绝对路径，避免 gunicorn 工作目录不一致问题
+_BASE = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(_BASE, 'static', 'uploads')
+THUMBS_FOLDER = os.path.join(_BASE, 'static', 'thumbs')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-DATA_FILE     = 'data/content.json'
-MESSAGES_FILE = 'data/messages.json'
-SITE_FILE     = 'data/site.json'
-VISITORS_FILE = 'data/visitors.json'
-LIKES_FILE    = 'data/likes.json'
-AUTH_FILE     = 'data/auth.json'
-SMTP_FILE     = 'data/smtp.json'
+DATA_FILE     = os.path.join(_BASE, 'data', 'content.json')
+MESSAGES_FILE = os.path.join(_BASE, 'data', 'messages.json')
+SITE_FILE     = os.path.join(_BASE, 'data', 'site.json')
+VISITORS_FILE = os.path.join(_BASE, 'data', 'visitors.json')
+LIKES_FILE    = os.path.join(_BASE, 'data', 'likes.json')
+AUTH_FILE     = os.path.join(_BASE, 'data', 'auth.json')
+SMTP_FILE     = os.path.join(_BASE, 'data', 'smtp.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -34,6 +37,10 @@ def make_thumb(src_filename, scale_pct=50):
     """从 uploads 里的图片生成缩图，存到 thumbs 目录，返回缩图文件名"""
     if not HAS_PIL:
         return None
+    if not src_filename:
+        return None
+    if src_filename.startswith('http://') or src_filename.startswith('https://'):
+        return None  # 外链不生成缩图
     src = os.path.join(UPLOAD_FOLDER, src_filename)
     if not os.path.exists(src):
         return None
@@ -64,10 +71,12 @@ def make_thumb(src_filename, scale_pct=50):
         print(f'make_thumb error: {e}')
         return None
 
-
 def allowed_file(f): return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def allowed_img(f): return '.' in f and f.rsplit('.', 1)[1].lower() in IMG_EXTENSIONS
-def is_video(f): return f.rsplit('.', 1)[1].lower() in {'mp4', 'mov', 'webm'}
+def is_video(f):
+    if not f or '.' not in f: return False
+    ext = f.rsplit('.', 1)[1].lower().split('?')[0]
+    return ext in {'mp4', 'mov', 'webm'}
 def hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
 
 def load_json(path, default):
@@ -312,7 +321,6 @@ def api_items():
 def api_categories():
     return jsonify(load_data().get('categories', []))
 
-
 @app.route('/api/avatar-upload', methods=['POST'])
 def api_avatar_upload():
     """记录并校验头像上传次数（以 IP 为单位，每日限制）"""
@@ -354,7 +362,6 @@ def api_messages():
         return jsonify({'success': True, 'message': msg})
     return jsonify([m for m in load_messages() if m.get('approved', True)])
 
-
 @app.route('/api/messages/<msg_id>/reply', methods=['POST'])
 def api_reply_message(msg_id):
     messages = load_messages()
@@ -375,7 +382,6 @@ def api_reply_message(msg_id):
             return jsonify({'success': True, 'reply': reply})
     return jsonify({'success': False, 'error': '留言不存在'}), 404
 
-
 # IP 点赞状态（内存，重启清零）key: "ip:item_id" -> True/False
 def _ip_key(ip, item_id):
     return f"ip:{ip}:{item_id}"
@@ -388,7 +394,6 @@ def ip_like_toggle(item_id, ip):
     likes[key] = not currently
     save_likes(likes)
     return not currently, (1 if not currently else -1)
-
 
 @app.route('/api/like/<item_id>', methods=['POST'])
 def api_like(item_id):
@@ -411,9 +416,7 @@ def api_liked_status():
     result = {item_id: bool(likes.get(_ip_key(ip, item_id), False)) for item_id in ids if item_id}
     return jsonify(result)
 
-
 # ── Admin Routes (protected) ──
-
 
 @app.route('/admin')
 @login_required
@@ -515,13 +518,6 @@ def admin_reorder_items():
 def admin_bulk_delete():
     data = load_data()
     ids = set(request.json.get('ids', []))
-    for item in data['items']:
-        if item['id'] in ids:
-            thumb = item.get('thumb')
-            if thumb:
-                tp = os.path.join(THUMBS_FOLDER, thumb)
-                if os.path.exists(tp):
-                    os.remove(tp)
     data['items'] = [i for i in data['items'] if i['id'] not in ids]
     save_data(data)
     return jsonify({'success': True})
@@ -571,12 +567,6 @@ def admin_delete(item_id):
     data = load_data()
     item = next((i for i in data['items'] if i['id'] == item_id), None)
     if item:
-        # 删除缩图文件
-        thumb = item.get('thumb')
-        if thumb:
-            tp = os.path.join(THUMBS_FOLDER, thumb)
-            if os.path.exists(tp):
-                os.remove(tp)
         data['items'] = [i for i in data['items'] if i['id'] != item_id]
     save_data(data)
     return jsonify({'success': True})
@@ -592,6 +582,13 @@ def admin_categories():
         data['categories'].append(cat)
     elif action == 'remove' and cat in data['categories']:
         data['categories'].remove(cat)
+    elif action == 'reorder':
+        new_order = body.get('categories', [])
+        # 只接受已存在的分类，防止注入
+        valid = [c for c in new_order if c in data['categories']]
+        # 补上未出现的（容错）
+        rest = [c for c in data['categories'] if c not in valid]
+        data['categories'] = valid + rest
     save_data(data)
     return jsonify({'success': True, 'categories': data['categories']})
 
@@ -599,7 +596,6 @@ def admin_categories():
 @login_required
 def admin_messages_list():
     return jsonify(load_messages())
-
 
 @app.route('/admin/messages/replies/<msg_id>', methods=['PUT'])
 @login_required
@@ -704,7 +700,6 @@ def admin_site_favicon():
     save_site(site)
     return jsonify({'success': True, 'favicon': filename, 'url': '/static/uploads/' + filename})
 
-
 @app.route('/admin/site/favicon-from-media', methods=['POST'])
 @login_required
 def admin_favicon_from_media():
@@ -717,7 +712,6 @@ def admin_favicon_from_media():
     site['site']['favicon'] = filename
     save_site(site)
     return jsonify({'success': True, 'favicon': filename})
-
 
 @app.route('/admin/site/hero', methods=['PUT'])
 @login_required
@@ -787,7 +781,6 @@ def admin_messages_page_bg():
     if not file or not allowed_img(file.filename): return jsonify({'success': False, 'error': '无效文件'}), 400
     filename = save_upload(file, 'msgbg_')
     return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename})
-
 
 # ── 媒体库 API ──
 @app.route('/admin/media')
@@ -919,10 +912,109 @@ def admin_media_replace(filename):
         os.remove(old_fp)
     return jsonify({'success': True, 'new_filename': new_filename, 'url': '/static/uploads/' + new_filename})
 
+# ════════════════════════════════════════
 
-# ═══════════════════════════════════════════════════
-# 橱窗 API
-# ═══════════════════════════════════════════════════
+FEATURED_FILE = os.path.join(_BASE, 'data', 'featured.json')
+
+def load_featured():
+    d = load_json(FEATURED_FILE, {"items": [], "config": {}})
+    if "config" not in d: d["config"] = {}
+    cfg = d["config"]
+    cfg.setdefault("enabled", False)
+    cfg.setdefault("title", "详情精选")
+    cfg.setdefault("subtitle", "FEATURED")
+    cfg.setdefault("position", "after_showcase")
+    return d
+
+def save_featured(d): save_json(FEATURED_FILE, d)
+
+# ── 详情精选 路由 ──
+
+@app.route('/api/featured')
+def api_featured():
+    data = load_featured()
+    return jsonify({"items": data["items"], "config": data["config"]})
+
+@app.route('/admin/featured')
+@login_required
+def admin_featured_list():
+    return jsonify(load_featured())
+
+@app.route('/admin/featured/config', methods=['PUT'])
+@login_required
+def admin_featured_config():
+    body = request.json or {}
+    data = load_featured()
+    cfg = data['config']
+    cfg['enabled']  = bool(body.get('enabled', cfg.get('enabled', False)))
+    cfg['title']    = body.get('title', cfg.get('title', '详情精选'))
+    cfg['subtitle'] = body.get('subtitle', cfg.get('subtitle', 'FEATURED'))
+    cfg['position'] = body.get('position', cfg.get('position', 'after_showcase'))
+    save_featured(data)
+    return jsonify({'success': True, 'config': cfg})
+
+@app.route('/admin/featured/reorder', methods=['POST'])
+@login_required
+def admin_featured_reorder():
+    ids = (request.json or {}).get('ids', [])
+    data = load_featured()
+    lookup = {i['id']: i for i in data['items']}
+    data['items'] = [lookup[i] for i in ids if i in lookup]
+    save_featured(data)
+    return jsonify({'success': True})
+
+@app.route('/admin/featured/upload', methods=['POST'])
+@login_required
+def admin_featured_upload():
+    data = load_featured()
+    images = []
+    for f in request.files.getlist('images'):
+        if f and f.filename and allowed_img(f.filename):
+            images.append(save_upload(f))
+    for fn in request.form.getlist('existing_images'):
+        if fn: images.append(fn)
+    if not images:
+        return jsonify({'success': False, 'error': '至少需要一张图片'}), 400
+    item = {
+        'id': str(uuid.uuid4()),
+        'title': request.form.get('title', '').strip(),
+        'images': images,
+        'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+    data['items'].insert(0, item)
+    save_featured(data)
+    return jsonify({'success': True, 'item': item})
+
+@app.route('/admin/featured/<item_id>', methods=['PUT'])
+@login_required
+def admin_featured_update(item_id):
+    data = load_featured()
+    item = next((i for i in data['items'] if i['id'] == item_id), None)
+    if not item:
+        return jsonify({'success': False, 'error': '未找到'}), 404
+    if request.is_json:
+        body = request.json or {}
+        if 'title' in body: item['title'] = body['title']
+        if 'images_order' in body: item['images'] = body['images_order']
+    else:
+        for f in request.files.getlist('images'):
+            if f and f.filename and allowed_img(f.filename):
+                item.setdefault('images', []).append(save_upload(f))
+        for fn in request.form.getlist('existing_images'):
+            if fn: item.setdefault('images', []).append(fn)
+        order = request.form.getlist('images_order')
+        if order: item['images'] = order
+    save_featured(data)
+    return jsonify({'success': True, 'item': item})
+
+@app.route('/admin/featured/<item_id>', methods=['DELETE'])
+@login_required
+def admin_featured_delete(item_id):
+    data = load_featured()
+    data['items'] = [i for i in data['items'] if i['id'] != item_id]
+    save_featured(data)
+    return jsonify({'success': True})
+
 SHOWCASE_FILE = 'data/showcase.json'
 
 def load_showcase():
@@ -962,7 +1054,6 @@ def api_showcase_like(item_id):
     likes[sc_id] = max(0, likes.get(sc_id, 0) + (1 if is_liked else -1))
     save_likes(likes)
     return jsonify({'success': True, 'liked': is_liked, 'likes': likes[sc_id]})
-
 
 @app.route('/admin/showcase')
 @login_required
@@ -1073,14 +1164,6 @@ def admin_showcase_replace(item_id):
     save_showcase(data)
     return jsonify({'success': True})
 
-@app.route('/admin/showcase/<item_id>', methods=['DELETE'])
-@login_required
-def admin_showcase_delete(item_id):
-    data = load_showcase()
-    data['items'] = [i for i in data['items'] if i['id'] != item_id]
-    save_showcase(data)
-    return jsonify({'success': True})
-
 @app.route('/admin/showcase/reorder', methods=['PUT'])
 @login_required
 def admin_showcase_reorder():
@@ -1090,7 +1173,6 @@ def admin_showcase_reorder():
     data['items'] = [id_map[oid] for oid in order if oid in id_map]
     save_showcase(data)
     return jsonify({'success': True})
-
 
 @app.route('/admin/media/cleanup', methods=['POST'])
 @login_required
@@ -1152,10 +1234,10 @@ def admin_media_cleanup():
         'deletedFiles': deleted
     })
 
-
 # ════════════════════════════════════════════
 # SMTP 配置
-# ════════════════════════════════════════════
+# ════════════════════════════════════════
+# 详情精选 (Featured) API & Admin routes
 @app.route('/admin/smtp', methods=['GET'])
 @login_required
 def admin_smtp_get():
@@ -1163,23 +1245,6 @@ def admin_smtp_get():
     safe = dict(cfg)
     safe['password'] = '••••••' if cfg.get('password') else ''
     return jsonify(safe)
-
-@app.route('/admin/smtp', methods=['PUT'])
-@login_required
-def admin_smtp_save():
-    body = request.json or {}
-    cfg = load_smtp()
-    cfg['host'] = body.get('host', cfg.get('host', ''))
-    cfg['port'] = int(body.get('port', cfg.get('port', 465)))
-    cfg['user'] = body.get('user', cfg.get('user', ''))
-    cfg['from_name'] = body.get('from_name', cfg.get('from_name', 'Gallery'))
-    cfg['use_ssl'] = bool(body.get('use_ssl', cfg.get('use_ssl', True)))
-    # 仅当传入非掩码密码时才更新
-    pw = body.get('password', '')
-    if pw and pw != '••••••':
-        cfg['password'] = pw
-    save_smtp(cfg)
-    return jsonify({'success': True})
 
 @app.route('/admin/smtp/test', methods=['POST'])
 @login_required
@@ -1209,9 +1274,8 @@ def admin_smtp_test():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ════════════════════════════════════════════
-# 密码重置 API（无需登录）
-# ════════════════════════════════════════════
+# ════════════════════════════════════════
+# 详情精选 (Featured) API & Admin routes
 @app.route('/admin/reset/send', methods=['POST'])
 def admin_reset_send():
     """发送重置验证码到管理员邮箱"""
@@ -1260,7 +1324,6 @@ def admin_reset_verify():
     _reset_codes.pop(email, None)
     return jsonify({'success': True})
 
-
 @app.route('/admin/account/info')
 @login_required
 def admin_account_info():
@@ -1270,6 +1333,12 @@ def admin_account_info():
         'avatar': auth.get('avatar', ''),
         'email': auth.get('email', '')
     })
+
+@app.route('/admin/account/avatar-get')
+@login_required
+def admin_account_avatar_get():
+    auth = load_auth()
+    return jsonify({'avatar': auth.get('avatar', '')})
 
 @app.route('/admin/account/avatar', methods=['POST'])
 @login_required
@@ -1314,6 +1383,8 @@ def init_app():
         save_data({"categories": ["摄影", "插画", "设计", "视频", "其他"], "items": []})
     if not os.path.exists(SITE_FILE):
         save_site(get_default_site())
+    if not os.path.exists(FEATURED_FILE):
+        save_featured({"items": [], "config": {}})
     if not os.path.exists(AUTH_FILE):
         save_json(AUTH_FILE, {"username": "admin", "password": hash_pw("admin123")})
 
@@ -1353,14 +1424,6 @@ def admin_thumbs():
                     'per_page': per, 'pages': max(1, (total + per - 1) // per),
                     'has_more': page*per < total})
 
-@app.route('/admin/thumbs/<filename>', methods=['DELETE'])
-@login_required
-def admin_delete_thumb(filename):
-    path = os.path.join(THUMBS_FOLDER, os.path.basename(filename))
-    if os.path.exists(path):
-        os.remove(path)
-    return jsonify({'success': True})
-
 @app.route('/admin/thumbs/regenerate', methods=['POST'])
 @login_required
 def admin_regenerate_thumbs():
@@ -1382,7 +1445,6 @@ def admin_regenerate_thumbs():
     save_data(data)
     return jsonify({'success': True, 'count': count})
 
-
 @app.route('/admin/thumbs/check', methods=['GET'])
 @login_required
 def admin_check_thumbs():
@@ -1392,13 +1454,19 @@ def admin_check_thumbs():
     for item in data['items']:
         if item.get('type') == 'video':
             continue
+        fn = item.get('filename', '')
+        cover = item.get('cover', '')
+        # 跳过 URL 外链内容（无法生成本地缩图）
+        src = cover or fn
+        if src.startswith('http://') or src.startswith('https://'):
+            continue
         thumb = item.get('thumb')
         if not thumb or not os.path.exists(os.path.join(THUMBS_FOLDER, thumb)):
             missing.append({
                 'id': item['id'],
                 'title': item.get('title', '(无标题)'),
-                'filename': item.get('filename', ''),
-                'cover': item.get('cover', ''),
+                'filename': fn,
+                'cover': cover,
             })
     return jsonify({'missing': missing, 'count': len(missing)})
 
@@ -1426,7 +1494,64 @@ def admin_fill_missing_thumbs():
     save_data(data)
     return jsonify({'success': True, 'count': count})
 
+@app.route('/admin/thumbs/<filename>', methods=['DELETE'])
+@login_required
+def admin_delete_thumb(filename):
+    path = os.path.join(THUMBS_FOLDER, os.path.basename(filename))
+    if os.path.exists(path):
+        os.remove(path)
+    return jsonify({'success': True})
+
+@app.route('/admin/upload-from-url', methods=['POST'])
+@login_required
+def admin_upload_from_url():
+    """从远程 URL 下载媒体文件并保存到 uploads"""
+    url = (request.json or {}).get('url', '').strip()
+    if not url:
+        return jsonify({'success': False, 'error': '缺少 URL'}), 400
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            content_type = resp.headers.get('Content-Type', '')
+            # 判断扩展名
+            ext = mimetypes.guess_extension(content_type.split(';')[0].strip()) or ''
+            # 从 URL 末尾猜扩展名
+            url_path = urllib.parse.urlparse(url).path
+            url_ext = os.path.splitext(url_path)[1].lower()
+            if url_ext in ('.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov','.webm','.avi'):
+                ext = url_ext
+            elif ext in ('.jpeg',): ext = '.jpg'
+            elif ext not in ('.jpg','.png','.gif','.webp','.mp4','.mov','.webm'):
+                ext = '.jpg'  # 默认
+            data = resp.read(50 * 1024 * 1024)  # 最大50MB
+        fn = 'url_' + str(uuid.uuid4()) + ext
+        path = os.path.join(UPLOAD_FOLDER, fn)
+        with open(path, 'wb') as f:
+            f.write(data)
+        file_type = 'video' if ext in ('.mp4','.mov','.webm','.avi') else 'image'
+        return jsonify({'success': True, 'filename': fn, 'type': file_type,
+                        'url': '/static/uploads/' + fn})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True)
+
+SHOWCASE_FILE = 'data/showcase.json'
+
+def load_showcase():
+    d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
+    if "config" not in d:
+        d["config"] = {}
+    cfg = d["config"]
+    cfg.setdefault("enabled", True)
+    cfg.setdefault("title", "橱窗精选")
+    cfg.setdefault("subtitle", "SHOWCASE")
+    cfg.setdefault("columns", 4)
+    cfg.setdefault("cardHeight", 200)
+    return d
+
+def save_showcase(d):
+    save_json(SHOWCASE_FILE, d)
+if __name__ == '__main__':
+    app.run(debug=True)

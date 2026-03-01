@@ -246,7 +246,7 @@ async function loadMsgGallery(){
       const isVid=item.type==='video';
       return src
         ?`<div class="gallery-preview-item" onclick="openMsgModal('${item.id}')">
-            <img src="/static/uploads/${src}" alt="${esc(item.title||'')}">
+            <img src="${fileSrc(src)}" alt="${esc(item.title||'')}">
             ${isVid?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''}
           </div>`
         :`<div class="gallery-preview-item" onclick="openMsgModal('${item.id}')" style="display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
@@ -256,7 +256,7 @@ async function loadMsgGallery(){
 
 function openMsgModal(id){
   const item=window._msgItems&&window._msgItems[id];if(!item)return;
-  const src='/static/uploads/'+item.filename;
+  const src=fileSrc(item.filename);
   const isVid=item.type==='video';
   document.getElementById('msgModalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
@@ -461,7 +461,8 @@ async function submitReply(msgId){
 }
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // 监听首页配色实时同步
 
