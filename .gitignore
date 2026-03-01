@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.DS_Store
+
+# 持久化数据（Railway Volume 管理，不提交 git）
+static/uploads/*
+!static/uploads/.gitkeep
+
+# JSON 数据文件（本地开发用，不提交）
+data/*.json
+static/uploads/_data/

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect
 from functools import wraps
 import json, os, uuid, hashlib, smtplib, secrets, time
 import urllib.request, urllib.parse, mimetypes
+import zipfile, tempfile, shutil, io
 try:
     from PIL import Image, ImageOps
     HAS_PIL = True
@@ -952,6 +953,26 @@ def admin_media_replace(filename):
 
 # ════════════════════════════════════════
 
+EMOJI_FILE = os.path.join(_BASE, 'data', 'emoji.json')
+MUYU_FILE  = os.path.join(_BASE, 'data', 'muyu.json')
+
+def load_muyu():
+    import json as _json
+    default = {'messages': [{'text': '功德+1，佛祖保佑你', 'color': '#f5e6c8', 'size': 28, 'style': 'float'}, {'text': '心想事成，万事如意', 'color': '#ffd700', 'size': 24, 'style': 'burst'}, {'text': '健康平安，诸事顺遂', 'color': '#98ffb0', 'size': 26, 'style': 'spin'}, {'text': '财源广进，福气满满', 'color': '#ffaa55', 'size': 25, 'style': 'zoom'}], 'vip': {'name': 'VIP自动敲', 'speed': 1000, 'enabled': True}, 'svip': {'name': 'SVIP自动狂敲', 'speed': 180, 'enabled': True}, 'title': '电子木鱼', 'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经', 'total_label': '功德', 'sound_enabled': True, 'custom_sound': '', 'custom_svg': ''}
+    d = load_json(MUYU_FILE, default)
+    # 补全缺失字段
+    for k, v in default.items():
+        if k not in d:
+            d[k] = v
+    return d
+
+def save_muyu(d): save_json(MUYU_FILE, d)
+
+def load_emoji():
+    return load_json(EMOJI_FILE, {"items": []})
+
+def save_emoji(d): save_json(EMOJI_FILE, d)
+
 FEATURED_FILE = os.path.join(_BASE, 'data', 'featured.json')
 
 def load_featured():
@@ -966,12 +987,205 @@ def load_featured():
 
 def save_featured(d): save_json(FEATURED_FILE, d)
 
+# ══════════════════════════════════════════
+# 电子木鱼路由
+# ══════════════════════════════════════════
+
+@app.route('/muyu')
+def muyu_page():
+    return render_template('muyu.html')
+
+@app.route('/api/muyu')
+def api_muyu():
+    return jsonify(load_muyu())
+
+@app.route('/admin/muyu/upload-sound', methods=['POST'])
+@login_required
+def admin_muyu_upload_sound():
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': '无文件'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ('mp3', 'wav', 'ogg', 'm4a', 'aac'):
+        return jsonify({'success': False, 'error': '仅支持 mp3/wav/ogg/m4a/aac'}), 400
+    fn = save_upload(f, 'muyu_sound_')
+    d = load_muyu()
+    d['custom_sound'] = fn
+    save_muyu(d)
+    return jsonify({'success': True, 'filename': fn, 'url': '/static/uploads/' + fn})
+
+@app.route('/admin/muyu/upload-svg', methods=['POST'])
+@login_required
+def admin_muyu_upload_svg():
+    """接收 SVG 文本内容保存"""
+    body = request.json or {}
+    svg_content = body.get('svg', '').strip()
+    if not svg_content or '<svg' not in svg_content:
+        return jsonify({'success': False, 'error': '无效 SVG'}), 400
+    # 存到 data/muyu_custom.svg（不放 uploads，避免被清理）
+    svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+    with open(svg_path, 'w', encoding='utf-8') as fp:
+        fp.write(svg_content)
+    d = load_muyu()
+    d['custom_svg'] = 'data/muyu_custom.svg'
+    save_muyu(d)
+    return jsonify({'success': True})
+
+@app.route('/admin/muyu/svg-content')
+@login_required
+def admin_muyu_svg_content():
+    svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+    if os.path.exists(svg_path):
+        with open(svg_path, 'r', encoding='utf-8') as fp:
+            return fp.read(), 200, {'Content-Type': 'image/svg+xml'}
+    return '', 404
+
+
+@app.route('/admin/muyu', methods=['PUT'])
+@login_required
+def admin_muyu_save():
+    body = request.json or {}
+    d = load_muyu()
+    for k in ['messages','vip','svip','title','subtitle','total_label','sound_enabled']:
+        if k in body:
+            d[k] = body[k]
+    save_muyu(d)
+    return jsonify({'success': True})
+
+
+# ── 表情包路由 ──
+
+@app.route('/api/emoji')
+def api_emoji():
+    return jsonify(load_emoji())
+
+@app.route('/admin/emoji/upload', methods=['POST'])
+@login_required
+def admin_emoji_upload():
+    d = load_emoji()
+    for f in request.files.getlist('files'):
+        if f and allowed_img(f.filename):
+            fn = save_upload(f, 'emoji_')
+            tag = request.form.get('tag', '').strip()
+            d['items'].append({'id': str(uuid.uuid4()), 'filename': fn, 'tag': tag})
+    save_emoji(d)
+    return jsonify({'success': True, 'items': d['items']})
+
+@app.route('/admin/emoji/<eid>', methods=['DELETE'])
+@login_required
+def admin_emoji_delete(eid):
+    d = load_emoji()
+    d['items'] = [i for i in d['items'] if i['id'] != eid]
+    save_emoji(d)
+    return jsonify({'success': True})
+
+@app.route('/admin/emoji/reorder', methods=['POST'])
+@login_required
+def admin_emoji_reorder():
+    ids = (request.json or {}).get('ids', [])
+    d = load_emoji()
+    lk = {i['id']: i for i in d['items']}
+    d['items'] = [lk[i] for i in ids if i in lk]
+    save_emoji(d)
+    return jsonify({'success': True})
+
+
 # ── 详情精选 路由 ──
 
 @app.route('/api/featured')
 def api_featured():
     data = load_featured()
     return jsonify({"items": data["items"], "config": data["config"]})
+
+# ── 数据备份 / 恢复 ──
+
+DATA_TYPES = {
+    'content':  DATA_FILE,
+    'site':     SITE_FILE,
+    'messages': MESSAGES_FILE,
+    'visitors': VISITORS_FILE,
+    'likes':    LIKES_FILE,
+    'auth':     AUTH_FILE,
+    'smtp':     SMTP_FILE,
+    'featured': FEATURED_FILE,
+    'emoji':    EMOJI_FILE,
+}
+
+@app.route('/admin/backup/export', methods=['POST'])
+@login_required
+def admin_backup_export():
+    """打包指定 JSON 和可选的 uploads/thumbs 文件为 zip 下载"""
+    body = request.json or {}
+    types = body.get('types', list(DATA_TYPES.keys()))
+    include_uploads = body.get('include_uploads', False)
+    include_thumbs  = body.get('include_thumbs', False)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for t in types:
+            fp = DATA_TYPES.get(t)
+            if fp and os.path.exists(fp):
+                zf.write(fp, f'data/{os.path.basename(fp)}')
+        if include_uploads and os.path.isdir(UPLOAD_FOLDER):
+            for fn in os.listdir(UPLOAD_FOLDER):
+                fp = os.path.join(UPLOAD_FOLDER, fn)
+                if os.path.isfile(fp):
+                    zf.write(fp, f'uploads/{fn}')
+        if include_thumbs and os.path.isdir(THUMBS_FOLDER):
+            for fn in os.listdir(THUMBS_FOLDER):
+                fp = os.path.join(THUMBS_FOLDER, fn)
+                if os.path.isfile(fp):
+                    zf.write(fp, f'thumbs/{fn}')
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='application/zip',
+                     as_attachment=True, download_name='gallery_backup.zip')
+
+@app.route('/admin/backup/import', methods=['POST'])
+@login_required
+def admin_backup_import():
+    """从 zip 文件恢复数据"""
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'success': False, 'error': '缺少文件'}), 400
+    types   = request.form.getlist('types')
+    uploads = request.form.get('include_uploads') == '1'
+    thumbs  = request.form.get('include_thumbs')  == '1'
+    restored = []
+    try:
+        with zipfile.ZipFile(f.stream, 'r') as zf:
+            names = zf.namelist()
+            for t in types:
+                fp = DATA_TYPES.get(t)
+                arc = f'data/{os.path.basename(fp)}' if fp else None
+                if arc and arc in names and fp:
+                    os.makedirs(os.path.dirname(fp), exist_ok=True)
+                    with zf.open(arc) as src:
+                        with open(fp, 'wb') as dst:
+                            dst.write(src.read())
+                    restored.append(t)
+            if uploads:
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                for nm in names:
+                    if nm.startswith('uploads/') and not nm.endswith('/'):
+                        fn = os.path.basename(nm)
+                        with zf.open(nm) as src:
+                            with open(os.path.join(UPLOAD_FOLDER, fn), 'wb') as dst:
+                                dst.write(src.read())
+                restored.append('uploads')
+            if thumbs:
+                os.makedirs(THUMBS_FOLDER, exist_ok=True)
+                for nm in names:
+                    if nm.startswith('thumbs/') and not nm.endswith('/'):
+                        fn = os.path.basename(nm)
+                        with zf.open(nm) as src:
+                            with open(os.path.join(THUMBS_FOLDER, fn), 'wb') as dst:
+                                dst.write(src.read())
+                restored.append('thumbs')
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    return jsonify({'success': True, 'restored': restored})
+
 
 @app.route('/admin/featured')
 @login_required
@@ -1215,6 +1429,14 @@ def admin_showcase_reorder():
     save_showcase(data)
     return jsonify({'success': True})
 
+@app.route('/admin/showcase/<item_id>', methods=['DELETE'])
+@login_required
+def admin_showcase_delete(item_id):
+    data = load_showcase()
+    data['items'] = [i for i in data['items'] if i['id'] != item_id]
+    save_showcase(data)
+    return jsonify({'success': True})
+
 @app.route('/admin/media/cleanup', methods=['POST'])
 @login_required
 def admin_media_cleanup():
@@ -1426,6 +1648,10 @@ def init_app():
         save_site(get_default_site())
     if not os.path.exists(FEATURED_FILE):
         save_featured({"items": [], "config": {}})
+    if not os.path.exists(EMOJI_FILE):
+        save_emoji({"items": []})
+    if not os.path.exists(MUYU_FILE):
+        save_muyu(load_muyu())
     if not os.path.exists(AUTH_FILE):
         save_json(AUTH_FILE, {"username": "admin", "password": hash_pw("admin123")})
 
