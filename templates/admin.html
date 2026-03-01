@@ -353,6 +353,16 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <button class="btn btn-s btn-sm" onclick="ftPickUrl()">🔗 URL</button>
       </div>
     </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>封面缩图（留空则用第一张图）</label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="ftNewCoverPrev" style="width:72px;height:56px;border-radius:7px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🖼</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-s btn-sm" onclick="ftPickNewCover()">🗂 选择封面</button>
+          <button class="btn btn-s btn-sm" onclick="ftClearNewCover()">✕ 清除</button>
+        </div>
+      </div>
+    </div>
     <button class="btn btn-p" onclick="ftSubmitNew()">添加内容</button>
   </div>
 
@@ -927,6 +937,17 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{mpPickAvatar(fn,url);},'image')">🗂 从媒体库选</button>
         </div>
       </div>
+    </div>
+  </div>
+
+
+  <div class="card"><div class="ct">🎭 访客可选头像池（最多10个）</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">访客留言时可从这里选择头像，管理员可预设最多10张</p>
+    <div id="avatarPoolList" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;min-height:40px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="file" id="avatarPoolInp" accept="image/*" multiple style="display:none" onchange="uploadPoolAvatars(this)">
+      <button class="btn btn-s btn-sm" onclick="document.getElementById('avatarPoolInp').click()">📎 上传头像</button>
+      <button class="btn btn-s btn-sm" onclick="pickPoolAvatar()">🗂 从媒体库选</button>
     </div>
   </div>
 
@@ -2597,122 +2618,85 @@ async function scDelete(id) {
 // ════════════════════════════════════════════
 // 媒体库选择器（通用）
 // ════════════════════════════════════════════
+// 媒体库选择器（通用）
 let mpCallback=null, mpAllFiles=[], mpFiltered=[], mpPage=1;
-const MP_PAGE_SIZE=24;
+const MP_PS = 30;
 
 async function openMediaPicker(cb, typeFilter=''){
-  mpCallback=cb; mpPage=1;
-  document.getElementById('mpSearch').value='';
-  document.getElementById('mpTypeFilter').value=typeFilter;
+  mpCallback = cb; mpPage = 1;
+  const srch = document.getElementById('mpSearch');
+  const typf = document.getElementById('mpTypeFilter');
+  if(srch) srch.value = '';
+  if(typf) typf.value = typeFilter;
   document.getElementById('mediaPickerOverlay').classList.add('open');
-  document.getElementById('mpGrid').innerHTML='<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center">加载中...</div>';
-  document.getElementById('mpPager').innerHTML='';
-  document.getElementById('mpInfo').textContent='';
-  const d=await fetch('/admin/media').then(r=>r.json());
-  mpAllFiles=d.files||[];
+  const grid = document.getElementById('mpGrid');
+  if(grid) grid.innerHTML = '<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center">加载中...</div>';
+  const pager = document.getElementById('mpPager');
+  if(pager) pager.innerHTML = '';
+  const info = document.getElementById('mpInfo');
+  if(info) info.textContent = '';
+  const d = await fetch('/admin/media').then(r=>r.json()).catch(()=>({files:[]}));
+  mpAllFiles = d.files || [];
   mpFilter();
 }
 
 function mpFilter(){
-  const q=(document.getElementById('mpSearch').value||'').toLowerCase();
-  const t=document.getElementById('mpTypeFilter').value;
-  mpFiltered=mpAllFiles.filter(f=>{
-    if(q&&!f.filename.toLowerCase().includes(q))return false;
-    if(t&&f.type!==t)return false;
+  const q = (document.getElementById('mpSearch')?.value||'').toLowerCase();
+  const t = document.getElementById('mpTypeFilter')?.value||'';
+  mpFiltered = mpAllFiles.filter(f=>{
+    if(q && !f.filename.toLowerCase().includes(q)) return false;
+    if(t && f.type !== t) return false;
     return true;
   });
-  mpPage=1;
+  mpPage = 1;
   renderMpGrid();
 }
 
 function renderMpGrid(){
-  const grid=document.getElementById('mpGrid');
-  const total=mpFiltered.length;
-  const totalPages=Math.max(1,Math.ceil(total/MP_PAGE_SIZE));
-  if(mpPage>totalPages)mpPage=totalPages;
-  const start=(mpPage-1)*MP_PAGE_SIZE;
-  const pageFiles=mpFiltered.slice(start,start+MP_PAGE_SIZE);
-
-  document.getElementById('mpInfo').textContent=total?`共 ${total} 个文件`:'';
-
-  if(!total){
-    grid.innerHTML='<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center;grid-column:1/-1">无匹配文件</div>';
-    document.getElementById('mpPager').innerHTML='';
+  const grid = document.getElementById('mpGrid');
+  const pager = document.getElementById('mpPager');
+  const info = document.getElementById('mpInfo');
+  if(!grid) return;
+  if(!mpFiltered.length){
+    grid.innerHTML = '<div style="color:var(--mu);font-size:13px;padding:30px;text-align:center">无文件</div>';
+    if(pager) pager.innerHTML = '';
+    if(info) info.textContent = '';
     return;
   }
-
-  // 用 index 做 key，避免文件名里引号导致的 onclick 注入问题
-  const startIdx=(mpPage-1)*MP_PAGE_SIZE;
-  grid.innerHTML='';
-  pageFiles.forEach((f,i)=>{
-
-    const isImg=f.type==='image', isVid=f.type==='video';
-    const coverSrc=isImg?f.url:(f.cover?'/static/uploads/'+f.cover:null);
-    let thumbInner;
-    if(coverSrc){
-      thumbInner='<img src="'+coverSrc+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block" loading="lazy">';
-      if(isVid) thumbInner+='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25)"><div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 12 12" fill="#333"><polygon points="3,1 11,6 3,11"/></svg></div></div>';
-    } else if(isVid){
-      thumbInner='<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 12 12" fill="rgba(255,255,255,.9)"><polygon points=\"3,1 11,6 3,11\"/></svg></div><span style="font-size:9px;color:rgba(255,255,255,.6)">'+f.ext.toUpperCase()+'</span></div>';
-    } else {
-      thumbInner='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--s3)">📄</div>';
+  const total = mpFiltered.length;
+  const pages = Math.ceil(total / MP_PS);
+  mpPage = Math.max(1, Math.min(mpPage, pages));
+  const slice = mpFiltered.slice((mpPage-1)*MP_PS, mpPage*MP_PS);
+  if(info) info.textContent = `共 ${total} 个文件`;
+  grid.innerHTML = slice.map(f => {
+    const isImg = f.type==='image';
+    const thumb = isImg
+      ? `<img src="${f.url}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy" onerror="this.parentElement.innerHTML='<div style=\'display:flex;align-items:center;justify-content:center;height:100%;font-size:22px\'>🖼️</div>'">`
+      : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:26px">${f.type==='video'?'🎬':'📄'}</div>`;
+    const sz = f.size>1048576?(f.size/1048576).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB';
+    const fname = f.filename.length>20 ? f.filename.slice(0,18)+'…' : f.filename;
+    return `<div onclick="mpSelect('${f.filename.replace(/'/g,"\\'")}','${f.url}','${f.type}')"
+      style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;overflow:hidden;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.borderColor='var(--ac)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.borderColor='var(--bd)';this.style.transform=''">
+      <div style="height:90px;background:var(--s3)">${thumb}</div>
+      <div style="padding:5px 7px">
+        <div style="font-size:10px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${f.filename}">${fname}</div>
+        <div style="font-size:9px;color:var(--mu)">${sz}</div>
+      </div>
+    </div>`;
+  }).join('');
+  // pagination
+  if(pager){
+    if(pages <= 1){ pager.innerHTML=''; return; }
+    let btns = '';
+    for(let i=1;i<=pages;i++){
+      btns += `<button onclick="mpPage=${i};renderMpGrid()" style="padding:3px 9px;border-radius:5px;border:1px solid var(--bd);background:${i===mpPage?'var(--ac)':'var(--s2)'};color:${i===mpPage?'#fff':'var(--tx)'};cursor:pointer;font-size:11px">${i}</button>`;
     }
-    const size=f.size>1024*1024?(f.size/1024/1024).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB';
-    const name=f.filename.length>16?f.filename.slice(0,14)+'..':f.filename;
-    const idx=startIdx+i;
-    const card=document.createElement('div');
-    card.dataset.mpidx=idx;
-    card.style.cssText='background:var(--s2);border:2px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s;aspect-ratio:1/1;display:flex;flex-direction:column';
-    card.onclick=()=>mpSelectByIdx(idx);
-    card.onmouseover=()=>{card.style.borderColor='var(--ac)';card.style.transform='scale(1.03)';};
-    card.onmouseout=()=>{card.style.borderColor='var(--bd)';card.style.transform='';};
-    card.innerHTML='<div style="position:relative;flex:1;overflow:hidden;background:var(--s3)">'+thumbInner+'</div>'+
-      '<div style="padding:5px 7px;flex-shrink:0;background:var(--s2)">'+
-        '<div style="font-size:10px;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3">'+name+'</div>'+
-        '<div style="font-size:9px;color:var(--mu)">'+size+'</div>'+
-      '</div>';
-    grid.appendChild(card);
-  });
-
-  // 分页按钮
-  renderMpPager(totalPages);
+    pager.innerHTML = btns;
+  }
 }
 
-function renderMpPager(totalPages){
-  const pager=document.getElementById('mpPager');
-  if(totalPages<=1){pager.innerHTML='';return;}
-  const btn=(n,label,disabled,active)=>`<button onclick="mpGoPage(${n})"
-    style="min-width:30px;height:30px;padding:0 8px;border-radius:7px;border:1px solid ${active?'var(--ac)':'var(--bd)'};
-    background:${active?'var(--ac)':'var(--s2)'};color:${active?'#fff':'var(--tx)'};
-    font-size:12px;cursor:${disabled?'default':'pointer'};opacity:${disabled?'.4':'1'};
-    font-family:inherit"
-    ${disabled?'disabled':''}>
-    ${label}
-  </button>`;
-  let html=btn(1,'«',mpPage===1,false)+btn(mpPage-1,'‹',mpPage===1,false);
-  // 显示周围页码
-  const lo=Math.max(1,mpPage-2), hi=Math.min(totalPages,mpPage+2);
-  if(lo>1) html+='<span style="color:var(--mu);font-size:12px;padding:0 2px">…</span>';
-  for(let i=lo;i<=hi;i++) html+=btn(i,i,false,i===mpPage);
-  if(hi<totalPages) html+='<span style="color:var(--mu);font-size:12px;padding:0 2px">…</span>';
-  html+=btn(mpPage+1,'›',mpPage===totalPages,false)+btn(totalPages,'»',mpPage===totalPages,false);
-  pager.innerHTML=html;
-}
-
-function mpGoPage(n){
-  const totalPages=Math.ceil(mpFiltered.length/MP_PAGE_SIZE);
-  if(n<1||n>totalPages)return;
-  mpPage=n;
-  renderMpGrid();
-  document.getElementById('mpGrid').scrollTop=0;
-}
-
-function mpSelectByIdx(idx){
-  const f=mpFiltered[idx];
-  if(!f)return;
-  if(mpCallback) mpCallback(f.filename, f.url, f.type);
-  closeMediaPicker();
-}
 function mpSelect(filename, url, type){
   if(mpCallback) mpCallback(filename, url, type);
   closeMediaPicker();
@@ -2720,8 +2704,9 @@ function mpSelect(filename, url, type){
 
 function closeMediaPicker(){
   document.getElementById('mediaPickerOverlay').classList.remove('open');
-  mpCallback=null;
+  mpCallback = null;
 }
+
 
 
 // ════════════════════════════════════════════
@@ -3129,9 +3114,11 @@ function loadMsgPage(){
   document.getElementById('mpOverlay').value=overlay;
   document.getElementById('mpOverlayVal').textContent=parseFloat(overlay).toFixed(2);
   if(mp.defaultAvatar){
-    document.getElementById('mpAvatarPreview').innerHTML=`<img src="/static/uploads/${mp.defaultAvatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+    document.getElementById('mpAvatarPreview').innerHTML=`<img src="${fileSrc(mp.defaultAvatar)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
     mpAvatarFilename=mp.defaultAvatar;
   }
+  _avatarPool = mp.avatarPool || [];
+  renderAvatarPool();
   if(mpBgType==='image'&&mp.bgValue){
     document.getElementById('mpImgPreview').innerHTML=`<img src="/static/uploads/${mp.bgValue}" style="width:100%;height:100%;object-fit:cover;border-radius:9px">`;
   }
@@ -3188,7 +3175,8 @@ async function saveMsgPage(){
     avatarDailyLimit:Math.max(0,parseInt(document.getElementById('mpAvatarDailyLimit').value)||0),
     titleSize:parseInt(document.getElementById('mpTitleSize').value)||48,
     overlayOpacity:parseFloat(document.getElementById('mpOverlay').value),
-    defaultAvatar:mpAvatarFilename
+    defaultAvatar:mpAvatarFilename,
+    avatarPool:_avatarPool
   };
   const res=await fetch('/admin/site/messages-page',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(res.ok){siteData.messages_page=body;toast('已保存');}else toast('失败','err');
@@ -3333,6 +3321,80 @@ function ftPreviewNew(inp) {
   inp.value = '';
 }
 
+// ── 头像池管理 ──
+let _avatarPool = [];
+
+function renderAvatarPool() {
+  const el = document.getElementById('avatarPoolList');
+  if (!el) return;
+  if (!_avatarPool.length) {
+    el.innerHTML = '<div style="color:var(--mu);font-size:11px;padding:8px 0">暂无头像，最多可添加10个</div>';
+    return;
+  }
+  el.innerHTML = _avatarPool.map((fn, i) => `
+    <div style="position:relative;flex-shrink:0">
+      <img src="${fileSrc(fn)}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)" onerror="this.style.display='none'">
+      <button onclick="removePoolAvatar(${i})" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.9);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
+    </div>`).join('');
+}
+
+async function uploadPoolAvatars(inp) {
+  const files = Array.from(inp.files);
+  if (!files.length) return;
+  const remaining = 10 - _avatarPool.length;
+  if (remaining <= 0) { toast('已达10个上限', 'err'); return; }
+  const fd = new FormData();
+  files.slice(0, remaining).forEach(f => fd.append('files', f));
+  const res = await fetch('/admin/messages-page/avatar-pool/upload', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) { _avatarPool = d.pool; renderAvatarPool(); toast(`已添加 ${d.added.length} 个头像`); }
+  inp.value = '';
+}
+
+function pickPoolAvatar() {
+  if (_avatarPool.length >= 10) { toast('已达10个上限', 'err'); return; }
+  openMediaPicker(function(fn) {
+    if (_avatarPool.includes(fn)) { toast('已添加过', 'err'); return; }
+    if (_avatarPool.length >= 10) { toast('已达10个上限', 'err'); return; }
+    _avatarPool.push(fn);
+    renderAvatarPool();
+    saveAvatarPool();
+  }, 'image');
+}
+
+async function removePoolAvatar(idx) {
+  _avatarPool.splice(idx, 1);
+  renderAvatarPool();
+  await saveAvatarPool();
+}
+
+async function saveAvatarPool() {
+  // 实时同步头像池到 messages_page
+  const site = await fetch('/api/site').then(r=>r.json()).catch(()=>({}));
+  const mp = Object.assign({}, site.messages_page||{}, {avatarPool: _avatarPool});
+  await fetch('/admin/site/messages-page', {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(mp)
+  });
+}
+
+// ── Featured 新增封面 ──
+let _ftNewCover = '';
+
+function ftPickNewCover() {
+  openMediaPicker(function(fn, url) {
+    _ftNewCover = fn;
+    const prev = document.getElementById('ftNewCoverPrev');
+    if (prev) prev.innerHTML = `<img src="${fileSrc(fn)}" style="width:100%;height:100%;object-fit:cover;border-radius:7px">`;
+  }, 'image');
+}
+
+function ftClearNewCover() {
+  _ftNewCover = '';
+  const prev = document.getElementById('ftNewCoverPrev');
+  if (prev) prev.innerHTML = '🖼';
+}
+
 function ftPickMedia() {
   openMediaPicker(function(fn) { ftAddImg(fn); }, 'image');
 }
@@ -3372,6 +3434,7 @@ async function ftSubmitNew() {
   if (!_ftNewImgs.length) { toast('请至少添加一张图片', 'err'); return; }
   const fd = new FormData();
   fd.append('title', document.getElementById('ftNewTitle').value.trim());
+  if (_ftNewCover) fd.append('cover', _ftNewCover);
   _ftNewImgs.forEach(img => {
     if (img.type === 'file') fd.append('images', img.file);
     else fd.append('existing_images', img.src);
@@ -3381,8 +3444,11 @@ async function ftSubmitNew() {
   if (d.success) {
     _ftItems.unshift(d.item);
     _ftNewImgs = [];
+    _ftNewCover = '';
     document.getElementById('ftNewTitle').value = '';
     document.getElementById('ftNewPreviews').innerHTML = '';
+    const cp = document.getElementById('ftNewCoverPrev');
+    if(cp) cp.innerHTML = '🖼';
     renderFtList();
     toast('✓ 已添加');
   } else toast(d.error || '添加失败', 'err');
@@ -3399,7 +3465,7 @@ function renderFtList() {
     const imgs = item.images || [];
     const thumbsHtml = imgs.map((fn, i) =>
       `<div style="position:relative;flex-shrink:0">
-        <img src="${fileSrc(fn)}" style="width:64px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" onerror="this.style.display='none'">
+        <img src="${fileSrc(fn)}" style="width:64px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" referrerpolicy="no-referrer" onerror="this.style.display='none'">
         <button onclick="ftDeleteImg('${item.id}',${i})" title="移除此图"
           style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.85);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
       </div>`
@@ -3416,6 +3482,14 @@ function renderFtList() {
       </div>
       <div style="font-size:11px;color:var(--mu);margin-bottom:8px">${imgs.length} 张图片</div>
       <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">${thumbsHtml}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:var(--s3);border-radius:7px">
+        <span style="font-size:11px;color:var(--mu);flex-shrink:0">封面缩图：</span>
+        <div id="ftCoverPrev-${item.id}" style="width:60px;height:46px;border-radius:5px;overflow:hidden;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
+          ${item.cover ? `<img src="${fileSrc(item.cover)}" style="width:100%;height:100%;object-fit:cover">` : '🖼'}
+        </div>
+        <button class="btn btn-s btn-sm" onclick="ftSetCover('${item.id}')">选择</button>
+        ${item.cover ? `<button class="btn btn-s btn-sm" onclick="ftClearCover('${item.id}')">清除</button>` : ''}
+      </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         <input type="file" id="ftAddImg-${item.id}" accept="image/*" multiple style="display:none" onchange="ftUploadMoreImgs('${item.id}',this)">
         <button class="btn btn-s btn-sm" onclick="document.getElementById('ftAddImg-${item.id}').click()">📎 上传图片</button>
@@ -3425,6 +3499,33 @@ function renderFtList() {
     </div>`;
   }).join('');
 }
+
+async function ftSetCover(itemId) {
+  openMediaPicker(async function(fn) {
+    const item = _ftItems.find(i => i.id === itemId);
+    if (!item) return;
+    item.cover = fn;
+    await fetch(`/admin/featured/${itemId}`, {
+      method: 'PUT', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({cover: fn})
+    });
+    renderFtList();
+    toast('封面已更新');
+  }, 'image');
+}
+
+async function ftClearCover(itemId) {
+  const item = _ftItems.find(i => i.id === itemId);
+  if (!item) return;
+  item.cover = '';
+  await fetch(`/admin/featured/${itemId}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({cover: ''})
+  });
+  renderFtList();
+  toast('封面已清除');
+}
+
 
 async function ftSaveTitle(id, title) {
   const item = _ftItems.find(i => i.id === id);
@@ -3489,3 +3590,25 @@ async function ftAddImgToItem(itemId, src) {
 }
 
 </script>
+
+<!-- 媒体库选择器 Modal -->
+<div class="overlay" id="mediaPickerOverlay" onclick="if(event.target===this)closeMediaPicker()" style="z-index:3000">
+  <div class="mbox" style="max-width:860px;width:94vw;max-height:88vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-shrink:0">
+      <h3 style="margin:0;flex:1">📁 从媒体库选择</h3>
+      <input class="inp" id="mpSearch" placeholder="搜索..." style="max-width:160px;margin:0" oninput="mpFilter()">
+      <select class="inp" id="mpTypeFilter" style="max-width:100px;margin:0" onchange="mpFilter()">
+        <option value="">全部</option>
+        <option value="image">图片</option>
+        <option value="video">视频</option>
+      </select>
+      <button class="btn btn-s btn-sm" onclick="closeMediaPicker()">✕ 关闭</button>
+    </div>
+    <div id="mpInfo" style="font-size:11px;color:var(--mu);margin-bottom:8px;flex-shrink:0"></div>
+    <div id="mpGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;overflow-y:auto;flex:1;padding-right:4px"></div>
+    <div id="mpPager" style="display:flex;gap:6px;justify-content:center;margin-top:12px;flex-shrink:0;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+</body>
+</html>

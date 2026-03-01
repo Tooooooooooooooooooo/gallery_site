@@ -195,7 +195,8 @@ def get_default_site():
             "bgValue": "linear-gradient(135deg, #1a1208 0%, #3d2510 50%, #6b3d18 100%)",
             "title": "留言板",
             "subtitle": "留下你的足迹，与我分享你的想法",
-            "defaultAvatar": ""
+            "defaultAvatar": "",
+            "avatarPool": []
         },
         "footer": {
             "brand": {"logo": "GAL·LERY", "desc": "记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。"},
@@ -766,6 +767,33 @@ def admin_about_upload_image():
     filename = save_upload(file, 'about_')
     return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename})
 
+@app.route('/admin/messages-page/avatar-pool', methods=['PUT'])
+@login_required
+def admin_avatar_pool_save():
+    body = request.json or {}
+    site = load_site()
+    mp = site.setdefault('messages_page', {})
+    mp['avatarPool'] = body.get('avatarPool', [])
+    save_site(site)
+    return jsonify({'success': True})
+
+@app.route('/admin/messages-page/avatar-pool/upload', methods=['POST'])
+@login_required
+def admin_avatar_pool_upload():
+    site = load_site()
+    mp = site.setdefault('messages_page', {})
+    pool = list(mp.get('avatarPool', []))
+    added = []
+    for f in request.files.getlist('files'):
+        if f and allowed_img(f.filename) and len(pool) < 10:
+            fn = save_upload(f, 'pool_avatar_')
+            pool.append(fn)
+            added.append(fn)
+    mp['avatarPool'] = pool
+    save_site(site)
+    return jsonify({'success': True, 'added': added, 'pool': pool})
+
+
 @app.route('/admin/site/messages-page', methods=['PUT'])
 @login_required
 def admin_messages_page():
@@ -843,6 +871,16 @@ def admin_media_list():
     for item in data['items']:
         if item.get('type') == 'video' and item.get('cover') and item.get('filename'):
             video_covers[item['filename']] = item['cover']
+    # featured 引用
+    try:
+        ft_data = load_featured()
+        for item in ft_data.get('items', []):
+            for fn in item.get('images', []):
+                if fn and not fn.startswith('http'):
+                    refs.setdefault(fn, [])
+                    refs[fn].append('详情精选：' + (item.get('title') or '(无标题)'))
+    except Exception:
+        pass
     try:
         sc_data = load_showcase()
         for item in sc_data.get('items', []):
@@ -975,10 +1013,12 @@ def admin_featured_upload():
         if fn: images.append(fn)
     if not images:
         return jsonify({'success': False, 'error': '至少需要一张图片'}), 400
+    cover = request.form.get('cover', '').strip()
     item = {
         'id': str(uuid.uuid4()),
         'title': request.form.get('title', '').strip(),
         'images': images,
+        'cover': cover,
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
     data['items'].insert(0, item)
@@ -996,6 +1036,7 @@ def admin_featured_update(item_id):
         body = request.json or {}
         if 'title' in body: item['title'] = body['title']
         if 'images_order' in body: item['images'] = body['images_order']
+        if 'cover' in body: item['cover'] = body['cover']
     else:
         for f in request.files.getlist('images'):
             if f and f.filename and allowed_img(f.filename):

@@ -1,67 +1,7 @@
 {
-  "items": [
-    {
-      "id": "cb8c44f9-7480-47f7-ab3e-f99a396556f7",
-      "title": "",
-      "images": [
-        "594019ab-7d9b-4aa3-bd58-3f4f8d830a4d.jpg"
-      ],
-      "created_at": "2026-03-01 13:13:25"
-    },
-    {
-      "id": "c215665f-2d28-410c-8efe-64cd4ba3e2f2",
-      "title": "",
-      "images": [
-        "956da645-3277-4aa3-bc3a-9cbd835a297a.jpg"
-      ],
-      "created_at": "2026-03-01 13:13:18"
-    },
-    {
-      "id": "683bcb1a-c696-47bb-9ef1-f10489597e39",
-      "title": "",
-      "images": [
-        "761a49c5-d0ab-4b75-8953-ca3fda3d465c.jpg"
-      ],
-      "created_at": "2026-03-01 13:13:14"
-    },
-    {
-      "id": "7c6b2900-26d6-4f84-af6e-9a6ad8673a83",
-      "title": "",
-      "images": [
-        "b1054d6d-b6c2-4ad2-ad87-478955849f7a.jpg"
-      ],
-      "created_at": "2026-03-01 13:13:07"
-    },
-    {
-      "id": "325152c9-a50f-4893-9dcd-b43d74e8c843",
-      "title": "测试标题",
-      "images": [
-        "33b4818d-5885-4ced-9d6f-b8c7e20d69fa.jpg",
-        "43c432e5-d6a3-4450-9819-da2409cb55cb.jpg",
-        "5a635719-1eb3-42cc-839b-fd19fa159f1e.jpg"
-      ],
-      "created_at": "2026-03-01 12:34:42"
-    },
-    {
-      "id": "287d33e9-0031-4108-a156-999228155034",
-      "title": "测试标题2",
-      "images": [
-        "http://wujiexiangsu.com/wp-content/uploads/2026/02/Gemini_Generated_Image_7ti8x97ti8x97ti8.jpg",
-        "2e4abbe3-1132-4b89-b241-d50079c797b2.jpg"
-      ],
-      "created_at": "2026-03-01 12:28:43"
-    },
-    {
-      "id": "608ba562-af8a-4a50-8938-8b719fe2a9c3",
-      "title": "",
-      "images": [
-        "dcd5d522-cb1e-4f07-b30b-502f3ec421ae.png"
-      ],
-      "created_at": "2026-03-01 12:28:09"
-    }
-  ],
+  "items": [],
   "config": {
-    "enabled": false,
+    "enabled": true,
     "title": "详情精选",
     "subtitle": "FEATURED",
     "position": "after_showcase"

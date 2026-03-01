@@ -235,21 +235,26 @@
   },
   "theme": "warm",
   "messages_page": {
-    "bgType": "image",
-    "bgValue": "002.jpg",
-    "title": "留言板",
-    "subtitle": "留下你的足迹，与我分享你的想法",
-    "height": 420,
-    "avatarMaxSizeMB": 2,
+    "avatarDailyLimit": 1,
     "avatarFormats": [
       "jpg",
       "png",
       "webp"
     ],
-    "avatarDailyLimit": 1,
-    "titleSize": 48,
+    "avatarMaxSizeMB": 2,
+    "avatarPool": [
+      "pool_avatar_25777f88-4256-493e-9e87-bda52065c9a1.png",
+      "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
+      "about_c4f40915-1552-426f-b229-b66f159d7153.png"
+    ],
+    "bgType": "image",
+    "bgValue": "002.jpg",
+    "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
+    "height": 420,
     "overlayOpacity": 0.5,
-    "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png"
+    "subtitle": "留下你的足迹，与我分享你的想法",
+    "title": "留言板",
+    "titleSize": 48
   },
   "thumb_scale": 50
 }

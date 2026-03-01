@@ -172,7 +172,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .fv-title{color:#fff;font-size:15px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fv-counter{color:rgba(255,255,255,.5);font-size:12px;flex-shrink:0}
 .fv-body{flex:1;display:flex;position:relative;overflow:hidden}
-.fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;position:relative}
+.fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;position:relative}
 .fv-img-wrap::-webkit-scrollbar{width:4px}
 .fv-img-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
 .fv-img{width:100%;display:block;max-width:900px;margin:0 auto}
@@ -800,14 +800,16 @@ async function loadFeatured() {
 
   // 渲染卡片到两个 grid
   const html = d.items.map(item => {
-    const first = item.images && item.images[0];
+    const imgs  = item.images || [];
+    const first = item.cover || imgs[0];
     const cover = first ? fileSrc(first) : '';
-    const cnt   = item.images ? item.images.length : 0;
+    const cnt   = imgs.length;
+    const titleHtml = item.title ? `<div class="featured-card-title">${esc(item.title)}</div>` : '';
     return `<div class="featured-card" onclick='openFv(${JSON.stringify(item).replace(/'/g,"&#39;")})'>
-      ${cover ? `<img src="${cover}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:280px;display:flex;align-items:center;justify-content:center;color:var(--mu)">🖼</div>`}
+      ${cover ? `<img src="${cover}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : `<div style="height:280px;display:flex;align-items:center;justify-content:center;color:var(--mu)">🖼</div>`}
       ${cnt > 1 ? `<div class="featured-card-badge">共 ${cnt} 张</div>` : ''}
       <div class="featured-card-info">
-        <div class="featured-card-title">${esc(item.title||'(无标题)')}</div>
+        ${titleHtml}
         <div class="featured-card-count">${cnt} 张图片</div>
       </div>
     </div>`;
@@ -849,8 +851,13 @@ function fvShow(idx) {
   _fvIdx = Math.max(0, Math.min(_fvImages.length - 1, idx));
   const src = fileSrc(_fvImages[_fvIdx]);
   const img = document.getElementById('fvImg');
+  img.style.display = '';
+  img.referrerPolicy = 'no-referrer';
   img.src = src;
-  // 滚回顶部
+  const err = document.getElementById('fvImgErr');
+  if (err) { err.style.display = 'none'; }
+  const errUrl = document.getElementById('fvImgErrUrl');
+  if (errUrl) errUrl.textContent = src;
   document.getElementById('fvImgWrap').scrollTop = 0;
   // 更新计数
   document.getElementById('fvCounter').textContent =
@@ -874,7 +881,7 @@ function fvMove(delta) { fvShow(_fvIdx + delta); }
 
 function renderFvThumbs() {
   document.getElementById('fvThumbs').innerHTML = _fvImages.map((fn, i) =>
-    `<img class="fv-thumb" src="${fileSrc(fn)}" loading="lazy"
+    `<img class="fv-thumb" src="${fileSrc(fn)}" loading="lazy" referrerpolicy="no-referrer"
       onclick="fvShow(${i})" onerror="this.style.display='none'">`
   ).join('');
 }
@@ -887,6 +894,71 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowRight') fvMove(1);
 });
 
+// 滚动到边界自动切换图片
+// 思路：监听 overlay 上的 wheel；先让 wrap 自然滚动；
+//       若 wrap 已在边界且继续同向滚动，累计 delta 超阈值后切换
+(function(){
+  const overlay = document.getElementById('fvOverlay');
+  let _acc   = 0;      // 累计 deltaY（边界处积累）
+  let _prev  = 0;      // 上一次滚动方向
+  let _busy  = false;  // 切换锁
+
+  const THRESHOLD = 120; // 需要累计多少 px 的 deltaY 才切换
+
+  overlay.addEventListener('wheel', function(e) {
+    if (_fvImages.length <= 1) return;
+    if (_busy) { e.preventDefault(); return; }
+
+    const wrap = document.getElementById('fvImgWrap');
+    const maxScroll = wrap.scrollHeight - wrap.clientHeight;
+    const atTop    = wrap.scrollTop <= 0;
+    const atBottom = wrap.scrollTop >= maxScroll - 1;
+
+    const dir = e.deltaY > 0 ? 1 : -1;
+
+    // 方向变了就重置累计
+    if (dir !== _prev) { _acc = 0; _prev = dir; }
+
+    if (dir > 0 && atBottom && _fvIdx < _fvImages.length - 1) {
+      // 底部 → 继续向下 → 累计
+      e.preventDefault();
+      _acc += Math.abs(e.deltaY);
+      if (_acc >= THRESHOLD) {
+        _acc = 0; _busy = true;
+        fvMove(1);
+        setTimeout(() => { _busy = false; }, 600);
+      }
+    } else if (dir < 0 && atTop && _fvIdx > 0) {
+      // 顶部 → 继续向上 → 累计
+      e.preventDefault();
+      _acc += Math.abs(e.deltaY);
+      if (_acc >= THRESHOLD) {
+        _acc = 0; _busy = true;
+        fvMove(-1);
+        setTimeout(() => { _busy = false; }, 600);
+      }
+    } else {
+      // 正常滚动，重置累计
+      _acc = 0;
+    }
+  }, {passive: false});
+
+  // 触摸
+  let _ty0 = 0;
+  overlay.addEventListener('touchstart', e => { _ty0 = e.touches[0].clientY; }, {passive:true});
+  overlay.addEventListener('touchend', function(e) {
+    if (_fvImages.length <= 1 || _busy) return;
+    const wrap  = document.getElementById('fvImgWrap');
+    const dy    = _ty0 - e.changedTouches[0].clientY; // 正=上划(下一张)
+    const maxSc = wrap.scrollHeight - wrap.clientHeight;
+    if (Math.abs(dy) < 60) return;
+    if (dy > 0 && wrap.scrollTop >= maxSc - 1 && _fvIdx < _fvImages.length - 1) {
+      _busy = true; fvMove(1);  setTimeout(()=>{_busy=false;},600);
+    } else if (dy < 0 && wrap.scrollTop <= 0 && _fvIdx > 0) {
+      _busy = true; fvMove(-1); setTimeout(()=>{_busy=false;},600);
+    }
+  }, {passive:true});
+})();
 </script>
 
 <!-- 详情精选查看器 -->
@@ -899,7 +971,8 @@ document.addEventListener('keydown', e => {
   <div class="fv-body">
     <button class="fv-arrow prev" id="fvPrev" onclick="fvMove(-1)">&#8249;</button>
     <div class="fv-img-wrap" id="fvImgWrap">
-      <img class="fv-img" id="fvImg" src="" alt="">
+      <img class="fv-img" id="fvImg" src="" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';document.getElementById('fvImgErr').style.display=''" onload="this.style.display='';document.getElementById('fvImgErr').style.display='none'">
+      <div id="fvImgErr" style="display:none;padding:60px 20px;text-align:center;color:rgba(255,255,255,.5)"><div style="font-size:40px;margin-bottom:12px">🔗</div><div style="font-size:13px">外链图片加载失败</div><div id="fvImgErrUrl" style="font-size:10px;word-break:break-all;margin-top:8px;opacity:.6"></div></div>
     </div>
     <button class="fv-arrow next" id="fvNext" onclick="fvMove(1)">&#8250;</button>
     <div class="fv-thumbs" id="fvThumbs"></div>
