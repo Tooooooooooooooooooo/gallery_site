@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" id="faviconLink" href="data:,">
 <title>后台管理 · GALLERY</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -168,8 +169,376 @@ tr:hover td{background:rgba(255,255,255,.012)}
 #bioEditor .ql-toolbar .ql-picker-options{background:rgb(44,44,58);border:1px solid rgba(255,255,255,.15)}
 #bioEditor .ql-toolbar .ql-picker-item{color:rgba(255,255,255,.7)}
 #bioEditor .ql-toolbar .ql-picker-item:hover{color:#fff}
+.bk-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx);cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;user-select:none}
+.bk-chk:hover{border-color:var(--ac)}
+.bk-chk input{accent-color:var(--ac)}
 </style>
-<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js">
+// ════════════════════════════════════════
+// 表情包管理
+// ════════════════════════════════════════
+let _emojiItems = [];
+
+async function loadEmojiAdmin() {
+  const d = await fetch('/api/emoji').then(r => r.json()).catch(() => ({items:[]}));
+  _emojiItems = d.items || [];
+  renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+  const el = document.getElementById('emojiGrid');
+  document.getElementById('emojiCount').textContent = `共 ${_emojiItems.length} 个`;
+  if (!_emojiItems.length) {
+    el.innerHTML = '<div style="color:var(--mu);font-size:12px;padding:12px">暂无表情包</div>';
+    return;
+  }
+  el.innerHTML = _emojiItems.map(item => `
+    <div style="position:relative;text-align:center;flex-shrink:0">
+      <img src="${fileSrc(item.filename)}" style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:var(--s2);border:1px solid var(--bd);display:block" title="${esc(item.tag||'')}">
+      ${item.tag ? `<div style="font-size:9px;color:var(--mu);margin-top:2px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.tag)}</div>` : ''}
+      <button onclick="deleteEmoji('${item.id}')"
+        style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.9);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
+    </div>`).join('');
+}
+
+async function uploadEmojis(inp) {
+  if (!inp.files.length) return;
+  const fd = new FormData();
+  const tag = document.getElementById('emojiTagInp').value.trim();
+  fd.append('tag', tag);
+  Array.from(inp.files).forEach(f => fd.append('files', f));
+  const res = await fetch('/admin/emoji/upload', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) { _emojiItems = d.items; renderEmojiGrid(); toast(`已上传 ${inp.files.length} 个`); }
+  else toast('上传失败','err');
+  inp.value = '';
+}
+
+async function deleteEmoji(id) {
+  if (!confirm('删除此表情包？')) return;
+  await fetch(`/admin/emoji/${id}`, {method:'DELETE'});
+  _emojiItems = _emojiItems.filter(i => i.id !== id);
+  renderEmojiGrid();
+}
+
+// ════════════════════════════════════════
+// 详情精选图片拖拽排序
+// ════════════════════════════════════════
+let _ftDragItemId = null, _ftDragFromIdx = null;
+
+function ftImgDragStart(e, itemId, idx) {
+  _ftDragItemId = itemId; _ftDragFromIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.4';
+}
+function ftImgDragOver(e) {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderColor = 'var(--ac)';
+}
+function ftImgDragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  // 清除所有高亮
+  document.querySelectorAll('[data-item]').forEach(el => el.style.borderColor = '');
+}
+async function ftImgDrop(e, itemId, toIdx) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = '';
+  if (_ftDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
+  const item = _ftItems.find(i => i.id === itemId);
+  if (!item) return;
+  // 重新排列
+  const imgs = [...item.images];
+  const [moved] = imgs.splice(_ftDragFromIdx, 1);
+  imgs.splice(toIdx, 0, moved);
+  item.images = imgs;
+  // 同步后端
+  const fd = new FormData();
+  imgs.forEach(fn => fd.append('images_order', fn));
+  await fetch(`/admin/featured/${itemId}`, {method:'PUT', body:fd});
+  renderFtList();
+  toast('顺序已更新');
+}
+
+// ════════════════════════════════════════
+// 数据备份
+// ════════════════════════════════════════
+async function loadBackupAdmin() {
+  // 无需加载数据，静态页
+}
+
+function toggleAllExport(on) {
+  document.querySelectorAll('#exportChecks input[type=checkbox]').forEach(c => c.checked = on);
+  document.getElementById('exportUploads').checked = on;
+  document.getElementById('exportThumbs').checked  = on;
+}
+
+async function doExport() {
+  const types = [...document.querySelectorAll('#exportChecks input:checked')].map(c => c.value);
+  if (!types.length) { toast('请至少勾选一种数据','err'); return; }
+  const body = {
+    types,
+    include_uploads: document.getElementById('exportUploads').checked,
+    include_thumbs:  document.getElementById('exportThumbs').checked,
+  };
+  toast('正在打包...');
+  const res = await fetch('/admin/backup/export', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+  });
+  if (!res.ok) { toast('导出失败','err'); return; }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `gallery_backup_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  toast('✓ 备份已下载');
+}
+
+let _importFile = null;
+function onImportFileSelected(inp) {
+  _importFile = inp.files[0];
+  document.getElementById('importFileName').textContent = _importFile ? _importFile.name : '';
+  document.getElementById('importChecks').style.display = _importFile ? '' : 'none';
+}
+
+async function doImport() {
+  if (!_importFile) { toast('请先选择文件','err'); return; }
+  const types = [...document.querySelectorAll('#importChecks input[type=checkbox][value]').forEach ? [] : [],
+    ...[...document.querySelectorAll('#importChecks input[type=checkbox]')]
+       .filter(c => c.value && c.checked).map(c => c.value)
+  ];
+  if (!types.length && !document.getElementById('importUploads').checked && !document.getElementById('importThumbs').checked) {
+    toast('请至少勾选一项','err'); return;
+  }
+  if (!confirm(`确认导入？将覆盖：${types.join('、')}，操作不可撤销`)) return;
+  const fd = new FormData();
+  fd.append('file', _importFile);
+  types.forEach(t => fd.append('types', t));
+  if (document.getElementById('importUploads').checked) fd.append('include_uploads','1');
+  if (document.getElementById('importThumbs').checked)  fd.append('include_thumbs','1');
+  const st = document.getElementById('importStatus');
+  st.textContent = '导入中...';
+  const res = await fetch('/admin/backup/import', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) {
+    st.textContent = `✓ 已恢复：${d.restored.join('、')}`;
+    toast('导入成功，建议刷新页面');
+  } else {
+    st.textContent = '失败：' + (d.error||'');
+    toast('导入失败','err');
+  }
+}
+
+
+// ════════════════════════════════════════
+// 电子木鱼管理
+// ════════════════════════════════════════
+let _muyuCfg = {};
+
+async function loadMuyuAdmin() {
+  _muyuCfg = await fetch('/api/muyu').then(r=>r.json()).catch(()=>({}));
+  const c = _muyuCfg;
+  document.getElementById('mTitle').value       = c.title || '';
+  document.getElementById('mSubtitle').value    = c.subtitle || '';
+  document.getElementById('mTotalLabel').value  = c.total_label || '';
+  document.getElementById('mSoundEnabled').checked = c.sound_enabled !== false;
+  const vip = c.vip || {};
+  document.getElementById('mVipName').value    = vip.name || 'VIP自动敲';
+  document.getElementById('mVipSpeed').value   = vip.speed || 1000;
+  document.getElementById('mVipEnabled').checked = vip.enabled !== false;
+  const sv = c.svip || {};
+  document.getElementById('mSvipName').value   = sv.name || 'SVIP自动狂敲';
+  document.getElementById('mSvipSpeed').value  = sv.speed || 180;
+  document.getElementById('mSvipEnabled').checked = sv.enabled !== false;
+  // 音效状态
+  if (c.custom_sound) {
+    document.getElementById('mSoundStatus').textContent = '自定义：' + c.custom_sound;
+    document.getElementById('mSoundStatus').style.color = 'var(--ac)';
+    const au = document.getElementById('mSoundAudio');
+    au.src = '/static/uploads/' + c.custom_sound;
+    document.getElementById('mSoundPreviewBtn').style.display = '';
+    document.getElementById('mSoundClearBtn').style.display = '';
+  } else {
+    document.getElementById('mSoundStatus').textContent = '使用内置合成音效';
+    document.getElementById('mSoundStatus').style.color = 'var(--mu)';
+    document.getElementById('mSoundPreviewBtn').style.display = 'none';
+    document.getElementById('mSoundClearBtn').style.display = 'none';
+  }
+  // SVG 状态
+  if (c.custom_svg) {
+    document.getElementById('mSvgClearBtn').style.display = '';
+    fetch('/admin/muyu/svg-content').then(r=>r.ok?r.text():null).then(svg=>{
+      if (svg) {
+        document.getElementById('mSvgCode').value = svg;
+        document.getElementById('mSvgPreview').innerHTML = svg;
+      }
+    });
+  }
+  renderMuyuMsgs();
+}
+
+function renderMuyuMsgs() {
+  const msgs = _muyuCfg.messages || [];
+  document.getElementById('mMsgCount').textContent = `共 ${msgs.length} 条`;
+  const STYLES = ['float','burst','spin','zoom'];
+  document.getElementById('mMsgList').innerHTML = msgs.map((m,i) => `
+    <div style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div class="fg" style="min-width:160px">
+        <label style="font-size:11px">飘字内容</label>
+        <input class="inp" value="${esc(m.text||'')}" oninput="_muyuCfg.messages[${i}].text=this.value" style="font-size:12px;margin-top:3px">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">颜色</label>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="color" value="${m.color||'#f5e6c8'}" oninput="_muyuCfg.messages[${i}].color=this.value"
+              style="width:36px;height:28px;border:none;border-radius:5px;cursor:pointer;background:none">
+            <span style="font-size:10px;color:var(--mu)">${m.color||'#f5e6c8'}</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">字号</label>
+          <input class="inp" type="number" min="14" max="60" value="${m.size||26}"
+            oninput="_muyuCfg.messages[${i}].size=parseInt(this.value)"
+            style="width:64px;font-size:12px;margin:0">
+        </div>
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">动画样式</label>
+          <select class="inp" onchange="_muyuCfg.messages[${i}].style=this.value"
+            style="font-size:12px;margin:0;padding:5px 8px">
+            ${STYLES.map(s=>{const L={float:'💫飘升',burst:'💥爆发',spin:'🌀旋转',zoom:'🔍缩放'};return `<option value="${s}" ${m.style===s?'selected':''}>${L[s]||s}</option>`;}).join('')}
+          </select>
+        </div>
+        <button class="btn btn-d btn-sm" onclick="deleteMuyuMsg(${i})" style="align-self:flex-end">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+function addMuyuMsg() {
+  if (!_muyuCfg.messages) _muyuCfg.messages = [];
+  const STYLES = ['float','burst','spin','zoom'];
+  _muyuCfg.messages.push({
+    text:'功德+1，佛祖保佑你',
+    color:'#f5e6c8',
+    size:26,
+    style: STYLES[_muyuCfg.messages.length % STYLES.length]
+  });
+  renderMuyuMsgs();
+}
+
+function deleteMuyuMsg(i) {
+  _muyuCfg.messages.splice(i,1);
+  renderMuyuMsgs();
+}
+
+async function saveMuyuBasic() {
+  _muyuCfg.title       = document.getElementById('mTitle').value.trim();
+  _muyuCfg.subtitle    = document.getElementById('mSubtitle').value.trim();
+  _muyuCfg.total_label = document.getElementById('mTotalLabel').value.trim();
+  _muyuCfg.sound_enabled = document.getElementById('mSoundEnabled').checked;
+  _muyuCfg.vip = {
+    name:    document.getElementById('mVipName').value.trim(),
+    speed:   parseInt(document.getElementById('mVipSpeed').value) || 1000,
+    enabled: document.getElementById('mVipEnabled').checked
+  };
+  _muyuCfg.svip = {
+    name:    document.getElementById('mSvipName').value.trim(),
+    speed:   parseInt(document.getElementById('mSvipSpeed').value) || 180,
+    enabled: document.getElementById('mSvipEnabled').checked
+  };
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(_muyuCfg)
+  });
+  if ((await res.json()).success) toast('已保存');
+  else toast('保存失败','err');
+}
+
+
+// ── 木鱼音效 ──
+async function uploadMuyuSound(inp) {
+  if (!inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch('/admin/muyu/upload-sound', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.custom_sound = d.filename;
+    document.getElementById('mSoundStatus').textContent = '自定义：' + d.filename;
+    document.getElementById('mSoundStatus').style.color = 'var(--ac)';
+    document.getElementById('mSoundAudio').src = d.url;
+    document.getElementById('mSoundPreviewBtn').style.display = '';
+    document.getElementById('mSoundClearBtn').style.display = '';
+    toast('音效已上传');
+  } else toast(d.error || '上传失败', 'err');
+  inp.value = '';
+}
+
+function previewMuyuSound() {
+  const au = document.getElementById('mSoundAudio');
+  au.currentTime = 0;
+  au.play().catch(() => toast('播放失败', 'err'));
+}
+
+async function clearMuyuSound() {
+  _muyuCfg.custom_sound = '';
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_sound: ''})
+  });
+  if ((await res.json()).success) {
+    document.getElementById('mSoundStatus').textContent = '使用内置合成音效';
+    document.getElementById('mSoundStatus').style.color = 'var(--mu)';
+    document.getElementById('mSoundPreviewBtn').style.display = 'none';
+    document.getElementById('mSoundClearBtn').style.display = 'none';
+    document.getElementById('mSoundAudio').src = '';
+    toast('已恢复默认音效');
+  }
+}
+
+// ── 木鱼 SVG ──
+function previewMuyuSvg() {
+  const code = document.getElementById('mSvgCode').value.trim();
+  const prev = document.getElementById('mSvgPreview');
+  if (code && code.includes('<svg')) {
+    prev.innerHTML = code;
+    const svg = prev.querySelector('svg');
+    if (svg) { svg.style.width='100%'; svg.style.height='100%'; }
+  } else {
+    prev.innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+  }
+}
+
+async function saveMuyuSvg() {
+  const code = document.getElementById('mSvgCode').value.trim();
+  if (!code) { await clearMuyuSvg(); return; }
+  if (!code.includes('<svg')) { toast('请输入有效的 SVG 代码', 'err'); return; }
+  const res = await fetch('/admin/muyu/upload-svg', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({svg: code})
+  });
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.custom_svg = 'data/muyu_custom.svg';
+    document.getElementById('mSvgClearBtn').style.display = '';
+    toast('SVG 已保存');
+  } else toast(d.error || '保存失败', 'err');
+}
+
+async function clearMuyuSvg() {
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_svg: ''})
+  });
+  if ((await res.json()).success) {
+    _muyuCfg.custom_svg = '';
+    document.getElementById('mSvgCode').value = '';
+    document.getElementById('mSvgPreview').innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+    document.getElementById('mSvgClearBtn').style.display = 'none';
+    toast('已恢复默认木鱼');
+  }
+}
+
+</script>
 </head>
 <body>
 <aside class="sb">
@@ -182,7 +551,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="ni" onclick="showPage('thumblib',this)"><span class="ic">🖼️</span>缩图库</div>
   <div class="ni" onclick="showPage('showcase',this)"><span class="ic">🎬</span>橱窗管理</div>
   <div class="ni" onclick="showPage('featured',this)"><span class="ic">✨</span>详情精选</div>
+  <div class="ni" onclick="showPage('emoji',this)"><span class="ic">😄</span>表情包管理</div>
+  <div class="ni" onclick="showPage('muyu',this)"><span class="ic">🪘</span>电子木鱼</div>
   <div class="ni" onclick="showPage('categories',this)"><span class="ic">🏷️</span>分类管理</div>
+  <div class="sg">系统</div>
+  <div class="ni" onclick="showPage('backup',this)"><span class="ic">💾</span>数据备份</div>
   <div class="sg">外观</div>
   <div class="ni" onclick="showPage('basic',this)"><span class="ic">⚙️</span>网站基本设置</div>
   <div class="ni" onclick="showPage('hero',this)"><span class="ic">🎠</span>轮播海报</div>
@@ -295,6 +668,186 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div id="coverPickPreview" style="margin-top:6px;display:none"><img id="coverPickImg" style="height:60px;border-radius:6px;object-fit:cover"></div>
     </div>
     <button class="btn btn-p" onclick="submitUpload()">上传发布 →</button>
+  </div>
+</div>
+
+<!-- MUYU ADMIN -->
+<div class="page" id="page-muyu">
+  <div class="pt">电子木鱼</div>
+  <div class="ps">配置电子木鱼页面的标题、飘字、自动敲设置<span style="margin-left:12px"><a href="/muyu" target="_blank" style="color:var(--ac);font-size:12px;text-decoration:none">→ 打开木鱼页面</a></span></div>
+
+  <!-- 基础设置 -->
+  <div class="card">
+    <div class="ct">⚙️ 基础设置</div>
+    <div class="fr" style="gap:12px;flex-wrap:wrap">
+      <div class="fg"><label>页面标题</label><input class="inp" id="mTitle" placeholder="电子木鱼"></div>
+      <div class="fg"><label>副标题</label><input class="inp" id="mSubtitle" placeholder="敲电子木鱼，见机甲佛祖..."></div>
+      <div class="fg" style="max-width:160px"><label>功德标签</label><input class="inp" id="mTotalLabel" placeholder="功德"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="mSoundEnabled" style="accent-color:var(--ac)"> 默认开启音效
+      </label>
+    </div>
+  </div>
+
+  <!-- 自定义音效 -->
+  <div class="card">
+    <div class="ct">🔊 自定义敲击音效</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">上传 MP3/WAV/OGG/M4A，留空则使用内置合成音效</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div id="mSoundStatus" style="font-size:12px;color:var(--mu)">使用内置音效</div>
+      <input type="file" id="mSoundInp" accept="audio/*" style="display:none" onchange="uploadMuyuSound(this)">
+      <button class="btn btn-s btn-sm" onclick="document.getElementById('mSoundInp').click()">📎 上传音效</button>
+      <button class="btn btn-s btn-sm" id="mSoundPreviewBtn" style="display:none" onclick="previewMuyuSound()">▶ 试听</button>
+      <button class="btn btn-d btn-sm" id="mSoundClearBtn" style="display:none" onclick="clearMuyuSound()">✕ 恢复默认</button>
+    </div>
+    <audio id="mSoundAudio" style="display:none"></audio>
+  </div>
+
+  <!-- 自定义 SVG -->
+  <div class="card">
+    <div class="ct">🖼 自定义木鱼图像 (SVG)</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">粘贴 SVG 代码替换默认木鱼图像，留空使用内置木鱼</p>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <div id="mSvgPreview" style="width:100px;height:100px;border:1px solid var(--bd);border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:12px;flex-shrink:0;overflow:hidden">预览</div>
+      <div style="flex:1;min-width:200px">
+        <textarea class="inp" id="mSvgCode" rows="6" placeholder="粘贴 SVG 代码，如 <svg viewBox=&quot;0 0 100 100&quot;>...</svg>" style="font-family:monospace;font-size:11px;resize:vertical" oninput="previewMuyuSvg()"></textarea>
+        <div style="display:flex;gap:7px;margin-top:8px">
+          <button class="btn btn-p btn-sm" onclick="saveMuyuSvg()">保存 SVG</button>
+          <button class="btn btn-d btn-sm" id="mSvgClearBtn" style="display:none" onclick="clearMuyuSvg()">✕ 恢复默认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIP / SVIP -->
+  <div class="card">
+    <div class="ct">⚡ 自动敲设置</div>
+    <div class="fr" style="gap:16px;flex-wrap:wrap">
+      <div class="fg">
+        <div style="font-size:12px;color:var(--gold,#c8a96e);font-weight:600;margin-bottom:8px">VIP 自动敲</div>
+        <label>按钮名称</label>
+        <input class="inp" id="mVipName" placeholder="VIP自动敲" style="margin-bottom:8px">
+        <label>敲击间隔（毫秒）</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input class="inp" type="number" id="mVipSpeed" min="200" max="5000" step="50" style="width:100px">
+          <span style="font-size:11px;color:var(--mu)">ms（越小越快）</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="mVipEnabled" style="accent-color:var(--ac)"> 启用此功能
+        </label>
+      </div>
+      <div class="fg">
+        <div style="font-size:12px;color:#ff8888;font-weight:600;margin-bottom:8px">SVIP 自动狂敲</div>
+        <label>按钮名称</label>
+        <input class="inp" id="mSvipName" placeholder="SVIP自动狂敲" style="margin-bottom:8px">
+        <label>敲击间隔（毫秒）</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input class="inp" type="number" id="mSvipSpeed" min="50" max="2000" step="10" style="width:100px">
+          <span style="font-size:11px;color:var(--mu)">ms（越小越快）</span>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:8px">
+          <input type="checkbox" id="mSvipEnabled" style="accent-color:var(--ac)"> 启用此功能
+        </label>
+      </div>
+    </div>
+    <button class="btn btn-p" style="margin-top:14px" onclick="saveMuyuBasic()">保存设置</button>
+  </div>
+
+  <!-- 飘字管理 -->
+  <div class="card">
+    <div class="ct">✨ 飘字列表 <span id="mMsgCount" style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px"></span></div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:14px">每次敲击轮流显示，可添加多种样式</p>
+    <div id="mMsgList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
+    <button class="btn btn-s btn-sm" onclick="addMuyuMsg()">＋ 添加飘字</button>
+  </div>
+</div>
+
+<!-- EMOJI -->
+<div class="page" id="page-emoji">
+  <div class="pt">表情包管理</div>
+  <div class="ps">上传自定义表情包，前台留言板可插入</div>
+  <div class="card">
+    <div class="ct">➕ 上传表情包</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+      <div class="fg" style="flex:1;min-width:140px;margin-bottom:0">
+        <label>标签（可选，便于分组）</label>
+        <input class="inp" id="emojiTagInp" placeholder="如：动物、表情..." style="margin-bottom:0">
+      </div>
+      <div>
+        <input type="file" id="emojiFileInp" accept="image/*" multiple style="display:none" onchange="uploadEmojis(this)">
+        <button class="btn btn-p" onclick="document.getElementById('emojiFileInp').click()">📎 选择图片上传</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--mu)">支持 PNG / GIF / WebP，建议尺寸 64×64 或 128×128</div>
+  </div>
+  <div class="card">
+    <div class="ct">😄 表情包列表 <span id="emojiCount" style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px"></span></div>
+    <div id="emojiGrid" style="display:flex;flex-wrap:wrap;gap:10px;min-height:40px"></div>
+  </div>
+</div>
+
+<!-- BACKUP -->
+<div class="page" id="page-backup">
+  <div class="pt">数据备份</div>
+  <div class="ps">导出或导入网站数据，保障数据安全</div>
+
+  <div class="card">
+    <div class="ct">📤 导出备份</div>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:14px">勾选要导出的数据类型，下载为 ZIP 压缩包</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px" id="exportChecks">
+      <label class="bk-chk"><input type="checkbox" value="content" checked> 作品内容</label>
+      <label class="bk-chk"><input type="checkbox" value="site" checked> 网站设置</label>
+      <label class="bk-chk"><input type="checkbox" value="messages" checked> 留言数据</label>
+      <label class="bk-chk"><input type="checkbox" value="featured" checked> 详情精选</label>
+      <label class="bk-chk"><input type="checkbox" value="emoji" checked> 表情包列表</label>
+      <label class="bk-chk"><input type="checkbox" value="visitors"> 访客记录</label>
+      <label class="bk-chk"><input type="checkbox" value="likes"> 点赞数据</label>
+      <label class="bk-chk"><input type="checkbox" value="auth"> 账号设置</label>
+      <label class="bk-chk"><input type="checkbox" value="smtp"> 邮件配置</label>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <label class="bk-chk"><input type="checkbox" id="exportUploads"> 媒体文件（uploads/）</label>
+      <label class="bk-chk"><input type="checkbox" id="exportThumbs"> 缩图文件（thumbs/）</label>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-p" onclick="doExport()">⬇️ 下载备份</button>
+      <button class="btn btn-s btn-sm" onclick="toggleAllExport(true)">全选</button>
+      <button class="btn btn-s btn-sm" onclick="toggleAllExport(false)">全不选</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">📥 导入恢复</div>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:14px">上传之前导出的 ZIP 备份文件，选择要恢复的数据类型</p>
+    <div style="margin-bottom:14px">
+      <input type="file" id="importFile" accept=".zip" style="display:none" onchange="onImportFileSelected(this)">
+      <button class="btn btn-s" onclick="document.getElementById('importFile').click()">📂 选择 ZIP 文件</button>
+      <span id="importFileName" style="font-size:12px;color:var(--mu);margin-left:8px"></span>
+    </div>
+    <div id="importChecks" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">
+        <label class="bk-chk"><input type="checkbox" value="content" checked> 作品内容</label>
+        <label class="bk-chk"><input type="checkbox" value="site" checked> 网站设置</label>
+        <label class="bk-chk"><input type="checkbox" value="messages" checked> 留言数据</label>
+        <label class="bk-chk"><input type="checkbox" value="featured" checked> 详情精选</label>
+        <label class="bk-chk"><input type="checkbox" value="emoji" checked> 表情包列表</label>
+        <label class="bk-chk"><input type="checkbox" value="visitors"> 访客记录</label>
+        <label class="bk-chk"><input type="checkbox" value="likes"> 点赞数据</label>
+        <label class="bk-chk"><input type="checkbox" value="auth"> 账号设置</label>
+        <label class="bk-chk"><input type="checkbox" value="smtp"> 邮件配置</label>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <label class="bk-chk"><input type="checkbox" id="importUploads"> 媒体文件</label>
+        <label class="bk-chk"><input type="checkbox" id="importThumbs"> 缩图文件</label>
+      </div>
+      <div style="background:rgba(220,80,80,.12);border:1px solid rgba(220,80,80,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:#e07070;margin-bottom:14px">
+        ⚠️ 导入将覆盖现有数据，操作不可撤销，请确认备份是正确的文件
+      </div>
+      <button class="btn btn-d" onclick="doImport()">⬆️ 确认导入恢复</button>
+      <span id="importStatus" style="font-size:12px;color:var(--mu);margin-left:10px"></span>
+    </div>
   </div>
 </div>
 
@@ -1125,6 +1678,12 @@ async function init(){
   document.getElementById('sMsg').textContent=mr.length;
   renderRecentTable(allItems.slice(0,6));
   populateCatSelects();
+  // 设置 Favicon
+  const _fav = sr.site && sr.site.favicon;
+  if (_fav) {
+    const fl = document.getElementById('faviconLink');
+    if (fl) fl.href = '/static/uploads/' + _fav;
+  }
   // 静默补全缺失缩图（后台进行，不阻塞加载）
   fetch('/admin/thumbs/fill-missing',{method:'POST'}).catch(()=>{});
 }
@@ -1138,7 +1697,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages};
+  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages};
   if(a[p])a[p]();
 }
 
@@ -3464,8 +4023,15 @@ function renderFtList() {
   el.innerHTML = _ftItems.map(item => {
     const imgs = item.images || [];
     const thumbsHtml = imgs.map((fn, i) =>
-      `<div style="position:relative;flex-shrink:0">
-        <img src="${fileSrc(fn)}" style="width:64px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+      `<div draggable="true"
+          data-item="${item.id}" data-idx="${i}"
+          ondragstart="ftImgDragStart(event,'${item.id}',${i})"
+          ondragover="ftImgDragOver(event)"
+          ondrop="ftImgDrop(event,'${item.id}',${i})"
+          ondragend="ftImgDragEnd(event)"
+          style="position:relative;flex-shrink:0;cursor:grab;transition:opacity .15s">
+        <img src="${fileSrc(fn)}" style="width:64px;height:52px;object-fit:cover;border-radius:6px;border:2px solid var(--bd);pointer-events:none" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+        <div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.5);color:#fff;font-size:9px;padding:0 3px;border-radius:3px;pointer-events:none">${i+1}</div>
         <button onclick="ftDeleteImg('${item.id}',${i})" title="移除此图"
           style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.85);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
       </div>`
@@ -3587,6 +4153,371 @@ async function ftAddImgToItem(itemId, src) {
   const d = await res.json();
   if (d.success) { Object.assign(item, d.item); renderFtList(); toast('已添加'); }
   else toast('添加失败', 'err');
+}
+
+
+// ════════════════════════════════════════
+// 表情包管理
+// ════════════════════════════════════════
+let _emojiItems = [];
+
+async function loadEmojiAdmin() {
+  const d = await fetch('/api/emoji').then(r => r.json()).catch(() => ({items:[]}));
+  _emojiItems = d.items || [];
+  renderEmojiGrid();
+}
+
+function renderEmojiGrid() {
+  const el = document.getElementById('emojiGrid');
+  document.getElementById('emojiCount').textContent = `共 ${_emojiItems.length} 个`;
+  if (!_emojiItems.length) {
+    el.innerHTML = '<div style="color:var(--mu);font-size:12px;padding:12px">暂无表情包</div>';
+    return;
+  }
+  el.innerHTML = _emojiItems.map(item => `
+    <div style="position:relative;text-align:center;flex-shrink:0">
+      <img src="${fileSrc(item.filename)}" style="width:64px;height:64px;object-fit:contain;border-radius:8px;background:var(--s2);border:1px solid var(--bd);display:block" title="${esc(item.tag||'')}">
+      ${item.tag ? `<div style="font-size:9px;color:var(--mu);margin-top:2px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.tag)}</div>` : ''}
+      <button onclick="deleteEmoji('${item.id}')"
+        style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.9);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
+    </div>`).join('');
+}
+
+async function uploadEmojis(inp) {
+  if (!inp.files.length) return;
+  const fd = new FormData();
+  const tag = document.getElementById('emojiTagInp').value.trim();
+  fd.append('tag', tag);
+  Array.from(inp.files).forEach(f => fd.append('files', f));
+  const res = await fetch('/admin/emoji/upload', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) { _emojiItems = d.items; renderEmojiGrid(); toast(`已上传 ${inp.files.length} 个`); }
+  else toast('上传失败','err');
+  inp.value = '';
+}
+
+async function deleteEmoji(id) {
+  if (!confirm('删除此表情包？')) return;
+  await fetch(`/admin/emoji/${id}`, {method:'DELETE'});
+  _emojiItems = _emojiItems.filter(i => i.id !== id);
+  renderEmojiGrid();
+}
+
+// ════════════════════════════════════════
+// 详情精选图片拖拽排序
+// ════════════════════════════════════════
+let _ftDragItemId = null, _ftDragFromIdx = null;
+
+function ftImgDragStart(e, itemId, idx) {
+  _ftDragItemId = itemId; _ftDragFromIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.4';
+}
+function ftImgDragOver(e) {
+  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.borderColor = 'var(--ac)';
+}
+function ftImgDragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  // 清除所有高亮
+  document.querySelectorAll('[data-item]').forEach(el => el.style.borderColor = '');
+}
+async function ftImgDrop(e, itemId, toIdx) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = '';
+  if (_ftDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
+  const item = _ftItems.find(i => i.id === itemId);
+  if (!item) return;
+  // 重新排列
+  const imgs = [...item.images];
+  const [moved] = imgs.splice(_ftDragFromIdx, 1);
+  imgs.splice(toIdx, 0, moved);
+  item.images = imgs;
+  // 同步后端
+  const fd = new FormData();
+  imgs.forEach(fn => fd.append('images_order', fn));
+  await fetch(`/admin/featured/${itemId}`, {method:'PUT', body:fd});
+  renderFtList();
+  toast('顺序已更新');
+}
+
+// ════════════════════════════════════════
+// 数据备份
+// ════════════════════════════════════════
+async function loadBackupAdmin() {
+  // 无需加载数据，静态页
+}
+
+function toggleAllExport(on) {
+  document.querySelectorAll('#exportChecks input[type=checkbox]').forEach(c => c.checked = on);
+  document.getElementById('exportUploads').checked = on;
+  document.getElementById('exportThumbs').checked  = on;
+}
+
+async function doExport() {
+  const types = [...document.querySelectorAll('#exportChecks input:checked')].map(c => c.value);
+  if (!types.length) { toast('请至少勾选一种数据','err'); return; }
+  const body = {
+    types,
+    include_uploads: document.getElementById('exportUploads').checked,
+    include_thumbs:  document.getElementById('exportThumbs').checked,
+  };
+  toast('正在打包...');
+  const res = await fetch('/admin/backup/export', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+  });
+  if (!res.ok) { toast('导出失败','err'); return; }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `gallery_backup_${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  toast('✓ 备份已下载');
+}
+
+let _importFile = null;
+function onImportFileSelected(inp) {
+  _importFile = inp.files[0];
+  document.getElementById('importFileName').textContent = _importFile ? _importFile.name : '';
+  document.getElementById('importChecks').style.display = _importFile ? '' : 'none';
+}
+
+async function doImport() {
+  if (!_importFile) { toast('请先选择文件','err'); return; }
+  const types = [...document.querySelectorAll('#importChecks input[type=checkbox][value]').forEach ? [] : [],
+    ...[...document.querySelectorAll('#importChecks input[type=checkbox]')]
+       .filter(c => c.value && c.checked).map(c => c.value)
+  ];
+  if (!types.length && !document.getElementById('importUploads').checked && !document.getElementById('importThumbs').checked) {
+    toast('请至少勾选一项','err'); return;
+  }
+  if (!confirm(`确认导入？将覆盖：${types.join('、')}，操作不可撤销`)) return;
+  const fd = new FormData();
+  fd.append('file', _importFile);
+  types.forEach(t => fd.append('types', t));
+  if (document.getElementById('importUploads').checked) fd.append('include_uploads','1');
+  if (document.getElementById('importThumbs').checked)  fd.append('include_thumbs','1');
+  const st = document.getElementById('importStatus');
+  st.textContent = '导入中...';
+  const res = await fetch('/admin/backup/import', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) {
+    st.textContent = `✓ 已恢复：${d.restored.join('、')}`;
+    toast('导入成功，建议刷新页面');
+  } else {
+    st.textContent = '失败：' + (d.error||'');
+    toast('导入失败','err');
+  }
+}
+
+
+// ════════════════════════════════════════
+// 电子木鱼管理
+// ════════════════════════════════════════
+let _muyuCfg = {};
+
+async function loadMuyuAdmin() {
+  _muyuCfg = await fetch('/api/muyu').then(r=>r.json()).catch(()=>({}));
+  const c = _muyuCfg;
+  document.getElementById('mTitle').value       = c.title || '';
+  document.getElementById('mSubtitle').value    = c.subtitle || '';
+  document.getElementById('mTotalLabel').value  = c.total_label || '';
+  document.getElementById('mSoundEnabled').checked = c.sound_enabled !== false;
+  const vip = c.vip || {};
+  document.getElementById('mVipName').value    = vip.name || 'VIP自动敲';
+  document.getElementById('mVipSpeed').value   = vip.speed || 1000;
+  document.getElementById('mVipEnabled').checked = vip.enabled !== false;
+  const sv = c.svip || {};
+  document.getElementById('mSvipName').value   = sv.name || 'SVIP自动狂敲';
+  document.getElementById('mSvipSpeed').value  = sv.speed || 180;
+  document.getElementById('mSvipEnabled').checked = sv.enabled !== false;
+  // 音效状态
+  if (c.custom_sound) {
+    document.getElementById('mSoundStatus').textContent = '自定义：' + c.custom_sound;
+    document.getElementById('mSoundStatus').style.color = 'var(--ac)';
+    const au = document.getElementById('mSoundAudio');
+    au.src = '/static/uploads/' + c.custom_sound;
+    document.getElementById('mSoundPreviewBtn').style.display = '';
+    document.getElementById('mSoundClearBtn').style.display = '';
+  } else {
+    document.getElementById('mSoundStatus').textContent = '使用内置合成音效';
+    document.getElementById('mSoundStatus').style.color = 'var(--mu)';
+    document.getElementById('mSoundPreviewBtn').style.display = 'none';
+    document.getElementById('mSoundClearBtn').style.display = 'none';
+  }
+  // SVG 状态
+  if (c.custom_svg) {
+    document.getElementById('mSvgClearBtn').style.display = '';
+    fetch('/admin/muyu/svg-content').then(r=>r.ok?r.text():null).then(svg=>{
+      if (svg) {
+        document.getElementById('mSvgCode').value = svg;
+        document.getElementById('mSvgPreview').innerHTML = svg;
+      }
+    });
+  }
+  renderMuyuMsgs();
+}
+
+function renderMuyuMsgs() {
+  const msgs = _muyuCfg.messages || [];
+  document.getElementById('mMsgCount').textContent = `共 ${msgs.length} 条`;
+  const STYLES = ['float','burst','spin','zoom'];
+  document.getElementById('mMsgList').innerHTML = msgs.map((m,i) => `
+    <div style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div class="fg" style="min-width:160px">
+        <label style="font-size:11px">飘字内容</label>
+        <input class="inp" value="${esc(m.text||'')}" oninput="_muyuCfg.messages[${i}].text=this.value" style="font-size:12px;margin-top:3px">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">颜色</label>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="color" value="${m.color||'#f5e6c8'}" oninput="_muyuCfg.messages[${i}].color=this.value"
+              style="width:36px;height:28px;border:none;border-radius:5px;cursor:pointer;background:none">
+            <span style="font-size:10px;color:var(--mu)">${m.color||'#f5e6c8'}</span>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">字号</label>
+          <input class="inp" type="number" min="14" max="60" value="${m.size||26}"
+            oninput="_muyuCfg.messages[${i}].size=parseInt(this.value)"
+            style="width:64px;font-size:12px;margin:0">
+        </div>
+        <div>
+          <label style="font-size:11px;display:block;margin-bottom:3px">动画样式</label>
+          <select class="inp" onchange="_muyuCfg.messages[${i}].style=this.value"
+            style="font-size:12px;margin:0;padding:5px 8px">
+            ${STYLES.map(s=>{const L={float:'💫飘升',burst:'💥爆发',spin:'🌀旋转',zoom:'🔍缩放'};return `<option value="${s}" ${m.style===s?'selected':''}>${L[s]||s}</option>`;}).join('')}
+          </select>
+        </div>
+        <button class="btn btn-d btn-sm" onclick="deleteMuyuMsg(${i})" style="align-self:flex-end">删除</button>
+      </div>
+    </div>`).join('');
+}
+
+function addMuyuMsg() {
+  if (!_muyuCfg.messages) _muyuCfg.messages = [];
+  const STYLES = ['float','burst','spin','zoom'];
+  _muyuCfg.messages.push({
+    text:'功德+1，佛祖保佑你',
+    color:'#f5e6c8',
+    size:26,
+    style: STYLES[_muyuCfg.messages.length % STYLES.length]
+  });
+  renderMuyuMsgs();
+}
+
+function deleteMuyuMsg(i) {
+  _muyuCfg.messages.splice(i,1);
+  renderMuyuMsgs();
+}
+
+async function saveMuyuBasic() {
+  _muyuCfg.title       = document.getElementById('mTitle').value.trim();
+  _muyuCfg.subtitle    = document.getElementById('mSubtitle').value.trim();
+  _muyuCfg.total_label = document.getElementById('mTotalLabel').value.trim();
+  _muyuCfg.sound_enabled = document.getElementById('mSoundEnabled').checked;
+  _muyuCfg.vip = {
+    name:    document.getElementById('mVipName').value.trim(),
+    speed:   parseInt(document.getElementById('mVipSpeed').value) || 1000,
+    enabled: document.getElementById('mVipEnabled').checked
+  };
+  _muyuCfg.svip = {
+    name:    document.getElementById('mSvipName').value.trim(),
+    speed:   parseInt(document.getElementById('mSvipSpeed').value) || 180,
+    enabled: document.getElementById('mSvipEnabled').checked
+  };
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(_muyuCfg)
+  });
+  if ((await res.json()).success) toast('已保存');
+  else toast('保存失败','err');
+}
+
+
+// ── 木鱼音效 ──
+async function uploadMuyuSound(inp) {
+  if (!inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch('/admin/muyu/upload-sound', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.custom_sound = d.filename;
+    document.getElementById('mSoundStatus').textContent = '自定义：' + d.filename;
+    document.getElementById('mSoundStatus').style.color = 'var(--ac)';
+    document.getElementById('mSoundAudio').src = d.url;
+    document.getElementById('mSoundPreviewBtn').style.display = '';
+    document.getElementById('mSoundClearBtn').style.display = '';
+    toast('音效已上传');
+  } else toast(d.error || '上传失败', 'err');
+  inp.value = '';
+}
+
+function previewMuyuSound() {
+  const au = document.getElementById('mSoundAudio');
+  au.currentTime = 0;
+  au.play().catch(() => toast('播放失败', 'err'));
+}
+
+async function clearMuyuSound() {
+  _muyuCfg.custom_sound = '';
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_sound: ''})
+  });
+  if ((await res.json()).success) {
+    document.getElementById('mSoundStatus').textContent = '使用内置合成音效';
+    document.getElementById('mSoundStatus').style.color = 'var(--mu)';
+    document.getElementById('mSoundPreviewBtn').style.display = 'none';
+    document.getElementById('mSoundClearBtn').style.display = 'none';
+    document.getElementById('mSoundAudio').src = '';
+    toast('已恢复默认音效');
+  }
+}
+
+// ── 木鱼 SVG ──
+function previewMuyuSvg() {
+  const code = document.getElementById('mSvgCode').value.trim();
+  const prev = document.getElementById('mSvgPreview');
+  if (code && code.includes('<svg')) {
+    prev.innerHTML = code;
+    const svg = prev.querySelector('svg');
+    if (svg) { svg.style.width='100%'; svg.style.height='100%'; }
+  } else {
+    prev.innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+  }
+}
+
+async function saveMuyuSvg() {
+  const code = document.getElementById('mSvgCode').value.trim();
+  if (!code) { await clearMuyuSvg(); return; }
+  if (!code.includes('<svg')) { toast('请输入有效的 SVG 代码', 'err'); return; }
+  const res = await fetch('/admin/muyu/upload-svg', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({svg: code})
+  });
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.custom_svg = 'data/muyu_custom.svg';
+    document.getElementById('mSvgClearBtn').style.display = '';
+    toast('SVG 已保存');
+  } else toast(d.error || '保存失败', 'err');
+}
+
+async function clearMuyuSvg() {
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_svg: ''})
+  });
+  if ((await res.json()).success) {
+    _muyuCfg.custom_svg = '';
+    document.getElementById('mSvgCode').value = '';
+    document.getElementById('mSvgPreview').innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+    document.getElementById('mSvgClearBtn').style.display = 'none';
+    toast('已恢复默认木鱼');
+  }
 }
 
 </script>

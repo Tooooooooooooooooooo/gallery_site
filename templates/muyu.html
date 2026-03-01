@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" id="faviconLink" href="data:,">
+<title>电子木鱼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a08;
+  --bg2: #111109;
+  --gold: #c8a96e;
+  --gold2: #f0d080;
+  --red: #c44;
+  --wood: #8b5e3c;
+  --wood2: #a67c52;
+  --glow: rgba(200,169,110,.18);
+  --text: #e8dcc8;
+  --dim: rgba(232,220,200,.35);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  width:100%; height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Noto Serif SC', serif;
+  overflow:hidden;
+  user-select:none;
+}
+
+/* ── 背景粒子/光晕 ── */
+.bg-glow {
+  position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 60%, rgba(140,90,40,.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 20% 20%, rgba(200,150,60,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 20% at 80% 80%, rgba(180,120,50,.04) 0%, transparent 60%);
+}
+.scanlines {
+  position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.025;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.5) 2px, rgba(255,255,255,.5) 3px);
+}
+
+/* ── 布局 ── */
+.stage {
+  position:relative; z-index:2;
+  width:100%; height:100vh;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:0;
+}
+
+/* ── 功德计数 ── */
+.merit-count {
+  font-family:'ZCOOL XiaoWei', serif;
+  font-size:clamp(72px,14vw,160px);
+  font-weight:900;
+  color:var(--text);
+  letter-spacing:-.02em;
+  line-height:1;
+  margin-bottom:.1em;
+  transition: transform .06s ease;
+  text-shadow: 0 0 40px rgba(200,169,110,.2), 0 2px 0 rgba(0,0,0,.8);
+}
+.merit-count.hit {
+  animation: countHit .12s ease-out;
+}
+@keyframes countHit {
+  0%  { transform:scale(1.08); }
+  100%{ transform:scale(1); }
+}
+
+.merit-label {
+  font-size:14px; letter-spacing:.3em; color:var(--dim);
+  text-transform:uppercase; margin-bottom:2.4em;
+}
+
+/* ── 木鱼容器 ── */
+.muyu-wrap {
+  position:relative;
+  width:clamp(160px,28vw,280px);
+  height:clamp(160px,28vw,280px);
+  cursor:pointer;
+  margin-bottom:2.4em;
+}
+.muyu-wrap:active { transform:scale(.96); }
+
+/* ── SVG 木鱼 ── */
+.muyu-svg {
+  width:100%; height:100%;
+  filter: drop-shadow(0 8px 32px rgba(120,70,20,.5)) drop-shadow(0 0 60px rgba(200,140,60,.15));
+  transition: filter .08s ease;
+}
+.muyu-wrap.hit .muyu-svg {
+  animation: muyuHit .15s ease-out;
+  filter: drop-shadow(0 4px 16px rgba(120,70,20,.8)) drop-shadow(0 0 80px rgba(255,180,60,.35));
+}
+@keyframes muyuHit {
+  0%  { transform:scale(1) rotate(0deg); }
+  30% { transform:scale(.92) rotate(-2deg); }
+  70% { transform:scale(1.04) rotate(1deg); }
+  100%{ transform:scale(1) rotate(0deg); }
+}
+
+/* 木槌 */
+.mallet {
+  position:absolute;
+  right:-10%; bottom:5%;
+  width:42%; height:42%;
+  transform-origin:85% 85%;
+  transition:transform .12s ease;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,.5));
+}
+.muyu-wrap.hit .mallet {
+  animation: malletHit .18s ease-out;
+}
+@keyframes malletHit {
+  0%  { transform:rotate(0deg); }
+  35% { transform:rotate(-38deg); }
+  100%{ transform:rotate(0deg); }
+}
+
+/* ── 飘字动画 ── */
+.float-text {
+  position:fixed;
+  font-family:'ZCOOL XiaoWei', serif;
+  font-weight:700;
+  pointer-events:none;
+  z-index:100;
+  white-space:nowrap;
+}
+
+/* 样式: float */
+.float-text.style-float {
+  animation: textFloat 1.8s ease-out forwards;
+}
+@keyframes textFloat {
+  0%   { opacity:1; transform:translateY(0) scale(1); }
+  20%  { opacity:1; transform:translateY(-20px) scale(1.05); }
+  100% { opacity:0; transform:translateY(-120px) scale(.85); }
+}
+
+/* 样式: burst */
+.float-text.style-burst {
+  animation: textBurst 1.4s ease-out forwards;
+}
+@keyframes textBurst {
+  0%   { opacity:0; transform:scale(0.3) rotate(-8deg); }
+  15%  { opacity:1; transform:scale(1.25) rotate(3deg); }
+  40%  { opacity:1; transform:scale(1) rotate(0deg); }
+  100% { opacity:0; transform:scale(.7) translateY(-80px); }
+}
+
+/* 样式: spin */
+.float-text.style-spin {
+  animation: textSpin 2s ease-out forwards;
+}
+@keyframes textSpin {
+  0%   { opacity:0; transform:rotate(-180deg) scale(.4); }
+  20%  { opacity:1; transform:rotate(10deg) scale(1.1); }
+  35%  { transform:rotate(0deg) scale(1); }
+  100% { opacity:0; transform:translateY(-100px) scale(.8); }
+}
+
+/* 样式: zoom */
+.float-text.style-zoom {
+  animation: textZoom 1.6s ease-out forwards;
+}
+@keyframes textZoom {
+  0%   { opacity:0; transform:scale(2.5); filter:blur(8px); }
+  20%  { opacity:1; transform:scale(1); filter:blur(0); }
+  70%  { opacity:1; transform:scale(1); }
+  100% { opacity:0; transform:scale(.6) translateY(-60px); }
+}
+
+/* ── 涟漪 ── */
+.ripple {
+  position:fixed;
+  border-radius:50%;
+  border:2px solid var(--gold);
+  pointer-events:none;
+  z-index:90;
+  animation:rippleOut .8s ease-out forwards;
+}
+@keyframes rippleOut {
+  0%   { opacity:.7; transform:scale(0); }
+  100% { opacity:0; transform:scale(3); }
+}
+
+/* ── 底部操作栏 ── */
+.controls {
+  position:fixed; bottom:28px; left:0; right:0;
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  z-index:10;
+}
+.hint {
+  font-size:12px; color:var(--dim); letter-spacing:.15em;
+  display:flex; align-items:center; gap:8px;
+}
+.hint kbd {
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:5px; padding:2px 7px;
+  font-family:inherit; font-size:11px; color:var(--text);
+}
+.btn-row {
+  display:flex; gap:10px; align-items:center;
+}
+.ctl-btn {
+  position:relative;
+  font-family:'Noto Serif SC', serif;
+  font-size:13px; font-weight:700;
+  padding:7px 18px;
+  border-radius:30px;
+  border:1px solid rgba(200,169,110,.35);
+  background:rgba(200,169,110,.08);
+  color:var(--gold);
+  cursor:pointer;
+  transition:all .2s;
+  letter-spacing:.05em;
+}
+.ctl-btn:hover {
+  background:rgba(200,169,110,.18);
+  border-color:rgba(200,169,110,.7);
+  box-shadow:0 0 20px rgba(200,169,110,.2);
+}
+.ctl-btn.active {
+  background:rgba(200,169,110,.25);
+  border-color:var(--gold);
+  box-shadow:0 0 30px rgba(200,169,110,.35), inset 0 0 10px rgba(200,169,110,.1);
+  color:var(--gold2);
+}
+.ctl-btn.active::before {
+  content:'';
+  position:absolute; inset:-1px;
+  border-radius:30px;
+  background:linear-gradient(135deg,rgba(255,220,100,.3),transparent,rgba(255,180,60,.2));
+  pointer-events:none;
+}
+.ctl-btn.svip {
+  border-color:rgba(220,60,60,.4);
+  color:#ff8888;
+}
+.ctl-btn.svip:hover {
+  background:rgba(220,60,60,.12);
+  border-color:rgba(220,60,60,.7);
+}
+.ctl-btn.svip.active {
+  background:rgba(220,60,60,.2);
+  border-color:#cc4444;
+  box-shadow:0 0 30px rgba(220,60,60,.3);
+  color:#ffaaaa;
+}
+
+/* ── 左下角 logo/副标题 ── */
+.corner-info {
+  position:fixed; bottom:24px; left:24px;
+  z-index:10;
+}
+.corner-title {
+  font-size:12px; color:rgba(200,169,110,.5);
+  letter-spacing:.2em; line-height:1.6;
+}
+
+/* ── 右下角 设置按钮 ── */
+.settings-btn {
+  position:fixed; bottom:24px; right:24px;
+  z-index:10;
+  width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:50%;
+  color:var(--dim);
+  cursor:pointer; font-size:16px;
+  transition:all .2s;
+}
+.settings-btn:hover { background:rgba(255,255,255,.1); color:var(--text); }
+
+/* ── 沉浸模式 ── */
+body.immersive .controls { opacity:0; pointer-events:none; transition:opacity .5s; }
+body.immersive .corner-info { opacity:0; transition:opacity .5s; }
+body.immersive .settings-btn { opacity:0; pointer-events:none; transition:opacity .5s; }
+body.immersive:hover .controls,
+body.immersive:hover .corner-info,
+body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
+
+/* ── 粒子光点 ── */
+.spark {
+  position:fixed; border-radius:50%;
+  pointer-events:none; z-index:95;
+  animation: sparkFly .9s ease-out forwards;
+}
+@keyframes sparkFly {
+  0%   { opacity:1; transform:scale(1) translate(0,0); }
+  100% { opacity:0; transform:scale(0) translate(var(--dx),var(--dy)); }
+}
+
+/* ── 总计条 ── */
+.total-bar {
+  position:fixed; top:0; left:0; right:0;
+  height:2px; z-index:20;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity:.3;
+}
+
+@media(max-width:480px){
+  .merit-count { font-size:clamp(60px,18vw,100px); }
+  .muyu-wrap { width:min(55vw,200px); height:min(55vw,200px); }
+  .corner-info { display:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+<div class="scanlines"></div>
+<div class="total-bar"></div>
+
+<main class="stage" id="stage">
+  <div class="merit-count" id="meritCount">0</div>
+  <div class="merit-label" id="meritLabel">功德</div>
+
+  <div class="muyu-wrap" id="muyuWrap" onclick="hitMuyu(event)">
+    <!-- 木鱼 SVG -->
+    <div id="muyuSvgWrap" style="width:100%;height:100%;position:absolute;inset:0">
+    <svg class="muyu-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="woodGrad" cx="40%" cy="35%" r="65%">
+          <stop offset="0%" stop-color="#c8905a"/>
+          <stop offset="40%" stop-color="#a0642e"/>
+          <stop offset="100%" stop-color="#5c3010"/>
+        </radialGradient>
+        <radialGradient id="holeGrad" cx="50%" cy="40%" r="50%">
+          <stop offset="0%" stop-color="#1a0a00"/>
+          <stop offset="100%" stop-color="#0a0500"/>
+        </radialGradient>
+        <filter id="woodShadow">
+          <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="rgba(0,0,0,.6)"/>
+          <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="rgba(180,100,30,.3)"/>
+        </filter>
+        <radialGradient id="shineGrad" cx="35%" cy="30%" r="40%">
+          <stop offset="0%" stop-color="rgba(255,220,160,.25)"/>
+          <stop offset="100%" stop-color="rgba(255,220,160,0)"/>
+        </radialGradient>
+      </defs>
+      <!-- 主体 -->
+      <ellipse cx="100" cy="108" rx="72" ry="62" fill="url(#woodGrad)" filter="url(#woodShadow)"/>
+      <!-- 顶部圆弧 -->
+      <path d="M 58 80 Q 100 28 142 80" fill="url(#woodGrad)" stroke="none"/>
+      <!-- 纹路 -->
+      <path d="M 50 100 Q 100 88 150 100" stroke="rgba(80,30,5,.4)" stroke-width="1.5" fill="none"/>
+      <path d="M 48 112 Q 100 100 152 112" stroke="rgba(80,30,5,.3)" stroke-width="1" fill="none"/>
+      <path d="M 52 124 Q 100 114 148 124" stroke="rgba(80,30,5,.25)" stroke-width="1" fill="none"/>
+      <!-- 开口 -->
+      <ellipse cx="100" cy="108" rx="28" ry="18" fill="#2a1205"/>
+      <ellipse cx="100" cy="108" rx="22" ry="13" fill="url(#holeGrad)"/>
+      <!-- 顶部把手 -->
+      <rect x="92" y="22" width="16" height="34" rx="8" fill="#7a4820"/>
+      <rect x="94" y="20" width="12" height="8" rx="4" fill="#9a6030"/>
+      <!-- 高光 -->
+      <ellipse cx="100" cy="108" rx="72" ry="62" fill="url(#shineGrad)"/>
+    </svg>
+
+    </div>
+    <!-- 木槌 -->
+    <svg class="mallet" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="mGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#d4a060"/>
+          <stop offset="100%" stop-color="#7a4820"/>
+        </linearGradient>
+      </defs>
+      <!-- 柄 -->
+      <rect x="60" y="55" width="9" height="38" rx="4.5" fill="#8b5e3c" transform="rotate(-40,70,72)"/>
+      <!-- 头 -->
+      <ellipse cx="32" cy="35" rx="20" ry="14" fill="url(#mGrad)"/>
+      <ellipse cx="32" cy="33" rx="14" ry="6" fill="rgba(255,210,150,.2)"/>
+    </svg>
+  </div>
+
+  <div style="height:10px"></div>
+</main>
+
+<!-- 操作栏 -->
+<div class="controls" id="controls">
+  <div class="hint">
+    按下 <kbd>空格</kbd> 或 <span style="font-size:11px;color:var(--dim)">点击</span> 积攒功德
+  </div>
+  <div class="btn-row" id="btnRow">
+    <button class="ctl-btn" id="vipBtn" onclick="toggleVip()"></button>
+    <button class="ctl-btn svip" id="svipBtn" onclick="toggleSvip()"></button>
+    <button class="ctl-btn" id="immersiveBtn" onclick="toggleImmersive()">🌙 沉浸</button>
+    <button class="ctl-btn" id="soundBtn" onclick="toggleSound()">🔊 音效</button>
+  </div>
+</div>
+
+<div class="corner-info">
+  <div class="corner-title" id="cornerTitle"></div>
+  <div class="corner-title" id="cornerSub" style="opacity:.6"></div>
+</div>
+
+<div class="settings-btn" onclick="location.href='/admin'">⚙</div>
+
+<script>
+// ════════════════════════════════════════
+// 状态
+// ════════════════════════════════════════
+let count = parseInt(localStorage.getItem('muyu_count') || '0');
+let customAudio = null;
+let soundEnabled = true;
+let vipTimer = null, svipTimer = null;
+let cfg = {};
+let msgIdx = 0;
+
+const meritCountEl = document.getElementById('meritCount');
+const muyuWrap = document.getElementById('muyuWrap');
+const vipBtn   = document.getElementById('vipBtn');
+const svipBtn  = document.getElementById('svipBtn');
+const soundBtn = document.getElementById('soundBtn');
+
+// ════════════════════════════════════════
+// 加载配置
+// ════════════════════════════════════════
+async function loadConfig() {
+  cfg = await fetch('/api/muyu').then(r => r.json()).catch(() => ({
+    messages: [{text:'功德+1，佛祖保佑你', color:'#f5e6c8', size:28, style:'float'}],
+    vip:  {name:'VIP自动敲',    speed:1000, enabled:true},
+    svip: {name:'SVIP自动狂敲', speed:180,  enabled:true},
+    title:'电子木鱼',
+    subtitle:'敲电子木鱼，见机甲佛祖，修赛博真经',
+    total_label:'功德',
+    sound_enabled:true
+  }));
+
+  document.title = cfg.title || '电子木鱼';
+  document.getElementById('meritLabel').textContent = cfg.total_label || '功德';
+  document.getElementById('cornerTitle').textContent = cfg.title || '电子木鱼';
+  document.getElementById('cornerSub').textContent = cfg.subtitle || '';
+  vipBtn.textContent  = (cfg.vip  && cfg.vip.name)  || 'VIP自动敲';
+  svipBtn.textContent = (cfg.svip && cfg.svip.name)  || 'SVIP自动狂敲';
+
+  // ── 同步 Favicon（从主站 site 配置读取）──
+  try {
+    const site = await fetch('/api/site').then(r=>r.json());
+    const fav = site.site && site.site.favicon;
+    if (fav) {
+      const fl = document.getElementById('faviconLink');
+      if (fl) fl.href = '/static/uploads/' + fav;
+    }
+  } catch(e) {}
+
+  // ── 自定义音效 ──
+  if (cfg.custom_sound) {
+    customAudio = new Audio('/static/uploads/' + cfg.custom_sound);
+    customAudio.preload = 'auto';
+  }
+
+  // ── 自定义 SVG ──
+  if (cfg.custom_svg) {
+    try {
+      const svgText = await fetch('/admin/muyu/svg-content').then(r=>r.ok?r.text():null);
+      if (svgText && svgText.includes('<svg')) {
+        const wrap = document.getElementById('muyuSvgWrap');
+        wrap.innerHTML = svgText;
+        const svg = wrap.querySelector('svg');
+        if (svg) { svg.style.width='100%'; svg.style.height='100%'; svg.style.display='block'; }
+      }
+    } catch(e) {}
+  }
+
+  soundEnabled = cfg.sound_enabled !== false;
+  updateSoundBtn();
+  meritCountEl.textContent = count.toLocaleString();
+}
+
+// ════════════════════════════════════════
+// 音效（Web Audio API，无需外部文件）
+// ════════════════════════════════════════
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playWoodfish() {
+  if (!soundEnabled) return;
+  // 优先播放自定义音效
+  if (customAudio) {
+    try {
+      const clone = customAudio.cloneNode();
+      clone.volume = 0.85;
+      clone.play().catch(()=>{});
+      return;
+    } catch(e) {}
+  }
+  try {
+    const ctx = audioCtx;
+    // 主击打音
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(280, ctx.currentTime + .18);
+    gain.gain.setValueAtTime(.55, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + .4);
+    // 谐波
+    const osc2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    osc2.connect(g2); g2.connect(ctx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1040, ctx.currentTime);
+    osc2.frequency.exponentialRampToValueAtTime(560, ctx.currentTime + .12);
+    g2.gain.setValueAtTime(.2, ctx.currentTime);
+    g2.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .25);
+    osc2.start(ctx.currentTime);
+    osc2.stop(ctx.currentTime + .25);
+    // 敲击噪声
+    const buf = ctx.createBuffer(1, ctx.sampleRate * .05, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * (1 - i/data.length) * .3;
+    const src = ctx.createBufferSource();
+    const gn = ctx.createGain();
+    src.buffer = buf; src.connect(gn); gn.connect(ctx.destination);
+    gn.gain.setValueAtTime(.4, ctx.currentTime);
+    gn.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .05);
+    src.start(ctx.currentTime);
+  } catch(e){}
+}
+
+// ════════════════════════════════════════
+// 核心：敲击
+// ════════════════════════════════════════
+function hitMuyu(e, fromAuto) {
+  // 恢复 AudioContext（浏览器限制）
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  count++;
+  localStorage.setItem('muyu_count', count);
+  meritCountEl.textContent = count.toLocaleString();
+
+  // 计数抖动
+  meritCountEl.classList.remove('hit');
+  void meritCountEl.offsetWidth;
+  meritCountEl.classList.add('hit');
+
+  // 木鱼动画
+  muyuWrap.classList.remove('hit');
+  void muyuWrap.offsetWidth;
+  muyuWrap.classList.add('hit');
+  setTimeout(() => muyuWrap.classList.remove('hit'), 200);
+
+  // 音效
+  playWoodfish();
+
+  // 飘字
+  const msgs = cfg.messages || [{text:'功德+1，佛祖保佑你', color:'#f5e6c8', size:28, style:'float'}];
+  const m = msgs[msgIdx % msgs.length];
+  msgIdx++;
+
+  const cx = e ? e.clientX : window.innerWidth / 2 + (Math.random()-0.5)*60;
+  const cy = e ? e.clientY : window.innerHeight / 2 - 40;
+  spawnText(m, cx, cy);
+
+  // 粒子
+  if (!fromAuto || Math.random() > .5) spawnSparks(cx, cy);
+}
+
+// ════════════════════════════════════════
+// 飘字
+// ════════════════════════════════════════
+function spawnText(m, x, y) {
+  const el = document.createElement('div');
+  el.className = `float-text style-${m.style || 'float'}`;
+  el.textContent = m.text || '功德+1';
+  el.style.cssText = `
+    left:${x}px; top:${y - 20}px;
+    font-size:${m.size || 26}px;
+    color:${m.color || '#f5e6c8'};
+    text-shadow:0 0 20px ${m.color || '#f5e6c8'}88, 0 2px 8px rgba(0,0,0,.8);
+    transform:translateX(-50%);
+  `;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+// ════════════════════════════════════════
+// 粒子
+// ════════════════════════════════════════
+function spawnSparks(x, y) {
+  const colors = ['#f5e6c8','#ffd700','#ffaa55','#ffe090'];
+  const n = 6 + Math.floor(Math.random()*4);
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'spark';
+    const ang = (Math.PI * 2 * i / n) + (Math.random()-.5)*.8;
+    const dist = 40 + Math.random()*60;
+    el.style.cssText = `
+      left:${x}px; top:${y}px;
+      width:${3+Math.random()*4}px; height:${3+Math.random()*4}px;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      --dx:${(Math.cos(ang)*dist).toFixed(1)}px;
+      --dy:${(Math.sin(ang)*dist).toFixed(1)}px;
+      box-shadow:0 0 6px currentColor;
+      animation-duration:${.5+Math.random()*.6}s;
+      animation-delay:${Math.random()*.08}s;
+    `;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+}
+
+// ════════════════════════════════════════
+// VIP / SVIP 自动敲
+// ════════════════════════════════════════
+function toggleVip() {
+  if (!cfg.vip || cfg.vip.enabled === false) return;
+  if (svipTimer) { clearInterval(svipTimer); svipTimer=null; svipBtn.classList.remove('active'); }
+  if (vipTimer) {
+    clearInterval(vipTimer); vipTimer = null;
+    vipBtn.classList.remove('active');
+  } else {
+    vipTimer = setInterval(() => {
+      const cx = muyuWrap.getBoundingClientRect();
+      hitMuyu({clientX: cx.left+cx.width/2 + (Math.random()-0.5)*40,
+               clientY: cx.top+cx.height/2  + (Math.random()-0.5)*30}, true);
+    }, cfg.vip.speed || 1000);
+    vipBtn.classList.add('active');
+  }
+}
+
+function toggleSvip() {
+  if (!cfg.svip || cfg.svip.enabled === false) return;
+  if (vipTimer) { clearInterval(vipTimer); vipTimer=null; vipBtn.classList.remove('active'); }
+  if (svipTimer) {
+    clearInterval(svipTimer); svipTimer = null;
+    svipBtn.classList.remove('active');
+  } else {
+    svipTimer = setInterval(() => {
+      const cx = muyuWrap.getBoundingClientRect();
+      hitMuyu({clientX: cx.left+cx.width/2 + (Math.random()-0.5)*30,
+               clientY: cx.top+cx.height/2  + (Math.random()-0.5)*20}, true);
+    }, cfg.svip.speed || 180);
+    svipBtn.classList.add('active');
+  }
+}
+
+// ════════════════════════════════════════
+// 沉浸 / 音效
+// ════════════════════════════════════════
+let immersive = false;
+function toggleImmersive() {
+  immersive = !immersive;
+  document.body.classList.toggle('immersive', immersive);
+  document.getElementById('immersiveBtn').classList.toggle('active', immersive);
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  updateSoundBtn();
+}
+function updateSoundBtn() {
+  soundBtn.textContent = soundEnabled ? '🔊 音效' : '🔇 静音';
+  soundBtn.classList.toggle('active', !soundEnabled);
+}
+
+// ════════════════════════════════════════
+// 键盘
+// ════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    const r = muyuWrap.getBoundingClientRect();
+    hitMuyu({clientX: r.left+r.width/2 + (Math.random()-0.5)*30,
+             clientY: r.top+r.height/2  + (Math.random()-0.5)*20});
+  }
+});
+
+// ════════════════════════════════════════
+// 启动
+// ════════════════════════════════════════
+loadConfig();
+</script>
+</body>
+</html>

@@ -123,6 +123,15 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .swatch.active::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4)}
 .swatch-label{font-size:10px;text-align:center;color:var(--mu);margin-top:4px}
 .theme-swatch-wrap{display:flex;flex-direction:column;align-items:center}
+
+/* ── 表情包选择器 ── */
+.emoji-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;border-radius:7px;padding:5px 10px;font-size:13px;cursor:pointer;transition:background .15s;flex-shrink:0}
+.emoji-btn:hover{background:rgba(255,255,255,.18)}
+.emoji-panel{position:absolute;bottom:calc(100% + 6px);left:0;z-index:200;background:var(--card,#1e1a14);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px;width:300px;max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);display:none}
+.emoji-panel.open{display:flex;flex-wrap:wrap;gap:6px}
+.emoji-panel img{width:44px;height:44px;object-fit:contain;cursor:pointer;border-radius:6px;padding:2px;transition:background .12s}
+.emoji-panel img:hover{background:rgba(255,255,255,.15)}
+
 </style>
 </head>
 <body>
@@ -175,7 +184,16 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
     <div class="form-row">
       <div class="fg"><label>昵称（可选）</label><input class="inp" type="text" id="msgName" placeholder="匿名访客"></div>
     </div>
-    <div class="fg" style="margin-bottom:16px"><label>留言内容 *</label><textarea class="inp" id="msgContent" rows="4" placeholder="写下你想说的..."></textarea></div>
+    <div class="fg" style="margin-bottom:16px;position:relative">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <label style="flex:1;margin:0">留言内容 *</label>
+        <div style="position:relative">
+          <button class="emoji-btn" id="emojiToggleBtn" onclick="toggleEmojiPanel()" type="button">😄 表情</button>
+          <div class="emoji-panel" id="emojiPanel"></div>
+        </div>
+      </div>
+      <textarea class="inp" id="msgContent" rows="4" placeholder="写下你想说的..."></textarea>
+    </div>
     <button class="btn btn-p" onclick="submitMsg()">发送留言 →</button>
   </div>
   <div class="msgs-title">留言 <span class="msgs-count" id="msgsCount"></span></div>
@@ -332,6 +350,7 @@ async function init(){
   renderFooter(site.footer||{});
   loadMsgGallery();
   loadMessages();
+  loadEmojiPanel();
 }
 
 async function handleAvatarUpload(inp){
@@ -426,7 +445,7 @@ function buildMsgCard(m){
         <span class="msg-name">${esc(name)}</span>
         <span class="msg-time">${m.time||''}</span>
       </div>
-      <div class="msg-text">${esc(m.content)}</div>
+      <div class="msg-text">${renderContent(m.content)}</div>
       <div class="msg-actions">
         <button class="reply-btn" onclick="toggleReplyForm('${m.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -455,18 +474,21 @@ function buildReplyCard(r){
     <div class="reply-avatar">${avHtml}</div>
     <div class="reply-body">
       <div class="reply-meta"><span class="reply-name">${esc(name)}</span><span>${r.time||''}</span></div>
-      <div class="reply-text">${esc(r.content)}</div>
+      <div class="reply-text">${renderContent(r.content)}</div>
     </div>
   </div>`;
 }
 
 function buildAvatar(avatarData, initials, size){
-  if(avatarData&&avatarData.startsWith('data:')){
-    return `<img src="${avatarData}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%" onerror="this.style.display='none'">`;
+  if(avatarData && avatarData.length > 4){
+    // 支持 base64、/static/ 路径、https:// 外链
+    const src = avatarData.startsWith('data:') || avatarData.startsWith('http') || avatarData.startsWith('/')
+      ? avatarData : fileSrc(avatarData);
+    return `<img src="${src}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#e8c99a);align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;color:#fff;font-weight:600">${initials}</span>`;
   } else if(defaultAvatarUrl){
-    return `<img src="${defaultAvatarUrl}" alt="" style="width:${size}px;height:${size}px;object-fit:cover">`;
+    return `<img src="${defaultAvatarUrl}" alt="" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%">`;
   }
-  return initials;
+  return `<span style="width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg,var(--ac),#e8c99a);display:flex;align-items:center;justify-content:center;font-size:${Math.round(size*0.4)}px;color:#fff;font-weight:600">${initials}</span>`;
 }
 
 function toggleReplyForm(msgId){
@@ -492,6 +514,13 @@ async function submitReply(msgId){
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderContent(s) {
+  return esc(s)
+    .replace(/\[emoji:([^\]]{4,300})\]/g, (_,url) =>
+      `<img src="${url}" style="width:28px;height:28px;object-fit:contain;vertical-align:middle;margin:0 2px;border-radius:4px" referrerpolicy="no-referrer" loading="lazy">`)
+    .replace(/\n/g,'<br>');
+}
 
 // 监听首页配色实时同步
 
@@ -519,6 +548,51 @@ window.addEventListener('storage',e=>{
 // 初始化主题
 applyTheme(localStorage.getItem('g_theme')||'warm'); // overridden by site.theme in init if no localStorage
 init();
+
+// ── 表情包选择器 ──
+async function loadEmojiPanel() {
+  const d = await fetch('/api/emoji').then(r => r.json()).catch(() => ({items:[]}));
+  const panel = document.getElementById('emojiPanel');
+  if (!panel) return;
+  const items = d.items || [];
+  if (!items.length) {
+    document.getElementById('emojiToggleBtn').style.display = 'none';
+    return;
+  }
+  panel.innerHTML = items.map(item =>
+    `<img src="${fileSrc(item.filename)}" title="${item.tag||''}" loading="lazy"
+      referrerpolicy="no-referrer"
+      onclick="insertEmoji('${fileSrc(item.filename)}')">`
+  ).join('');
+}
+
+function toggleEmojiPanel() {
+  const panel = document.getElementById('emojiPanel');
+  panel.classList.toggle('open');
+}
+
+function insertEmoji(url) {
+  // 在光标位置插入 <img> markdown 风格：直接插入 URL，后端存纯文本
+  // 用特殊占位标记 [emoji:url]，前台渲染时替换为 img
+  const ta = document.getElementById('msgContent');
+  const pos = ta.selectionStart;
+  const val = ta.value;
+  const tag = `[emoji:${url}]`;
+  ta.value = val.slice(0, pos) + tag + val.slice(pos);
+  ta.selectionStart = ta.selectionEnd = pos + tag.length;
+  ta.focus();
+  document.getElementById('emojiPanel').classList.remove('open');
+}
+
+// 点击外部关闭
+document.addEventListener('click', function(e) {
+  const btn = document.getElementById('emojiToggleBtn');
+  const panel = document.getElementById('emojiPanel');
+  if (panel && btn && !btn.contains(e.target) && !panel.contains(e.target)) {
+    panel.classList.remove('open');
+  }
+});
+
 </script>
 </body>
 </html>
