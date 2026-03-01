@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "1f610385-0dca-4c5d-ac22-2cc33e73cd93",
+    "time": "2026-03-01 18:33:01",
+    "ip": "127.0.0.1",
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+    "path": "/messages",
+    "referer": "http://127.0.0.1:5000/"
+  },
+  {
+    "id": "1d5d2afa-0332-4aeb-b6d2-c1f23b78cf8d",
+    "time": "2026-03-01 18:32:59",
+    "ip": "127.0.0.1",
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+    "path": "/",
+    "referer": "http://127.0.0.1:5000/admin"
+  },
+  {
+    "id": "2cb3ab0d-4f27-48da-9699-c0b0c1c82dde",
+    "time": "2026-03-01 17:24:11",
+    "ip": "127.0.0.1",
+    "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0",
+    "path": "/",
+    "referer": "http://127.0.0.1:5000/"
+  }
+]
