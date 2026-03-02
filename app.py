@@ -237,14 +237,75 @@ def save_upload(file, prefix=''):
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
     return fn
 
+# IP region memory cache
+_ip_region_cache = {}
+
+def _get_real_ip():
+    """从请求头取真实 IP（Railway/Nginx 反向代理后在 X-Forwarded-For）"""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        ip = xff.split(",")[0].strip()
+        if ip:
+            return ip
+    return request.remote_addr or "unknown"
+
+def _is_private_ip(ip):
+    return (not ip or ip in ("unknown", "127.0.0.1", "::1")
+            or ip.startswith("192.168.") or ip.startswith("10.")
+            or ip.startswith("172.16.") or ip.startswith("172.17.")
+            or ip.startswith("172.18.") or ip.startswith("172.19.")
+            or ip.startswith("172.2") or ip.startswith("172.3"))
+
+def _lookup_ip_region(ip):
+    if _is_private_ip(ip):
+        return ""
+    if ip in _ip_region_cache:
+        return _ip_region_cache[ip]
+    try:
+        import urllib.request as _ur, json as _js
+        url = "http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=3) as resp:
+            d = _js.loads(resp.read())
+        if d.get("status") == "success":
+            seen, out = set(), []
+            for p in [d.get("country",""), d.get("regionName",""), d.get("city","")]:
+                if p and p not in seen:
+                    seen.add(p); out.append(p)
+            region = " ".join(out)
+        else:
+            region = ""
+        _ip_region_cache[ip] = region
+        return region
+    except Exception:
+        return ""
+
 def record_visitor():
+    import threading
+    from datetime import timedelta
+    ip = _get_real_ip()
+    v = {"id": str(uuid.uuid4()),
+         "time": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
+         "ip": ip, "region": "",
+         "ua": request.headers.get("User-Agent", "")[:200],
+         "path": request.path, "referer": request.referrer or ""}
     visitors = load_visitors()
-    v = {'id': str(uuid.uuid4()), 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-         'ip': request.remote_addr or 'unknown', 'ua': request.headers.get('User-Agent', '')[:200],
-         'path': request.path, 'referer': request.referrer or ''}
     visitors.insert(0, v)
-    if len(visitors) > 2000: visitors = visitors[:2000]
+    if len(visitors) > 2000:
+        visitors = visitors[:2000]
     save_visitors(visitors)
+
+    def _fill_region(vid, vip):
+        region = _lookup_ip_region(vip)
+        if not region:
+            return
+        vs = load_visitors()
+        for item in vs:
+            if item.get("id") == vid:
+                item["region"] = region
+                break
+        save_visitors(vs)
+    threading.Thread(target=_fill_region, args=(v["id"], ip), daemon=True).start()
 
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -664,6 +725,22 @@ def admin_visitors():
             k = v['time'][5:10]
             if k in daily: daily[k] += 1
         except: pass
+    # 异步补全没有 region 的记录
+    import threading
+    def _backfill():
+        vs = load_visitors()
+        changed = False
+        for item in vs[:100]:  # 只补最近100条
+            if item.get("region") is None or item.get("region") == "":
+                ip = item.get("ip","")
+                if not _is_private_ip(ip):
+                    region = _lookup_ip_region(ip)
+                    if region:
+                        item["region"] = region
+                        changed = True
+        if changed:
+            save_visitors(vs)
+    threading.Thread(target=_backfill, daemon=True).start()
     return jsonify({'total': len(visitors), 'visitors': visitors[start:end],
                     'has_more': end < len(visitors), 'page': page,
                     'top_pages': paths.most_common(10), 'top_ips': ips.most_common(10),

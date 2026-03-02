@@ -759,25 +759,27 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <label>跳转链接</label>
       <input class="inp" id="scEditLink">
     </div>
-    <div class="fg" style="margin-bottom:10px">
-      <label>点赞数</label>
-      <input class="inp" type="number" id="scEditLikes" min="0">
+    <div style="margin-bottom:10px">
+      <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">点赞数</label>
+      <input class="inp" type="number" id="scEditLikes" min="0" style="max-width:120px">
     </div>
     <div class="div"></div>
-    <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:8px">替换文件（可选）</div>
+    <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:10px">替换文件（可选）</div>
     <div class="fr" style="margin-bottom:4px">
       <div class="fg">
         <label>主文件</label>
+        <div id="scEditFileThumb" style="display:none;margin-bottom:6px;border-radius:7px;overflow:hidden;border:1px solid var(--bd)"></div>
         <input class="inp" type="file" id="scEditFile" accept="image/*,video/*" style="padding:5px;margin-bottom:5px">
-        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;},'')" style="width:100%">🗂 从媒体库选</button>
-        <button class="btn btn-s btn-xs" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;},'')" style="width:100%">🔗 从URL载入</button>
+        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;showScEditThumb('scEditFileThumb',url,type);},'')" style="width:100%">🗂 从媒体库选</button>
+        <button class="btn btn-s btn-xs" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;showScEditThumb('scEditFileThumb',url,type);},'')" style="width:100%">🔗 从URL载入</button>
         <div id="scEditFilename" style="font-size:10px;color:var(--ac);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
       </div>
       <div class="fg">
         <label>封面图</label>
+        <div id="scEditCoverThumb" style="display:none;margin-bottom:6px;border-radius:7px;overflow:hidden;border:1px solid var(--bd)"></div>
         <input class="inp" type="file" id="scEditCover" accept="image/*" style="padding:5px;margin-bottom:5px">
-        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url)=>{document.getElementById('scEditCover')._mpFile=fn;document.getElementById('scEditCoverName').textContent=fn;},'image')" style="width:100%">🗂 从媒体库选</button>
-        <button class="btn btn-s btn-xs" onclick="openUrlLoader((fn,url)=>{document.getElementById('scEditCover')._mpFile=fn;document.getElementById('scEditCoverName').textContent=fn;},'image')" style="width:100%">🔗 从URL载入</button>
+        <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url)=>{document.getElementById('scEditCover')._mpFile=fn;document.getElementById('scEditCoverName').textContent=fn;showScEditThumb('scEditCoverThumb',url,'image');},'image')" style="width:100%">🗂 从媒体库选</button>
+        <button class="btn btn-s btn-xs" onclick="openUrlLoader((fn,url)=>{document.getElementById('scEditCover')._mpFile=fn;document.getElementById('scEditCoverName').textContent=fn;showScEditThumb('scEditCoverThumb',url,'image');},'image')" style="width:100%">🔗 从URL载入</button>
         <div id="scEditCoverName" style="font-size:10px;color:var(--ac);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
       </div>
     </div>
@@ -1088,10 +1090,13 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
   <div class="tw">
     <div class="th"><h3>访问日志</h3>
-      <button class="btn btn-d btn-sm" onclick="clearVisitors()">清空记录</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-s btn-sm" onclick="loadVisitors()" title="刷新（IP地区异步查询，稍后刷新可看到）">🔄 刷新</button>
+        <button class="btn btn-d btn-sm" onclick="clearVisitors()">清空记录</button>
+      </div>
     </div>
     <div class="vis-table">
-      <table><thead><tr><th>时间</th><th>IP</th><th>页面</th><th>来源</th><th>设备信息</th></tr></thead>
+      <table><thead><tr><th>时间</th><th>IP / 地区</th><th>页面</th><th>来源</th><th>设备信息</th></tr></thead>
       <tbody id="visTb"></tbody></table>
     </div>
   </div>
@@ -3049,7 +3054,7 @@ async function loadMoreVisitors(){
   visPage++;
   const d=await fetch(`/admin/visitors?page=${visPage}`).then(r=>r.json());
   const tbody=document.getElementById('visTb');
-  d.visitors.forEach(v=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--mu);font-size:11px">${v.time||''}</td><td><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code></td><td style="font-size:11px">${esc(v.path||'')}</td><td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td><td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;tbody.appendChild(tr);});
+  d.visitors.forEach(v=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td><td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(v.region)}</span>`:''}</td><td style="font-size:11px">${esc(v.path||'')}</td><td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td><td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;tbody.appendChild(tr);});
   if(!d.has_more)document.getElementById('visLoadMore').style.display='none';
 }
 async function clearVisitors(){if(!confirm('清空所有访客记录？'))return;await fetch('/admin/visitors/clear',{method:'DELETE'});toast('记录已清空');loadVisitors();}
@@ -3346,6 +3351,18 @@ async function scUpload() {
   } else toast('上传失败','err');
 }
 
+function showScEditThumb(elId, src, type) {
+  const el = document.getElementById(elId);
+  if (!src) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const isUrl = src.startsWith('http');
+  if (type === 'video') {
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--s3)"><span style="font-size:18px">🎬</span><span style="font-size:11px;color:var(--mu)">${isUrl ? '外链视频' : src.split('/').pop()}</span></div>`;
+  } else {
+    el.innerHTML = `<img src="${src}" referrerpolicy="no-referrer" style="width:100%;max-height:90px;object-fit:cover;display:block" onerror="this.parentElement.innerHTML='<div style=\'padding:6px 8px;font-size:11px;color:var(--mu)\'>图片预览失败</div>'">`;
+  }
+  el.style.display = 'block';
+}
+
 function openScEdit(id) {
   const item = scItems.find(i => i.id === id);
   if (!item) return;
@@ -3356,23 +3373,44 @@ function openScEdit(id) {
   document.getElementById('scEditLikes').value = item.likes || 0;
   document.getElementById('scEditFile').value = '';
   document.getElementById('scEditCover').value = '';
-  // 显示当前内容缩略图
+  document.getElementById('scEditFilename').textContent = '';
+  document.getElementById('scEditCoverName').textContent = '';
+
+  // 顶部当前内容条
   const thumbRow = document.getElementById('scEditThumbRow');
   const thumbImg = document.getElementById('scEditThumbImg');
   const thumbName = document.getElementById('scEditThumbName');
-  const src = item.cover || item.filename;
-  if (src) {
-    const isUrl = src.startsWith('http');
-    if (isUrl) {
-      thumbImg.innerHTML = '<div style="width:44px;height:44px;border-radius:6px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid var(--bd)" title="外链内容">🔗</div>';
-    } else {
-            thumbImg.innerHTML = `<img src="${fileSrc(src)}" style="width:64px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" onerror="this.style.display='none'">`;
-    }
-    thumbName.textContent = item.title || (src.length > 50 ? src.slice(0,50)+'…' : src);
+  const mainSrc = item.filename || '';
+  if (mainSrc) {
+    const isUrl = mainSrc.startsWith('http');
+    thumbImg.innerHTML = isUrl
+      ? '<div style="width:44px;height:44px;border-radius:6px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:22px;border:1px solid var(--bd)">🔗</div>'
+      : `<img src="${fileSrc(mainSrc)}" style="width:64px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" onerror="this.style.display='none'">`;
+    thumbName.textContent = item.title || (mainSrc.length > 50 ? mainSrc.slice(0,50)+'…' : mainSrc);
     thumbRow.style.display = 'flex';
   } else {
     thumbRow.style.display = 'none';
   }
+
+  // 主文件当前缩略图
+  if (mainSrc) {
+    const src = mainSrc.startsWith('http') ? mainSrc : fileSrc(mainSrc);
+    showScEditThumb('scEditFileThumb', src, item.type === 'video' ? 'video' : 'image');
+  } else {
+    const el = document.getElementById('scEditFileThumb');
+    el.style.display = 'none'; el.innerHTML = '';
+  }
+
+  // 封面图当前缩略图
+  const coverSrc = item.cover || '';
+  if (coverSrc) {
+    const src = coverSrc.startsWith('http') ? coverSrc : fileSrc(coverSrc);
+    showScEditThumb('scEditCoverThumb', src, 'image');
+  } else {
+    const el = document.getElementById('scEditCoverThumb');
+    el.style.display = 'none'; el.innerHTML = '';
+  }
+
   document.getElementById('scEditOverlay').classList.add('open');
 }
 function closeScEdit() {
@@ -3381,6 +3419,9 @@ function closeScEdit() {
   const ce=document.getElementById('scEditCover'); if(ce){ce.value='';ce._mpFile=null;}
   const fn=document.getElementById('scEditFilename'); if(fn) fn.textContent='';
   const cn=document.getElementById('scEditCoverName'); if(cn) cn.textContent='';
+  ['scEditFileThumb','scEditCoverThumb'].forEach(id=>{
+    const el=document.getElementById(id); if(el){el.innerHTML='';el.style.display='none';}
+  });
 }
 
 async function scSaveEdit() {
