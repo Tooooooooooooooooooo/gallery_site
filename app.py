@@ -263,20 +263,46 @@ def _lookup_ip_region(ip):
         return _ip_region_cache[ip]
     try:
         import urllib.request as _ur, json as _js
-        url = "http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city"
-        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with _ur.urlopen(req, timeout=3) as resp:
-            d = _js.loads(resp.read())
-        if d.get("status") == "success":
+
+        def _from_ip_api():
+            url = "http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city"
+            req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with _ur.urlopen(req, timeout=3) as resp:
+                return _js.loads(resp.read())
+
+        def _from_ipapi_co():
+            # 备用：ipapi.co，返回英文字段
+            url = "https://ipapi.co/" + ip + "/json/"
+            req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with _ur.urlopen(req, timeout=4) as resp:
+                return _js.loads(resp.read())
+
+        region = ""
+        d = {}
+        try:
+            d = _from_ip_api()
+        except Exception:
+            # ip-api.com 不可用时，再尝试备用接口
+            try:
+                d = _from_ipapi_co()
+            except Exception:
+                d = {}
+
+        if d:
+            # ip-api.com 格式
+            if d.get("status") == "success":
+                parts = [d.get("country",""), d.get("regionName",""), d.get("city","")]
+            else:
+                # ipapi.co 等备用格式
+                parts = [d.get("country_name",""), d.get("region",""), d.get("city","")]
             seen, out = set(), []
-            for p in [d.get("country",""), d.get("regionName",""), d.get("city","")]:
+            for p in parts:
                 if p and p not in seen:
                     seen.add(p); out.append(p)
             region = " ".join(out)
-        else:
-            region = ""
-        _ip_region_cache[ip] = region
-        return region
+
+        _ip_region_cache[ip] = region or ""
+        return region or ""
     except Exception:
         return ""
 
@@ -1221,16 +1247,17 @@ def api_featured():
 # ── 数据备份 / 恢复 ──
 
 DATA_TYPES = {
-    'content':  DATA_FILE,
-    'site':     SITE_FILE,
-    'messages': MESSAGES_FILE,
-    'visitors': VISITORS_FILE,
-    'likes':    LIKES_FILE,
-    'auth':     AUTH_FILE,
-    'smtp':     SMTP_FILE,
-    'featured': FEATURED_FILE,
-    'emoji':    EMOJI_FILE,
-    'muyu':     MUYU_FILE,
+    'content':   DATA_FILE,
+    'site':      SITE_FILE,
+    'messages':  MESSAGES_FILE,
+    'visitors':  VISITORS_FILE,
+    'likes':     LIKES_FILE,
+    'auth':      AUTH_FILE,
+    'smtp':      SMTP_FILE,
+    'featured':  FEATURED_FILE,
+    'emoji':     EMOJI_FILE,
+    'muyu':      MUYU_FILE,
+    'showcase':  SHOWCASE_FILE if 'SHOWCASE_FILE' in globals() else 'data/showcase.json',
 }
 
 @app.route('/admin/backup/export', methods=['POST'])
