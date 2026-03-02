@@ -9,7 +9,8 @@
 :root{--bg:#0f0f13;--s1:#1a1a22;--s2:#22222e;--s3:#2a2a38;--bd:#2e2e3e;--ac:#c8a97e;--ac2:#7c6af5;--tx:#e8e6f0;--mu:#6b6880;--err:#e05c5c;--ok:#5cb85c;--warn:#f0a030}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex}
-.sb{width:220px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;padding:20px 0;position:fixed;height:100vh;top:0;left:0;overflow-y:auto}
+ .sb{width:220px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;padding:20px 0;position:fixed;height:100vh;top:0;left:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
+ .sb::-webkit-scrollbar{width:0;height:0}
 .sb-logo{padding:0 20px 22px;font-size:16px;font-weight:600;letter-spacing:.1em;color:var(--ac)}
 .sb-logo span{color:var(--mu);font-size:10px;display:block;font-weight:300;margin-top:2px}
 .sg{padding:7px 20px 3px;font-size:10px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase}
@@ -178,7 +179,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 </head>
 <body>
 <aside class="sb">
-  <div class="sb-logo">GALLERY<span>管理后台</span></div>
+  <a class="sb-logo" href="/admin" style="text-decoration:none;display:block">GALLERY<span>管理后台</span></a>
   <div class="sg">内容</div>
   <div class="ni active" onclick="showPage('dashboard',this)"><span class="ic">📊</span>仪表盘</div>
   <div class="ni" onclick="showPage('upload',this)"><span class="ic">⬆️</span>上传内容</div>
@@ -489,6 +490,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <label class="bk-chk"><input type="checkbox" value="site" checked> 网站设置</label>
       <label class="bk-chk"><input type="checkbox" value="messages" checked> 留言数据</label>
       <label class="bk-chk"><input type="checkbox" value="featured" checked> 详情精选</label>
+      <label class="bk-chk"><input type="checkbox" value="showcase" checked> 橱窗精选</label>
       <label class="bk-chk"><input type="checkbox" value="emoji" checked> 表情包列表</label>
       <label class="bk-chk"><input type="checkbox" value="muyu" checked> 电子木鱼</label>
       <label class="bk-chk"><input type="checkbox" value="visitors"> 访客记录</label>
@@ -521,8 +523,9 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <label class="bk-chk"><input type="checkbox" value="site" checked> 网站设置</label>
         <label class="bk-chk"><input type="checkbox" value="messages" checked> 留言数据</label>
         <label class="bk-chk"><input type="checkbox" value="featured" checked> 详情精选</label>
+        <label class="bk-chk"><input type="checkbox" value="showcase" checked> 橱窗精选</label>
         <label class="bk-chk"><input type="checkbox" value="emoji" checked> 表情包列表</label>
-      <label class="bk-chk"><input type="checkbox" value="muyu" checked> 电子木鱼</label>
+        <label class="bk-chk"><input type="checkbox" value="muyu" checked> 电子木鱼</label>
         <label class="bk-chk"><input type="checkbox" value="visitors"> 访客记录</label>
         <label class="bk-chk"><input type="checkbox" value="likes"> 点赞数据</label>
         <label class="bk-chk"><input type="checkbox" value="auth"> 账号设置</label>
