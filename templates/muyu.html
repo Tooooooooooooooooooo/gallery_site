@@ -313,6 +313,34 @@ body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
   .muyu-wrap { width:min(55vw,200px); height:min(55vw,200px); }
   .corner-info { display:none; }
 }
+
+/* ── 返回按钮 ── */
+.back-btn {
+  position:fixed; top:20px; left:20px;
+  z-index:30;
+  display:flex; align-items:center; gap:6px;
+  font-family:'Noto Serif SC', serif;
+  font-size:13px; font-weight:600;
+  color:rgba(200,169,110,.7);
+  text-decoration:none;
+  padding:7px 14px;
+  border:1px solid rgba(200,169,110,.2);
+  border-radius:20px;
+  background:rgba(200,169,110,.06);
+  transition:all .2s;
+  backdrop-filter:blur(6px);
+  letter-spacing:.05em;
+}
+.back-btn:hover {
+  color:var(--gold2);
+  border-color:rgba(200,169,110,.5);
+  background:rgba(200,169,110,.14);
+  transform:translateX(-2px);
+}
+.back-btn svg { flex-shrink:0; }
+body.immersive .back-btn { opacity:0; pointer-events:none; transition:opacity .5s; }
+body.immersive:hover .back-btn { opacity:1; pointer-events:auto; }
+
 </style>
 </head>
 <body>
@@ -320,6 +348,11 @@ body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
 <div class="bg-glow"></div>
 <div class="scanlines"></div>
 <div class="total-bar"></div>
+
+<a class="back-btn" id="backBtn" href="/" style="display:none">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  <span id="backLabel">返回首页</span>
+</a>
 
 <main class="stage" id="stage">
   <div class="merit-count" id="meritCount">0</div>
@@ -412,6 +445,7 @@ body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
 // ════════════════════════════════════════
 let count = parseInt(localStorage.getItem('muyu_count') || '0');
 let customAudio = null;
+let customSoundFn = null;
 let soundEnabled = true;
 let vipTimer = null, svipTimer = null;
 let cfg = {};
@@ -473,6 +507,23 @@ async function loadConfig() {
     } catch(e) {}
   }
 
+  // ── 返回按钮 ──
+  const backBtn = document.getElementById('backBtn');
+  const backLabel = cfg.back_label != null ? cfg.back_label : '返回首页';
+  if (backLabel) {
+    backBtn.style.display = 'flex';
+    document.getElementById('backLabel').textContent = backLabel;
+  } else {
+    backBtn.style.display = 'none';
+  }
+
+  // ── 自定义音效代码 ──
+  if (cfg.sound_code && cfg.sound_code.trim()) {
+    try {
+      customSoundFn = new Function('audioCtx', cfg.sound_code);
+    } catch(e) { console.warn('音效代码错误:', e); }
+  }
+
   soundEnabled = cfg.sound_enabled !== false;
   updateSoundBtn();
   meritCountEl.textContent = count.toLocaleString();
@@ -485,7 +536,15 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playWoodfish() {
   if (!soundEnabled) return;
-  // 优先播放自定义音效
+  // 优先级1：自定义 JS 代码
+  if (customSoundFn) {
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      customSoundFn(audioCtx);
+      return;
+    } catch(e) { console.warn('自定义音效代码执行错误:', e); }
+  }
+  // 优先级2：上传的音频文件
   if (customAudio) {
     try {
       const clone = customAudio.cloneNode();

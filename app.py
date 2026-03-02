@@ -958,7 +958,7 @@ MUYU_FILE  = os.path.join(_BASE, 'data', 'muyu.json')
 
 def load_muyu():
     import json as _json
-    default = {'messages': [{'text': '功德+1，佛祖保佑你', 'color': '#f5e6c8', 'size': 28, 'style': 'float'}, {'text': '心想事成，万事如意', 'color': '#ffd700', 'size': 24, 'style': 'burst'}, {'text': '健康平安，诸事顺遂', 'color': '#98ffb0', 'size': 26, 'style': 'spin'}, {'text': '财源广进，福气满满', 'color': '#ffaa55', 'size': 25, 'style': 'zoom'}], 'vip': {'name': 'VIP自动敲', 'speed': 1000, 'enabled': True}, 'svip': {'name': 'SVIP自动狂敲', 'speed': 180, 'enabled': True}, 'title': '电子木鱼', 'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经', 'total_label': '功德', 'sound_enabled': True, 'custom_sound': '', 'custom_svg': ''}
+    default = {'messages': [{'text': '功德+1，佛祖保佑你', 'color': '#f5e6c8', 'size': 28, 'style': 'float'}, {'text': '心想事成，万事如意', 'color': '#ffd700', 'size': 24, 'style': 'burst'}, {'text': '健康平安，诸事顺遂', 'color': '#98ffb0', 'size': 26, 'style': 'spin'}, {'text': '财源广进，福气满满', 'color': '#ffaa55', 'size': 25, 'style': 'zoom'}], 'vip': {'name': 'VIP自动敲', 'speed': 1000, 'enabled': True}, 'svip': {'name': 'SVIP自动狂敲', 'speed': 180, 'enabled': True}, 'title': '电子木鱼', 'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经', 'total_label': '功德', 'sound_enabled': True, 'custom_sound': '', 'custom_svg': '', 'back_label': '返回首页', 'sound_code': ''}
     d = load_json(MUYU_FILE, default)
     # 补全缺失字段
     for k, v in default.items():
@@ -1046,7 +1046,9 @@ def admin_muyu_svg_content():
 def admin_muyu_save():
     body = request.json or {}
     d = load_muyu()
-    for k in ['messages','vip','svip','title','subtitle','total_label','sound_enabled']:
+    allowed = ['messages','vip','svip','title','subtitle','total_label','sound_enabled',
+               'back_label','sound_code','custom_sound','custom_svg']
+    for k in allowed:
         if k in body:
             d[k] = body[k]
     save_muyu(d)
@@ -1079,6 +1081,48 @@ def admin_emoji_delete(eid):
     save_emoji(d)
     return jsonify({'success': True})
 
+@app.route('/admin/emoji/add-from-media', methods=['POST'])
+@login_required
+def admin_emoji_add_from_media():
+    body = request.json or {}
+    fn = body.get('filename', '').strip()
+    tag = body.get('tag', '').strip()
+    if not fn:
+        return jsonify({'success': False, 'error': '无文件名'}), 400
+    data = load_emoji()
+    item = {'id': str(uuid.uuid4()), 'filename': fn, 'tag': tag}
+    data['items'].append(item)
+    save_emoji(data)
+    return jsonify({'success': True, 'items': data['items']})
+
+@app.route('/admin/emoji/add-from-url', methods=['POST'])
+@login_required
+def admin_emoji_add_from_url():
+    import urllib.request as _ur
+    body = request.json or {}
+    url = body.get('url', '').strip()
+    tag = body.get('tag', '').strip()
+    if not url or not url.startswith('http'):
+        return jsonify({'success': False, 'error': '无效URL'}), 400
+    # 下载图片并保存
+    ext = url.split('?')[0].rsplit('.', 1)[-1].lower() if '.' in url.split('?')[0] else 'png'
+    if ext not in ('png', 'gif', 'webp', 'jpg', 'jpeg'):
+        ext = 'png'
+    fn = 'emoji_url_' + str(uuid.uuid4())[:8] + '.' + ext
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], fn)
+    try:
+        req = _ur.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with _ur.urlopen(req, timeout=8) as resp, open(save_path, 'wb') as fp:
+            fp.write(resp.read())
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'下载失败: {str(e)}'}), 400
+    data = load_emoji()
+    item = {'id': str(uuid.uuid4()), 'filename': fn, 'tag': tag}
+    data['items'].append(item)
+    save_emoji(data)
+    return jsonify({'success': True, 'items': data['items']})
+
+
 @app.route('/admin/emoji/reorder', methods=['POST'])
 @login_required
 def admin_emoji_reorder():
@@ -1109,6 +1153,7 @@ DATA_TYPES = {
     'smtp':     SMTP_FILE,
     'featured': FEATURED_FILE,
     'emoji':    EMOJI_FILE,
+    'muyu':     MUYU_FILE,
 }
 
 @app.route('/admin/backup/export', methods=['POST'])
