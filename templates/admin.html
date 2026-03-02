@@ -946,13 +946,22 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <button class="btn btn-p" onclick="saveBasic()" style="margin-top:14px">保存</button>
   </div>
   <div class="card"><div class="ct">🎨 网站图标 (Favicon)</div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">建议 32×32 或 64×64 PNG</p>
-    <div class="favicon-row">
-      <img id="faviconPrev" class="favicon-prev" src="data:," alt="" onerror="this.style.display='none'">
-      <div>
-        <input class="inp" type="file" id="faviconInp" accept="image/*" style="padding:6px;margin-bottom:7px"><br>
-        <div style="display:flex;gap:7px;margin-top:4px">
-          <button class="btn btn-p btn-sm" onclick="uploadFavicon()">上传图标</button>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:14px">建议 32×32 或 64×64 PNG，显示在浏览器标签页上</p>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <!-- 预览区 -->
+      <div style="flex-shrink:0;text-align:center">
+        <div id="faviconPrevWrap" style="width:72px;height:72px;border-radius:12px;border:2px solid var(--bd);background:var(--s3);display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:6px;transition:border-color .2s">
+          <img id="faviconPrev" style="width:100%;height:100%;object-fit:contain;display:none" alt="favicon">
+          <span id="faviconEmpty" style="font-size:28px;opacity:.35">🌐</span>
+        </div>
+        <div id="faviconName" style="font-size:10px;color:var(--mu);max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <!-- 操作区 -->
+      <div style="flex:1;min-width:180px">
+        <div style="font-size:11px;color:var(--mu);margin-bottom:8px">替换图标</div>
+        <input class="inp" type="file" id="faviconInp" accept="image/*" style="padding:6px;margin-bottom:8px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-p btn-sm" onclick="uploadFavicon()">⬆️ 上传图标</button>
           <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{setFaviconFromMedia(fn,url);},'image')">🗂 从媒体库选</button>
         </div>
       </div>
@@ -1576,15 +1585,20 @@ async function loadMuyuAdmin() {
     document.getElementById('mSoundPreviewBtn').style.display = 'none';
     document.getElementById('mSoundClearBtn').style.display = 'none';
   }
-  // SVG 状态
+  // SVG 状态 - ✨ 修改部分：添加时间戳防止缓存
   if (c.custom_svg) {
     document.getElementById('mSvgClearBtn').style.display = '';
-    fetch('/admin/muyu/svg-content').then(r=>r.ok?r.text():null).then(svg=>{
+    // 添加时间戳参数防止缓存
+    fetch('/admin/muyu/svg-content?_=' + Date.now()).then(r=>r.ok?r.text():null).then(svg=>{
       if (svg) {
         document.getElementById('mSvgCode').value = svg;
         document.getElementById('mSvgPreview').innerHTML = svg;
       }
+    }).catch(err => {
+      console.error('加载SVG失败:', err);
     });
+  } else {
+    document.getElementById('mSvgClearBtn').style.display = 'none';
   }
   // sound_code
   const _defaultCode = `  // 木鱼音效（三层合成：基础音 + 谐波 + 敲击噪声）
@@ -1798,6 +1812,10 @@ async function saveMuyuSvg() {
   if (d.success) {
     _muyuCfg.custom_svg = 'data/muyu_custom.svg';
     document.getElementById('mSvgClearBtn').style.display = '';
+    // ✨ 立即更新预览，不依赖重新加载
+    document.getElementById('mSvgPreview').innerHTML = code;
+    // 同时也更新textarea里的代码（已经是原来的，但确保格式）
+    document.getElementById('mSvgCode').value = code;
     toast('SVG 已保存');
   } else toast(d.error || '保存失败', 'err');
 }
@@ -2569,9 +2587,19 @@ async function removeCat(cat) {
 }
 
 // BASIC
-function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const ts=siteData.thumb_scale||50;document.getElementById('thumbScale').value=ts;document.getElementById('thumbScaleRange').value=ts;const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){const p=document.getElementById('faviconPrev');p.src='/static/uploads/'+b.favicon;p.style.display='block';}}
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const ts=siteData.thumb_scale||50;document.getElementById('thumbScale').value=ts;document.getElementById('thumbScaleRange').value=ts;const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){
+  const src='/static/uploads/'+b.favicon;
+  const p=document.getElementById('faviconPrev');
+  const wrap=document.getElementById('faviconPrevWrap');
+  const empty=document.getElementById('faviconEmpty');
+  const nm=document.getElementById('faviconName');
+  p.src=src; p.style.display='block';
+  if(empty) empty.style.display='none';
+  if(wrap) wrap.style.borderColor='var(--ac)';
+  if(nm) nm.textContent=b.favicon.split('/').pop();
+}}
 async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const thumb_scale=parseInt(document.getElementById('thumbScale').value)||50;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,theme,thumb_scale})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.theme=theme;siteData.thumb_scale=thumb_scale;toast('已保存');}else toast('失败','err');}
-async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;const p=document.getElementById('faviconPrev');p.src=d.url;p.style.display='block';toast('图标已上传');}else toast('失败','err');}
+async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;_updateFaviconPreview(d.url, d.favicon || d.url.split('/').pop());toast('图标已上传');}else toast('失败','err');}
 
 // HERO
 function loadHero(){
@@ -2584,11 +2612,21 @@ function loadHero(){
   renderSlideList(h.slides||[]);
 }
 
+function _updateFaviconPreview(url, name) {
+  const p = document.getElementById('faviconPrev');
+  const wrap = document.getElementById('faviconPrevWrap');
+  const empty = document.getElementById('faviconEmpty');
+  const nm = document.getElementById('faviconName');
+  p.src = url; p.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+  if (wrap) wrap.style.borderColor = 'var(--ac)';
+  if (nm) nm.textContent = (name || '').split('/').pop();
+}
+
 function setFaviconFromMedia(fn, url) {
   if(!siteData.site) siteData.site={};
   siteData.site.favicon = fn;
-  const p = document.getElementById('faviconPrev');
-  p.src = url; p.style.display = 'block';
+  _updateFaviconPreview(url, fn);
   // 直接保存
   fetch('/admin/site/favicon-from-media', {method:'POST',
     headers:{'Content-Type':'application/json'},
