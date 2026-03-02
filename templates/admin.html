@@ -507,6 +507,12 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <button class="btn btn-s btn-sm" onclick="toggleAllExport(true)">全选</button>
       <button class="btn btn-s btn-sm" onclick="toggleAllExport(false)">全不选</button>
     </div>
+    <div id="exportProgressWrap" style="margin-top:10px;display:none">
+      <div style="height:4px;background:var(--bd);border-radius:3px;overflow:hidden">
+        <div id="exportProgressBar" style="height:100%;width:0;background:linear-gradient(90deg,var(--ac),#e8c99a);transition:width .3s"></div>
+      </div>
+      <div id="exportProgressText" style="margin-top:4px;font-size:12px;color:var(--mu)">正在准备备份...</div>
+    </div>
   </div>
 
   <div class="card">
@@ -1497,6 +1503,8 @@ function toggleAllExport(on) {
   document.getElementById('exportThumbs').checked  = on;
 }
 
+let _exportTimer = null;
+
 async function doExport() {
   const types = [...document.querySelectorAll('#exportChecks input:checked')].map(c => c.value);
   if (!types.length) { toast('请至少勾选一种数据','err'); return; }
@@ -1505,16 +1513,49 @@ async function doExport() {
     include_uploads: document.getElementById('exportUploads').checked,
     include_thumbs:  document.getElementById('exportThumbs').checked,
   };
-  toast('正在打包...');
+  toast('正在打包备份，请稍候...');
+
+  // 显示进度条，做一个“假进度”，避免长时间无反馈
+  const wrap = document.getElementById('exportProgressWrap');
+  const bar  = document.getElementById('exportProgressBar');
+  const text = document.getElementById('exportProgressText');
+  if (wrap && bar && text) {
+    wrap.style.display = '';
+    bar.style.width = '0%';
+    text.textContent = '正在准备备份文件...';
+    let p = 5;
+    if (_exportTimer) clearInterval(_exportTimer);
+    _exportTimer = setInterval(() => {
+      p += Math.random() * 8;       // 慢慢涨到 90%
+      if (p > 90) p = 90;
+      bar.style.width = p.toFixed(1) + '%';
+      if (p > 60) text.textContent = '正在压缩数据...';
+    }, 600);
+  }
+
   const res = await fetch('/admin/backup/export', {
     method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
-  if (!res.ok) { toast('导出失败','err'); return; }
+  if (!res.ok) {
+    if (_exportTimer) clearInterval(_exportTimer);
+    if (wrap) {
+      document.getElementById('exportProgressText').textContent = '导出失败';
+      document.getElementById('exportProgressBar').style.width = '0%';
+      setTimeout(() => { wrap.style.display = 'none'; }, 1500);
+    }
+    toast('导出失败','err'); return;
+  }
   const blob = await res.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `gallery_backup_${new Date().toISOString().slice(0,10)}.zip`;
   a.click();
+  if (_exportTimer) clearInterval(_exportTimer);
+  if (wrap) {
+    bar.style.width = '100%';
+    text.textContent = '✓ 备份已准备完成，开始下载';
+    setTimeout(() => { wrap.style.display = 'none'; }, 1500);
+  }
   toast('✓ 备份已下载');
 }
 
