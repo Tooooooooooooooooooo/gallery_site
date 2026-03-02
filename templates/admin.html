@@ -421,7 +421,19 @@ tr:hover td{background:rgba(255,255,255,.012)}
         </label>
       </div>
     </div>
-    <button class="btn btn-p" style="margin-top:14px" onclick="saveMuyuBasic()">保存设置</button>
+  </div>
+
+  <!-- 背景音乐列表 -->
+  <div class="card">
+    <div class="ct">🎵 背景音乐列表</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">用户可在木鱼页选择播放的背景音乐，填写在线可直接播放的音频 URL（MP3/OGG 等）</p>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">按钮文字</label>
+      <input class="inp" id="mMusicBtnLabel" placeholder="背景音乐" style="max-width:200px">
+    </div>
+    <div id="musicList" style="margin-bottom:12px"></div>
+    <button class="btn btn-s btn-sm" onclick="addMusicItem()">＋ 添加音乐</button>
+    <button class="btn btn-p btn-sm" style="margin-left:8px" onclick="saveMusicList()">保存音乐列表</button>
   </div>
 
   <!-- 飘字管理 -->
@@ -430,6 +442,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <p style="font-size:11px;color:var(--mu);margin-bottom:14px">每次敲击轮流显示，可添加多种样式</p>
     <div id="mMsgList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
     <button class="btn btn-s btn-sm" onclick="addMuyuMsg()">＋ 添加飘字</button>
+  </div>
+
+  <!-- 底部保存 -->
+  <div style="padding:16px 0 4px">
+    <button class="btn btn-p" onclick="saveMuyuBasic()" style="min-width:120px">💾 保存所有设置</button>
   </div>
 </div>
 
@@ -1626,13 +1643,16 @@ async function loadMuyuAdmin() {
     document.getElementById('mCodeStatus').textContent = '（预设示例，修改后点保存生效）';
     document.getElementById('mCodeStatus').style.color = 'var(--mu)';
   }
+  // 背景音乐
+  document.getElementById('mMusicBtnLabel').value = _muyuCfg.bg_music_btn_label ?? '背景音乐';
+  renderMusicList(_muyuCfg.bg_music_list || []);
   renderMuyuMsgs();
 }
 
 function renderMuyuMsgs() {
   const msgs = _muyuCfg.messages || [];
   document.getElementById('mMsgCount').textContent = `共 ${msgs.length} 条`;
-  const STYLES = ['float','burst','spin','zoom'];
+  const STYLES = ['float','burst','spin','zoom','wave','glitch','ribbon','shockwave','typewriter','neon','spiral','drip','matrix'];
   document.getElementById('mMsgList').innerHTML = msgs.map((m,i) => `
     <div style="background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
       <div class="fg" style="min-width:160px">
@@ -1658,7 +1678,9 @@ function renderMuyuMsgs() {
           <label style="font-size:11px;display:block;margin-bottom:3px">动画样式</label>
           <select class="inp" onchange="_muyuCfg.messages[${i}].style=this.value"
             style="font-size:12px;margin:0;padding:5px 8px">
-            ${STYLES.map(s=>{const L={float:'💫飘升',burst:'💥爆发',spin:'🌀旋转',zoom:'🔍缩放'};return `<option value="${s}" ${m.style===s?'selected':''}>${L[s]||s}</option>`;}).join('')}
+            ${STYLES.map(s=>{const L={float:'💫飘升',burst:'💥爆发',spin:'🌀旋转',zoom:'🔍聚焦',
+              wave:'〰️波浪',glitch:'⚡故障',ribbon:'🎀翻转',shockwave:'💢冲击',
+              typewriter:'⌨️打字机',neon:'🌈霓虹',spiral:'🔄螺旋',drip:'💧弹跳',matrix:'🟩矩阵'};return `<option value="${s}" ${m.style===s?'selected':''}>${L[s]||s}</option>`;}).join('')}
           </select>
         </div>
         <button class="btn btn-d btn-sm" onclick="deleteMuyuMsg(${i})" style="align-self:flex-end">删除</button>
@@ -1668,7 +1690,7 @@ function renderMuyuMsgs() {
 
 function addMuyuMsg() {
   if (!_muyuCfg.messages) _muyuCfg.messages = [];
-  const STYLES = ['float','burst','spin','zoom'];
+  const STYLES = ['float','burst','spin','zoom','wave','glitch','ribbon','shockwave','typewriter','neon','spiral','drip','matrix'];
   _muyuCfg.messages.push({
     text:'功德+1，佛祖保佑你',
     color:'#f5e6c8',
@@ -1699,6 +1721,8 @@ async function saveMuyuBasic() {
     speed:   parseInt(document.getElementById('mSvipSpeed').value) || 180,
     enabled: document.getElementById('mSvipEnabled').checked
   };
+  _muyuCfg.bg_music_btn_label = document.getElementById('mMusicBtnLabel').value.trim() || '背景音乐';
+  _muyuCfg.bg_music_list = getMusicList();
   const res = await fetch('/admin/muyu', {
     method:'PUT', headers:{'Content-Type':'application/json'},
     body:JSON.stringify(_muyuCfg)
@@ -1844,6 +1868,58 @@ function testSoundCode() {
   } catch(e) {
     st.textContent = '错误：' + e.message; st.style.color = 'var(--err)';
   }
+}
+
+
+// ── 背景音乐列表管理 ──
+function renderMusicList(list) {
+  _muyuCfg.bg_music_list = list;
+  const el = document.getElementById('musicList');
+  if (!list.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--mu);padding:8px 0">暂无音乐，点击下方「添加音乐」</div>';
+    return;
+  }
+  el.innerHTML = list.map((m, i) => `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:8px">
+      <span style="color:var(--mu);font-size:14px;flex-shrink:0">🎵</span>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 2fr;gap:8px;min-width:0">
+        <input class="inp" placeholder="音乐名称" value="${esc(m.name||'')}"
+          oninput="_muyuCfg.bg_music_list[${i}].name=this.value"
+          style="margin-bottom:0;font-size:12px">
+        <input class="inp" placeholder="音频 URL（MP3/OGG/流媒体）" value="${esc(m.url||'')}"
+          oninput="_muyuCfg.bg_music_list[${i}].url=this.value"
+          style="margin-bottom:0;font-size:12px">
+      </div>
+      <button class="btn btn-d btn-xs" style="flex-shrink:0" onclick="deleteMusicItem(${i})">删除</button>
+    </div>`).join('');
+}
+
+function getMusicList() {
+  return (_muyuCfg.bg_music_list || []).filter(m => m.url && m.url.trim());
+}
+
+function addMusicItem() {
+  if (!_muyuCfg.bg_music_list) _muyuCfg.bg_music_list = [];
+  _muyuCfg.bg_music_list.push({name: '', url: ''});
+  renderMusicList(_muyuCfg.bg_music_list);
+}
+
+function deleteMusicItem(i) {
+  _muyuCfg.bg_music_list.splice(i, 1);
+  renderMusicList(_muyuCfg.bg_music_list);
+}
+
+async function saveMusicList() {
+  _muyuCfg.bg_music_list = getMusicList();
+  const res = await fetch('/admin/muyu', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      bg_music_list: _muyuCfg.bg_music_list,
+      bg_music_btn_label: document.getElementById('mMusicBtnLabel').value.trim() || '背景音乐'
+    })
+  });
+  if ((await res.json()).success) { renderMusicList(_muyuCfg.bg_music_list); toast('音乐列表已保存'); }
+  else toast('保存失败', 'err');
 }
 
 async function clearSoundCode() {

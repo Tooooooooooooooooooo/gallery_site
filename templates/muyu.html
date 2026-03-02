@@ -177,6 +177,128 @@ html, body {
   100% { opacity:0; transform:scale(.6) translateY(-60px); }
 }
 
+/* 样式: wave - 波浪横扫 */
+.float-text.style-wave {
+  animation: textWave 2s cubic-bezier(.23,1,.32,1) forwards;
+}
+@keyframes textWave {
+  0%   { opacity:0; transform:translateX(-50%) translateY(0) skewX(20deg) scaleX(.6); filter:blur(4px); }
+  18%  { opacity:1; transform:translateX(-50%) translateY(-15px) skewX(-5deg) scaleX(1.08); filter:blur(0); }
+  50%  { opacity:1; transform:translateX(-50%) translateY(-40px) skewX(2deg) scaleX(1); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-110px) skewX(0deg) scaleX(.9); }
+}
+
+/* 样式: glitch - 故障闪烁 */
+.float-text.style-glitch {
+  animation: textGlitch 1.8s ease-out forwards;
+}
+@keyframes textGlitch {
+  0%   { opacity:0; transform:translateX(-50%) scaleY(2); filter:blur(2px); clip-path:inset(0 0 100% 0); }
+  8%   { opacity:1; transform:translateX(calc(-50% + 6px)) scaleY(1); clip-path:inset(0 0 0 0); }
+  12%  { transform:translateX(calc(-50% - 8px)); filter:hue-rotate(90deg) brightness(1.5); }
+  18%  { transform:translateX(-50%); filter:none; }
+  30%  { opacity:1; transform:translateX(calc(-50% + 3px)); }
+  36%  { transform:translateX(calc(-50% - 3px)); }
+  42%  { transform:translateX(-50%); }
+  70%  { opacity:1; }
+  100% { opacity:0; transform:translateX(-50%) translateY(-90px); }
+}
+
+/* 样式: ribbon - 彩带飘落翻转 */
+.float-text.style-ribbon {
+  animation: textRibbon 2.2s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes textRibbon {
+  0%   { opacity:0; transform:translateX(-50%) rotateX(90deg) translateY(30px); }
+  20%  { opacity:1; transform:translateX(-50%) rotateX(-15deg) translateY(-10px); }
+  35%  { transform:translateX(-50%) rotateX(8deg) translateY(-25px); }
+  50%  { transform:translateX(-50%) rotateX(0deg) translateY(-40px); }
+  100% { opacity:0; transform:translateX(-50%) rotateX(20deg) translateY(-120px); }
+}
+
+/* 样式: shockwave - 冲击波扩散 */
+.float-text.style-shockwave {
+  animation: textShockwave 1.6s ease-out forwards;
+}
+@keyframes textShockwave {
+  0%   { opacity:1; transform:translateX(-50%) scale(3.5); filter:blur(12px) brightness(2); }
+  25%  { opacity:1; transform:translateX(-50%) scale(1); filter:blur(0) brightness(1); }
+  65%  { opacity:1; transform:translateX(-50%) translateY(-50px) scale(1.05); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-100px) scale(.8); }
+}
+
+/* 样式: typewriter - 打字机逐字显现 */
+.float-text.style-typewriter {
+  animation: textTypewriter 2s steps(1, end) forwards;
+  overflow:hidden;
+  border-right:2px solid currentColor;
+}
+@keyframes textTypewriter {
+  0%   { opacity:1; max-width:0; transform:translateX(-50%) translateY(0); border-color:currentColor; }
+  60%  { max-width:300px; border-color:currentColor; }
+  75%  { border-color:transparent; }
+  80%  { border-color:currentColor; }
+  85%  { border-color:transparent; }
+  90%  { opacity:1; transform:translateX(-50%) translateY(-30px); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-80px); border-color:transparent; max-width:300px; }
+}
+
+/* 样式: neon - 霓虹闪烁 */
+.float-text.style-neon {
+  animation: textNeon 2.2s ease-out forwards;
+}
+@keyframes textNeon {
+  0%   { opacity:0; transform:translateX(-50%) translateY(0) scale(.8); filter:brightness(.3); }
+  5%   { opacity:1; filter:brightness(3) drop-shadow(0 0 12px currentColor); }
+  10%  { opacity:.4; filter:brightness(.5); }
+  15%  { opacity:1; filter:brightness(2.5) drop-shadow(0 0 20px currentColor) drop-shadow(0 0 40px currentColor); transform:translateX(-50%) translateY(-15px) scale(1.05); }
+  20%  { opacity:.7; filter:brightness(.8); }
+  28%  { opacity:1; filter:brightness(1.8) drop-shadow(0 0 10px currentColor); transform:translateX(-50%) translateY(-30px) scale(1); }
+  75%  { opacity:1; transform:translateX(-50%) translateY(-60px); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-100px) scale(.85); filter:brightness(.5); }
+}
+
+/* 样式: spiral - 螺旋上升 */
+.float-text.style-spiral {
+  animation: textSpiral 2.2s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes textSpiral {
+  0%   { opacity:0; transform:translateX(-50%) rotate(0deg) scale(.3) translateY(20px); }
+  15%  { opacity:1; transform:translateX(-50%) rotate(-120deg) scale(.7) translateY(-20px); }
+  35%  { transform:translateX(-50%) rotate(-240deg) scale(1.1) translateY(-50px); }
+  55%  { opacity:1; transform:translateX(-50%) rotate(-360deg) scale(1) translateY(-80px); }
+  100% { opacity:0; transform:translateX(-50%) rotate(-450deg) scale(.7) translateY(-140px); }
+}
+
+/* 样式: drip - 熔岩滴落弹跳 */
+.float-text.style-drip {
+  animation: textDrip 1.8s cubic-bezier(.4,0,.2,1) forwards;
+}
+@keyframes textDrip {
+  0%   { opacity:1; transform:translateX(-50%) translateY(-60px) scaleY(1.4) scaleX(.7); filter:blur(1px); }
+  18%  { opacity:1; transform:translateX(-50%) translateY(0) scaleY(.7) scaleX(1.2); filter:blur(0); }
+  28%  { transform:translateX(-50%) translateY(-18px) scaleY(1.1) scaleX(.95); }
+  38%  { transform:translateX(-50%) translateY(0) scaleY(.9) scaleX(1.05); }
+  48%  { transform:translateX(-50%) translateY(-8px) scaleY(1) scaleX(1); }
+  60%  { opacity:1; transform:translateX(-50%) translateY(0) scaleY(1) scaleX(1); }
+  100% { opacity:0; transform:translateX(-50%) translateY(-70px) scaleY(.8); }
+}
+
+/* 样式: matrix - 矩阵雨降落 */
+.float-text.style-matrix {
+  animation: textMatrix 1.9s ease-out forwards;
+  font-family: monospace !important;
+  letter-spacing:.15em;
+}
+@keyframes textMatrix {
+  0%   { opacity:0; transform:translateX(-50%) translateY(-50px); filter:brightness(3) hue-rotate(90deg); clip-path:inset(0 100% 0 0); }
+  20%  { opacity:1; transform:translateX(-50%) translateY(0); clip-path:inset(0 0% 0 0); }
+  30%  { filter:brightness(1.5) hue-rotate(0deg); }
+  50%  { filter:brightness(1) drop-shadow(0 0 6px currentColor); opacity:1; transform:translateX(-50%) translateY(-20px); }
+  75%  { opacity:.8; }
+  100% { opacity:0; transform:translateX(-50%) translateY(-90px); filter:brightness(2) blur(3px); }
+}
+
 /* ── 涟漪 ── */
 .ripple {
   position:fixed;
@@ -266,28 +388,13 @@ html, body {
   letter-spacing:.2em; line-height:1.6;
 }
 
-/* ── 右下角 设置按钮 ── */
-.settings-btn {
-  position:fixed; bottom:24px; right:24px;
-  z-index:10;
-  width:36px; height:36px;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:50%;
-  color:var(--dim);
-  cursor:pointer; font-size:16px;
-  transition:all .2s;
-}
-.settings-btn:hover { background:rgba(255,255,255,.1); color:var(--text); }
+
 
 /* ── 沉浸模式 ── */
 body.immersive .controls { opacity:0; pointer-events:none; transition:opacity .5s; }
 body.immersive .corner-info { opacity:0; transition:opacity .5s; }
-body.immersive .settings-btn { opacity:0; pointer-events:none; transition:opacity .5s; }
 body.immersive:hover .controls,
-body.immersive:hover .corner-info,
-body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
+body.immersive:hover .corner-info { opacity:1; }
 
 /* ── 粒子光点 ── */
 .spark {
@@ -340,6 +447,72 @@ body.immersive:hover .settings-btn { opacity:1; pointer-events:auto; }
 .back-btn svg { flex-shrink:0; }
 body.immersive .back-btn { opacity:0; pointer-events:none; transition:opacity .5s; }
 body.immersive:hover .back-btn { opacity:1; pointer-events:auto; }
+
+
+/* ── 背景音乐 ── */
+.music-btn {
+  position:fixed; bottom:24px; right:24px;
+  z-index:20;
+  display:flex; align-items:center; gap:6px;
+  padding:8px 14px;
+  background:rgba(200,169,110,.1);
+  border:1px solid rgba(200,169,110,.25);
+  border-radius:20px;
+  color:rgba(200,169,110,.7);
+  cursor:pointer; font-size:12px;
+  font-family:'Noto Serif SC', serif;
+  letter-spacing:.05em;
+  transition:all .2s;
+  backdrop-filter:blur(6px);
+}
+.music-btn:hover { background:rgba(200,169,110,.2); color:var(--gold2); border-color:rgba(200,169,110,.5); }
+.music-btn.playing { color:var(--gold2); border-color:rgba(200,169,110,.5); }
+body.immersive .music-btn { opacity:0; pointer-events:none; transition:opacity .5s; }
+body.immersive:hover .music-btn { opacity:1; pointer-events:auto; }
+
+/* ── 音乐选择弹窗 ── */
+.music-modal-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,.6);
+  display:flex; align-items:flex-end; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .25s;
+  backdrop-filter:blur(4px);
+}
+.music-modal-overlay.open { opacity:1; pointer-events:auto; }
+.music-modal {
+  background:#1a1a14;
+  border:1px solid rgba(200,169,110,.2);
+  border-radius:18px 18px 0 0;
+  padding:24px 20px 32px;
+  width:100%; max-width:480px;
+  transform:translateY(40px); transition:transform .28s cubic-bezier(.4,0,.2,1);
+  max-height:70vh; overflow-y:auto;
+}
+.music-modal-overlay.open .music-modal { transform:translateY(0); }
+.music-modal-title {
+  font-family:'ZCOOL XiaoWei', serif;
+  font-size:16px; color:var(--gold2);
+  margin-bottom:16px; letter-spacing:.1em;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.music-item {
+  display:flex; align-items:center; gap:12px;
+  padding:11px 14px; border-radius:10px;
+  cursor:pointer; transition:background .15s;
+  border:1px solid transparent; margin-bottom:6px;
+}
+.music-item:hover { background:rgba(200,169,110,.08); border-color:rgba(200,169,110,.15); }
+.music-item.active { background:rgba(200,169,110,.15); border-color:rgba(200,169,110,.35); }
+.music-item-icon { font-size:20px; flex-shrink:0; }
+.music-item-name { flex:1; font-size:14px; color:var(--text); }
+.music-item-status { font-size:11px; color:var(--gold2); }
+.music-stop-btn {
+  width:100%; padding:10px; border:1px solid rgba(200,169,110,.2);
+  border-radius:10px; background:transparent; color:rgba(200,169,110,.6);
+  font-size:13px; font-family:'Noto Serif SC', serif;
+  cursor:pointer; transition:all .15s; margin-top:8px;
+}
+.music-stop-btn:hover { background:rgba(200,169,110,.08); color:var(--gold2); }
 
 </style>
 </head>
@@ -432,12 +605,28 @@ body.immersive:hover .back-btn { opacity:1; pointer-events:auto; }
   </div>
 </div>
 
+<button class="music-btn" id="musicBtn" onclick="openMusicModal()" style="display:none">
+  <span id="musicBtnIcon">🎵</span>
+  <span id="musicBtnText">背景音乐</span>
+</button>
+
+<!-- 背景音乐弹窗 -->
+<div class="music-modal-overlay" id="musicOverlay" onclick="if(event.target===this)closeMusicModal()">
+  <div class="music-modal">
+    <div class="music-modal-title">
+      <span>🎵 背景音乐</span>
+      <button onclick="closeMusicModal()" style="background:none;border:none;color:rgba(200,169,110,.5);font-size:18px;cursor:pointer;padding:0">×</button>
+    </div>
+    <div id="musicItemList"></div>
+    <button class="music-stop-btn" onclick="stopBgMusic()">⬜ 停止播放</button>
+  </div>
+</div>
+
 <div class="corner-info">
   <div class="corner-title" id="cornerTitle"></div>
   <div class="corner-title" id="cornerSub" style="opacity:.6"></div>
 </div>
 
-<div class="settings-btn" onclick="location.href='/admin'">⚙</div>
 
 <script>
 // ════════════════════════════════════════
@@ -446,6 +635,10 @@ body.immersive:hover .back-btn { opacity:1; pointer-events:auto; }
 let count = parseInt(localStorage.getItem('muyu_count') || '0');
 let customAudio = null;
 let customSoundFn = null;
+let bgMusicList = [];
+let bgAudio = null;
+let bgMusicIdx = -1;
+let bgMusicBtnLabel = '背景音乐';
 let soundEnabled = true;
 let vipTimer = null, svipTimer = null;
 let cfg = {};
@@ -515,6 +708,14 @@ async function loadConfig() {
     document.getElementById('backLabel').textContent = backLabel;
   } else {
     backBtn.style.display = 'none';
+  }
+
+  // ── 背景音乐列表 ──
+  bgMusicList = cfg.bg_music_list || [];
+  bgMusicBtnLabel = cfg.bg_music_btn_label || '背景音乐';
+  if (bgMusicList.length > 0) {
+    document.getElementById('musicBtn').style.display = 'flex';
+    document.getElementById('musicBtnText').textContent = bgMusicBtnLabel;
   }
 
   // ── 自定义音效代码 ──
@@ -742,6 +943,80 @@ document.addEventListener('keydown', e => {
 // 启动
 // ════════════════════════════════════════
 loadConfig();
+
+// ════════════════════════════════════════
+// 背景音乐
+// ════════════════════════════════════════
+function openMusicModal() {
+  renderMusicItems();
+  document.getElementById('musicOverlay').classList.add('open');
+}
+
+function closeMusicModal() {
+  document.getElementById('musicOverlay').classList.remove('open');
+}
+
+function renderMusicItems() {
+  const el = document.getElementById('musicItemList');
+  if (!bgMusicList.length) {
+    el.innerHTML = '<div style="text-align:center;color:rgba(200,169,110,.4);padding:20px;font-size:13px">暂无背景音乐</div>';
+    return;
+  }
+  el.innerHTML = bgMusicList.map((item, i) => {
+    const isPlaying = bgMusicIdx === i && bgAudio && !bgAudio.paused;
+    return `<div class="music-item${isPlaying ? ' active' : ''}" onclick="playBgMusic(${i})">
+      <span class="music-item-icon">${isPlaying ? '▶' : '🎵'}</span>
+      <span class="music-item-name">${esc(item.name || '未命名音乐')}</span>
+      ${isPlaying ? '<span class="music-item-status">播放中…</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function playBgMusic(idx) {
+  const item = bgMusicList[idx];
+  if (!item || !item.url) return;
+
+  // 停止旧的
+  if (bgAudio) {
+    bgAudio.pause();
+    bgAudio.src = '';
+  }
+
+  bgMusicIdx = idx;
+  bgAudio = new Audio(item.url);
+  bgAudio.loop = true;
+  bgAudio.volume = 0.4;
+  bgAudio.play().catch(() => {});
+
+  bgAudio.onplay = () => updateMusicBtn(true, item.name);
+  bgAudio.onpause = () => updateMusicBtn(false);
+  bgAudio.onerror = () => updateMusicBtn(false);
+
+  updateMusicBtn(true, item.name);
+  renderMusicItems();
+  // 1.5s 后关闭弹窗
+  setTimeout(closeMusicModal, 600);
+}
+
+function stopBgMusic() {
+  if (bgAudio) { bgAudio.pause(); bgAudio.src = ''; bgAudio = null; }
+  bgMusicIdx = -1;
+  updateMusicBtn(false);
+  renderMusicItems();
+  closeMusicModal();
+}
+
+function updateMusicBtn(playing, name) {
+  const btn = document.getElementById('musicBtn');
+  const icon = document.getElementById('musicBtnIcon');
+  const text = document.getElementById('musicBtnText');
+  btn.classList.toggle('playing', playing);
+  icon.textContent = playing ? '♪' : '🎵';
+  text.textContent = playing && name ? name : bgMusicBtnLabel;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 </script>
 </body>
 </html>
