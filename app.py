@@ -1061,7 +1061,30 @@ MUYU_FILE  = os.path.join(_BASE, 'data', 'muyu.json')
 
 def load_muyu():
     import json as _json
-    default = {'messages': [{'text': '功德+1，佛祖保佑你', 'color': '#f5e6c8', 'size': 28, 'style': 'float'}, {'text': '心想事成，万事如意', 'color': '#ffd700', 'size': 24, 'style': 'burst'}, {'text': '健康平安，诸事顺遂', 'color': '#98ffb0', 'size': 26, 'style': 'spin'}, {'text': '财源广进，福气满满', 'color': '#ffaa55', 'size': 25, 'style': 'zoom'}], 'vip': {'name': 'VIP自动敲', 'speed': 1000, 'enabled': True}, 'svip': {'name': 'SVIP自动狂敲', 'speed': 180, 'enabled': True}, 'title': '电子木鱼', 'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经', 'total_label': '功德', 'sound_enabled': True, 'custom_sound': '', 'custom_svg': '', 'back_label': '返回首页', 'sound_code': '', 'bg_music_list': [], 'bg_music_btn_label': '背景音乐'}
+    default = {
+        'messages': [
+            {'text': '功德+1，佛祖保佑你', 'color': '#f5e6c8', 'size': 28, 'style': 'float'},
+            {'text': '心想事成，万事如意', 'color': '#ffd700', 'size': 24, 'style': 'burst'},
+            {'text': '健康平安，诸事顺遂', 'color': '#98ffb0', 'size': 26, 'style': 'spin'},
+            {'text': '财源广进，福气满满', 'color': '#ffaa55', 'size': 25, 'style': 'zoom'}
+        ],
+        'vip': {'name': 'VIP自动敲', 'speed': 1000, 'enabled': True},
+        'svip': {'name': 'SVIP自动狂敲', 'speed': 180, 'enabled': True},
+        'title': '电子木鱼',
+        'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经',
+        'total_label': '功德',
+        'sound_enabled': True,
+        'custom_sound': '',
+        'custom_svg': '',
+        'back_label': '返回首页',
+        'sound_code': '',
+        'bg_music_list': [],
+        'bg_music_btn_label': '背景音乐',
+        'bg_music_stop_label': '停止播放',
+        # 背景图层：最多 3 层，每层 PNG，可设置透明度与缩放波动、是否跟随敲击缩放
+        # opacity: 0–100（百分比），scale: 0–30（围绕 100% 的缩放幅度），follow_hit: bool
+        'bg_layers': []
+    }
     d = load_json(MUYU_FILE, default)
     # 补全缺失字段
     for k, v in default.items():
@@ -1149,13 +1172,32 @@ def admin_muyu_svg_content():
 def admin_muyu_save():
     body = request.json or {}
     d = load_muyu()
-    allowed = ['messages','vip','svip','title','subtitle','total_label','sound_enabled',
-               'back_label','sound_code','custom_sound','custom_svg','bg_music_list','bg_music_btn_label']
+    allowed = [
+        'messages', 'vip', 'svip', 'title', 'subtitle', 'total_label', 'sound_enabled',
+        'back_label', 'sound_code', 'custom_sound', 'custom_svg',
+        'bg_music_list', 'bg_music_btn_label', 'bg_music_stop_label',
+        'bg_layers'
+    ]
     for k in allowed:
         if k in body:
             d[k] = body[k]
     save_muyu(d)
     return jsonify({'success': True})
+
+
+@app.route('/admin/muyu/upload-bg', methods=['POST'])
+@login_required
+def admin_muyu_upload_bg():
+    """上传电子木鱼背景图片（建议 PNG），存入 uploads，返回文件名和 URL"""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': '无文件'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ('png', 'jpg', 'jpeg', 'webp'):
+        return jsonify({'success': False, 'error': '仅支持 PNG/JPG/WebP 图片'}), 400
+    fn = save_upload(f, 'muyu_bg_')
+    # 配置中的 bg_layers 由前端统一写入，这里只负责保存文件
+    return jsonify({'success': True, 'filename': fn, 'url': '/static/uploads/' + fn})
 
 
 # ── 表情包路由 ──

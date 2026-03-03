@@ -17,3 +17,4 @@ python app.py
 - 数据文件（data/*.json）和上传文件（static/uploads/）存储在容器本地  
 - Railway 每次重新部署会**重置**文件系统，数据会丢失  
 - 建议挂载 Railway Volume 或使用外部存储持久化数据
+或部署前备份网站数据，重新部署后一键恢复全部数据

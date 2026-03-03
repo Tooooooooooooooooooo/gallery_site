@@ -45,6 +45,48 @@ html, body {
   background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,.5) 2px, rgba(255,255,255,.5) 3px);
 }
 
+/* ── 背景图层（PNG 叠加） ── */
+.muyu-bg-layer {
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background-position:center;
+  background-size:cover;
+  background-repeat:no-repeat;
+  opacity:0;
+  transform-origin:center center;
+  transform:scale(var(--scale-min,1));
+  transition:
+    opacity 6s ease-in-out,
+    filter 8s ease-in-out;
+  animation:none;
+}
+.muyu-bg-layer.layer-0 { mix-blend-mode:soft-light; }
+.muyu-bg-layer.layer-1 { mix-blend-mode:screen; }
+.muyu-bg-layer.layer-2 { mix-blend-mode:overlay; }
+
+.muyu-bg-layer.breathe {
+  animation: muyuBgPulse 24s ease-in-out infinite alternate;
+}
+
+.muyu-bg-layer.hit-pulse {
+  animation: muyuBgHit .14s linear 1;
+}
+
+@keyframes muyuBgPulse {
+  0%   { transform:scale(var(--scale-min,1)); }
+  50%  { transform:scale(var(--scale-max,1.05)); }
+  100% { transform:scale(var(--scale-min,1)); }
+}
+
+@keyframes muyuBgHit {
+  0%   { transform:scale(var(--scale-min,1)); }
+  30%  { transform:scale(var(--hit-scale,1.08)); }
+  31%  { transform:scale(var(--scale-min,1)); }
+  100% { transform:scale(var(--scale-min,1)); }
+}
+
 /* ── 布局 ── */
 .stage {
   position:relative; z-index:2;
@@ -618,7 +660,7 @@ body.immersive:hover .music-btn { opacity:1; pointer-events:auto; }
       <button onclick="closeMusicModal()" style="background:none;border:none;color:rgba(200,169,110,.5);font-size:18px;cursor:pointer;padding:0">×</button>
     </div>
     <div id="musicItemList"></div>
-    <button class="music-stop-btn" onclick="stopBgMusic()">⬜ 停止播放</button>
+    <button class="music-stop-btn" id="musicStopBtn" onclick="stopBgMusic()">⬜ 停止播放</button>
   </div>
 </div>
 
@@ -639,10 +681,14 @@ let bgMusicList = [];
 let bgAudio = null;
 let bgMusicIdx = -1;
 let bgMusicBtnLabel = '背景音乐';
+let bgMusicStopLabel = '停止播放';
 let soundEnabled = true;
 let vipTimer = null, svipTimer = null;
 let cfg = {};
 let msgIdx = 0;
+let bgCycleTimer = null;
+let bgCycleIndex = 0;
+let bgLayersCfg = [];
 
 const meritCountEl = document.getElementById('meritCount');
 const muyuWrap = document.getElementById('muyuWrap');
@@ -713,10 +759,17 @@ async function loadConfig() {
   // ── 背景音乐列表 ──
   bgMusicList = cfg.bg_music_list || [];
   bgMusicBtnLabel = cfg.bg_music_btn_label || '背景音乐';
+  bgMusicStopLabel = cfg.bg_music_stop_label || '停止播放';
+  const stopBtn = document.getElementById('musicStopBtn');
+  if (stopBtn) stopBtn.textContent = '⬜ ' + bgMusicStopLabel;
   if (bgMusicList.length > 0) {
     document.getElementById('musicBtn').style.display = 'flex';
     document.getElementById('musicBtnText').textContent = bgMusicBtnLabel;
   }
+
+  // ── 背景图层（PNG 叠加） ──
+  bgLayersCfg = cfg.bg_layers || [];
+  clearBgLayers();
 
   // ── 自定义音效代码 ──
   if (cfg.sound_code && cfg.sound_code.trim()) {
@@ -728,6 +781,96 @@ async function loadConfig() {
   soundEnabled = cfg.sound_enabled !== false;
   updateSoundBtn();
   meritCountEl.textContent = count.toLocaleString();
+}
+
+// 背景图层：从配置创建最多 3 层 PNG 叠加
+function setupBgLayers(layers) {
+  // 清理旧图层
+  document.querySelectorAll('.muyu-bg-layer').forEach(el => el.remove());
+  const valid = (layers || []).filter(l => l && l.file);
+  valid.slice(0, 3).forEach((layer, idx) => {
+    const div = document.createElement('div');
+    div.className = 'muyu-bg-layer layer-' + idx;
+    const file = layer.file || '';
+    const src = file.startsWith('http://') || file.startsWith('https://')
+      ? file
+      : '/static/uploads/' + file;
+    const op = typeof layer.opacity === 'number' ? layer.opacity : 60;
+    const sc = typeof layer.scale === 'number' ? layer.scale : 6;
+    const follow = !!layer.follow_hit;
+    const hitScalePct = typeof layer.hit_scale === 'number' ? layer.hit_scale : 8;
+    const baseOpacity = Math.max(0, Math.min(100, op)) / 100;
+    const amp = Math.max(0, Math.min(30, sc)) / 100; // 百分比 -> 0-0.3
+    const minScale = follow ? 1 : (1 - amp / 2);
+    const maxScale = follow ? 1 : (1 + amp / 2);
+    div.style.backgroundImage = `url('${src}')`;
+    div.style.setProperty('--scale-min', String(minScale));
+    div.style.setProperty('--scale-max', String(maxScale));
+    const base = baseOpacity || 0.8;
+    div.style.opacity = '0'; // 仅在播放背景音乐时显示
+    div.dataset.baseOpacity = String(base);
+    div.dataset.followHit = follow ? '1' : '0';
+    div.style.setProperty('--hit-scale', String(1 + Math.max(0, Math.min(30, hitScalePct)) / 100));
+    if (!follow) {
+      div.classList.add('breathe');
+    }
+    document.body.appendChild(div);
+  });
+}
+
+function startBgCycle() {
+  const layers = document.querySelectorAll('.muyu-bg-layer');
+  if (!layers.length) return;
+  stopBgCycle();
+  bgCycleIndex = 0;
+  const apply = (idx) => {
+    const els = document.querySelectorAll('.muyu-bg-layer');
+    els.forEach((el, i) => {
+      const base = parseFloat(el.dataset.baseOpacity || '0.8');
+      el.style.opacity = String(i === idx ? base : base * 0.18);
+    });
+  };
+  apply(bgCycleIndex);
+  bgCycleTimer = setInterval(() => {
+    const els = document.querySelectorAll('.muyu-bg-layer');
+    if (!els.length) {
+      stopBgCycle();
+      return;
+    }
+    bgCycleIndex = (bgCycleIndex + 1) % els.length;
+    apply(bgCycleIndex);
+  }, 16000);
+}
+
+function stopBgCycle() {
+  if (bgCycleTimer) {
+    clearInterval(bgCycleTimer);
+    bgCycleTimer = null;
+  }
+  // 停止时不保留背景显示，由 stopBgMusic 负责清空
+}
+
+function clearBgLayers() {
+  document.querySelectorAll('.muyu-bg-layer').forEach(el => el.remove());
+}
+
+function ensureBgLayers() {
+  if (!document.querySelector('.muyu-bg-layer')) {
+    setupBgLayers(bgLayersCfg || []);
+  }
+}
+
+// 敲击时对启用“跟随敲击”的图层做缩放脉冲
+function pulseBgOnHit() {
+  const layers = document.querySelectorAll('.muyu-bg-layer');
+  layers.forEach(el => {
+    if (el.dataset.followHit === '1') {
+      el.classList.remove('hit-pulse');
+      // 触发重新渲染以便重复动画
+      void el.offsetWidth;
+      el.classList.add('hit-pulse');
+    }
+  });
 }
 
 // ════════════════════════════════════════
@@ -815,6 +958,9 @@ function hitMuyu(e, fromAuto) {
 
   // 音效
   playWoodfish();
+
+  // 背景图层跟随敲击缩放
+  pulseBgOnHit();
 
   // 飘字
   const msgs = cfg.messages || [{text:'功德+1，佛祖保佑你', color:'#f5e6c8', size:28, style:'float'}];
@@ -988,9 +1134,21 @@ function playBgMusic(idx) {
   bgAudio.volume = 0.4;
   bgAudio.play().catch(() => {});
 
-  bgAudio.onplay = () => updateMusicBtn(true, item.name);
-  bgAudio.onpause = () => updateMusicBtn(false);
-  bgAudio.onerror = () => updateMusicBtn(false);
+  bgAudio.onplay = () => {
+    updateMusicBtn(true, item.name);
+    ensureBgLayers();
+    startBgCycle();
+  };
+  bgAudio.onpause = () => {
+    updateMusicBtn(false);
+    stopBgCycle();
+    clearBgLayers();
+  };
+  bgAudio.onerror = () => {
+    updateMusicBtn(false);
+    stopBgCycle();
+    clearBgLayers();
+  };
 
   updateMusicBtn(true, item.name);
   renderMusicItems();
@@ -1004,6 +1162,8 @@ function stopBgMusic() {
   updateMusicBtn(false);
   renderMusicItems();
   closeMusicModal();
+  stopBgCycle();
+  clearBgLayers();
 }
 
 function updateMusicBtn(playing, name) {

@@ -217,7 +217,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="uc-mi" onclick="openAvatarPicker()">
         <span>🖼️</span><span>设置头像</span>
       </div>
-      <div class="uc-mi" onclick="showPage('account',document.querySelector('[onclick*=\"account\"]'))">
+      <div class="uc-mi" onclick="showPage('account',document.querySelector('[onclick*=account]'))">
         <span>🔐</span><span>账号设置</span>
       </div>
       <div style="height:1px;background:var(--bd);margin:4px 0"></div>
@@ -277,8 +277,12 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="dz-text" id="dzText">点击或拖拽文件到此处</div>
       <div class="dz-hint">JPG PNG GIF WEBP MP4 MOV WEBM</div>
     </div>
-    <button class="btn btn-s btn-sm" style="margin-top:7px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;})">🗂 从媒体库选</button>
-    <button class="btn btn-s btn-sm" style="margin-top:4px" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;})">🔗 从URL载入</button>
+    <button class="btn btn-s btn-sm" style="margin-top:7px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;setUploadPreviewFromUrl(url,type);})">🗂 从媒体库选</button>
+    <button class="btn btn-s btn-sm" style="margin-top:4px" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;setUploadPreviewFromUrl(url,type);})">🔗 从URL载入</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <div id="uploadFilePrev" class="file-prev-ph">📁</div>
+      <div style="font-size:11px;color:var(--mu)">选中文件或从 URL 载入后，将在左侧显示预览</div>
+    </div>
     <div class="pb" id="pb"><div class="pf" id="pf"></div></div>
   </div>
   <div class="card"><div class="ct">📝 作品信息</div>
@@ -299,8 +303,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <label>封面图（可选，不选则自动使用原文件）</label>
       <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
         <input class="inp" type="file" id="coverInp" accept="image/*" style="padding:6px;flex:1;min-width:0">
-        <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{document.getElementById('coverInp')._mpFile=fn;document.getElementById('coverInp')._mpUrl=url;toast('封面已选：'+fn);},'image')">🗂 从媒体库选</button>
-        <button class="btn btn-s btn-sm" onclick="openUrlLoader((fn,url)=>{document.getElementById('coverInp')._mpFile=fn;document.getElementById('coverInp')._mpUrl=url;toast('封面已选：'+fn);},'image')">🔗 从URL载入</button>
+        <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>{document.getElementById('coverInp')._mpFile=fn;document.getElementById('coverInp')._mpUrl=url;toast('封面已选：'+fn);showCoverPreview(url);},'image')">🗂 从媒体库选</button>
+        <button class="btn btn-s btn-sm" onclick="openUrlLoader((fn,url)=>{document.getElementById('coverInp')._mpFile=fn;document.getElementById('coverInp')._mpUrl=url;toast('封面已选：'+fn);showCoverPreview(url,true);},'image')">🔗 从URL载入</button>
       </div>
       <div id="coverPickPreview" style="margin-top:6px;display:none"><img id="coverPickImg" style="height:60px;border-radius:6px;object-fit:cover"></div>
     </div>
@@ -391,6 +395,18 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </div>
   </div>
 
+  <!-- 背景图层（PNG 叠加） -->
+  <div class="card">
+    <div class="ct">🌌 背景图层（最多 3 张 PNG 叠加）</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">
+      由后端上传 PNG 背景图，可叠加最多 3 层，并为每层设置透明度与缩放波动，播放背景音乐时会自动轮换强调不同图层。
+    </p>
+    <div id="mBgLayerList"></div>
+    <p style="font-size:10px;color:var(--mu);margin-top:6px">
+      缩放波动为围绕 100% 的缩放幅度，例如 8% 表示在约 96%～104% 之间缓慢呼吸缩放。
+    </p>
+  </div>
+
   <!-- VIP / SVIP -->
   <div class="card">
     <div class="ct">⚡ 自动敲设置</div>
@@ -428,9 +444,15 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card">
     <div class="ct">🎵 背景音乐列表</div>
     <p style="font-size:11px;color:var(--mu);margin-bottom:12px">用户可在木鱼页选择播放的背景音乐，填写在线可直接播放的音频 URL（MP3/OGG 等）</p>
-    <div style="margin-bottom:14px">
+    <div style="margin-bottom:14px;display:flex;gap:12px;flex-wrap:wrap">
+      <div style="min-width:160px">
       <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">按钮文字</label>
       <input class="inp" id="mMusicBtnLabel" placeholder="背景音乐" style="max-width:200px">
+      </div>
+      <div style="min-width:160px">
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">停止按钮文字</label>
+        <input class="inp" id="mMusicStopLabel" placeholder="停止播放" style="max-width:200px">
+      </div>
     </div>
     <div id="musicList" style="margin-bottom:12px"></div>
     <button class="btn btn-s btn-sm" onclick="addMusicItem()">＋ 添加音乐</button>
@@ -1703,8 +1725,10 @@ async function loadMuyuAdmin() {
   }
   // 背景音乐
   document.getElementById('mMusicBtnLabel').value = _muyuCfg.bg_music_btn_label ?? '背景音乐';
+  document.getElementById('mMusicStopLabel').value = _muyuCfg.bg_music_stop_label ?? '停止播放';
   renderMusicList(_muyuCfg.bg_music_list || []);
   renderMuyuMsgs();
+  renderMuyuBgLayers();
 }
 
 function renderMuyuMsgs() {
@@ -1780,6 +1804,7 @@ async function saveMuyuBasic() {
     enabled: document.getElementById('mSvipEnabled').checked
   };
   _muyuCfg.bg_music_btn_label = document.getElementById('mMusicBtnLabel').value.trim() || '背景音乐';
+  _muyuCfg.bg_music_stop_label = document.getElementById('mMusicStopLabel').value.trim() || '停止播放';
   _muyuCfg.bg_music_list = getMusicList();
   const res = await fetch('/admin/muyu', {
     method:'PUT', headers:{'Content-Type':'application/json'},
@@ -1977,11 +2002,141 @@ async function saveMusicList() {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       bg_music_list: _muyuCfg.bg_music_list,
-      bg_music_btn_label: document.getElementById('mMusicBtnLabel').value.trim() || '背景音乐'
+      bg_music_btn_label: document.getElementById('mMusicBtnLabel').value.trim() || '背景音乐',
+      bg_music_stop_label: document.getElementById('mMusicStopLabel').value.trim() || '停止播放'
     })
   });
   if ((await res.json()).success) { renderMusicList(_muyuCfg.bg_music_list); toast('音乐列表已保存'); }
   else toast('保存失败', 'err');
+}
+
+// ── 木鱼背景图层（最多 3 层 PNG） ──
+function ensureMuyuBgLayers() {
+  if (!_muyuCfg.bg_layers) _muyuCfg.bg_layers = [];
+  for (let i = 0; i < 3; i++) {
+    if (!_muyuCfg.bg_layers[i]) {
+      _muyuCfg.bg_layers[i] = { file: '', opacity: 60, scale: 6, follow_hit: false, hit_scale: 8 };
+    } else {
+      if (typeof _muyuCfg.bg_layers[i].opacity !== 'number') _muyuCfg.bg_layers[i].opacity = 60;
+      if (typeof _muyuCfg.bg_layers[i].scale !== 'number') _muyuCfg.bg_layers[i].scale = 6;
+      if (typeof _muyuCfg.bg_layers[i].follow_hit !== 'boolean') _muyuCfg.bg_layers[i].follow_hit = false;
+      if (typeof _muyuCfg.bg_layers[i].hit_scale !== 'number') _muyuCfg.bg_layers[i].hit_scale = 8;
+    }
+  }
+}
+
+function renderMuyuBgLayers() {
+  ensureMuyuBgLayers();
+  const listEl = document.getElementById('mBgLayerList');
+  if (!listEl) return;
+  const layers = _muyuCfg.bg_layers.slice(0, 3);
+  listEl.innerHTML = layers.map((layer, i) => {
+    const file = layer.file || '';
+    const src = file
+      ? (file.startsWith('http://') || file.startsWith('https://') ? file : fileSrc(file))
+      : '';
+    const op = typeof layer.opacity === 'number' ? layer.opacity : 60;
+    const sc = typeof layer.scale === 'number' ? layer.scale : 6;
+    const fh = !!layer.follow_hit;
+    const hs = typeof layer.hit_scale === 'number' ? layer.hit_scale : 8;
+    return `
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div id="mBgPrev${i}" style="width:72px;height:54px;border-radius:8px;border:1px solid var(--bd);background:var(--s2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mu)">
+          ${src ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : `第 ${i+1} 层`}
+        </div>
+        <div style="flex:1;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.3fr);gap:8px;align-items:flex-start;min-width:0">
+          <div>
+            <div style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+              <button class="btn btn-s btn-xs" type="button" onclick="document.getElementById('mBgFile${i}').click()">📎 上传 PNG</button>
+              <button class="btn btn-s btn-xs" type="button" onclick="chooseMuyuBgFromMedia(${i})">🗂 从媒体库选</button>
+              <button class="btn btn-s btn-xs" type="button" onclick="setMuyuBgFromUrl(${i})">🔗 从URL载入</button>
+              <button class="btn btn-d btn-xs" type="button" onclick="clearMuyuBg(${i})">✕ 清除</button>
+            </div>
+            <input type="file" id="mBgFile${i}" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadMuyuBg(this,${i})">
+            <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">文件：${file || '（未设置）'}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">透明度（0-100%）</div>
+            <input class="inp" type="number" min="0" max="100" value="${op}"
+              oninput="updateMuyuBgField(${i},'opacity',this.value)" style="margin-bottom:4px">
+            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">缩放波动（0-30%）</div>
+            <input class="inp" type="number" min="0" max="30" value="${sc}"
+              oninput="updateMuyuBgField(${i},'scale',this.value)" style="margin-bottom:4px">
+            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">敲击放大（0-30%）</div>
+            <input class="inp" type="number" min="0" max="30" value="${hs}"
+              oninput="updateMuyuBgField(${i},'hit_scale',this.value)" style="margin-bottom:4px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--mu);margin-top:2px;cursor:pointer">
+              <input type="checkbox" ${fh ? 'checked' : ''} style="width:12px;height:12px;accent-color:var(--ac)"
+                onchange="toggleMuyuBgFollowHit(${i},this.checked)">
+              跟随敲击缩放（覆盖波动动画）
+            </label>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateMuyuBgField(idx, key, val) {
+  ensureMuyuBgLayers();
+  let v = parseFloat(val);
+  if (!isFinite(v)) return;
+  if (key === 'opacity') {
+    v = Math.max(0, Math.min(100, v));
+    _muyuCfg.bg_layers[idx].opacity = v;
+  } else if (key === 'scale') {
+    v = Math.max(0, Math.min(30, v));
+    _muyuCfg.bg_layers[idx].scale = v;
+  } else if (key === 'hit_scale') {
+    v = Math.max(0, Math.min(30, v));
+    _muyuCfg.bg_layers[idx].hit_scale = v;
+  }
+}
+
+async function uploadMuyuBg(inp, idx) {
+  if (!inp.files || !inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch('/admin/muyu/upload-bg', { method:'POST', body:fd });
+  const d = await res.json();
+  if (d.success) {
+    ensureMuyuBgLayers();
+    _muyuCfg.bg_layers[idx].file = d.filename;
+    renderMuyuBgLayers();
+    toast('背景已上传');
+  } else {
+    toast(d.error || '上传失败', 'err');
+  }
+  inp.value = '';
+}
+
+function chooseMuyuBgFromMedia(idx) {
+  if (typeof openMediaPicker !== 'function') return;
+  openMediaPicker((fn, url) => {
+    ensureMuyuBgLayers();
+    _muyuCfg.bg_layers[idx].file = fn;
+    renderMuyuBgLayers();
+  }, 'image');
+}
+
+function clearMuyuBg(idx) {
+  ensureMuyuBgLayers();
+  _muyuCfg.bg_layers[idx].file = '';
+  renderMuyuBgLayers();
+}
+
+function setMuyuBgFromUrl(idx) {
+  if (typeof openUrlLoader !== 'function') return;
+  openUrlLoader((fn, url) => {
+    ensureMuyuBgLayers();
+    _muyuCfg.bg_layers[idx].file = url;
+    renderMuyuBgLayers();
+  }, 'image');
+}
+
+function toggleMuyuBgFollowHit(idx, checked) {
+  ensureMuyuBgLayers();
+  _muyuCfg.bg_layers[idx].follow_hit = !!checked;
 }
 
 async function clearSoundCode() {
@@ -2077,7 +2232,52 @@ function renderEditCatBox(selected){
 function getEditCatSelected(){
   return [...document.querySelectorAll('#editCatBox input[type=checkbox]:checked')].map(c=>c.value);
 }
-function handleFile(inp){const f=inp.files[0];if(f){document.getElementById('dzIcon').textContent=f.type.startsWith('video')?'🎬':'🖼️';document.getElementById('dzText').textContent=f.name;}}
+function resetUploadPreview(){
+  const box=document.getElementById('uploadFilePrev');
+  if(box) box.innerHTML='<div class="file-prev-ph">📁</div>';
+}
+function setUploadPreviewFromLocal(file){
+  const box=document.getElementById('uploadFilePrev');
+  if(!box)return;
+  if(file && file.type && file.type.startsWith('image')){
+    box.innerHTML=`<img class="file-prev" src="${URL.createObjectURL(file)}">`;
+  }else if(file){
+    box.innerHTML='<div class="file-prev-ph">🎬</div>';
+  }else{
+    resetUploadPreview();
+  }
+}
+function setUploadPreviewFromUrl(url,type){
+  const box=document.getElementById('uploadFilePrev');
+  if(!box)return;
+  if(type==='video'){
+    box.innerHTML='<div class="file-prev-ph">🎬</div>';
+  }else{
+    box.innerHTML=`<img class="file-prev" src="${url}" onerror="this.style.display='none'">`;
+  }
+}
+function handleFile(inp){
+  const f=inp.files[0];
+  if(f){
+    document.getElementById('dzIcon').textContent=f.type.startsWith('video')?'🎬':'🖼️';
+    document.getElementById('dzText').textContent=f.name;
+    setUploadPreviewFromLocal(f);
+  }else{
+    resetUploadPreview();
+  }
+}
+function showCoverPreview(src,isExternal){
+  const box=document.getElementById('coverPickPreview');
+  const img=document.getElementById('coverPickImg');
+  if(!box||!img)return;
+  if(!src){
+    box.style.display='none';
+    img.src='';
+    return;
+  }
+  img.src=isExternal?src:src.startsWith('http')?src:('/static/uploads/'+src);
+  box.style.display='block';
+}
 const dz=document.getElementById('dz');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
@@ -2106,7 +2306,7 @@ async function submitUpload(){
   if(res.ok){
     const d=await res.json();allItems.unshift(d.item);document.getElementById('sTotal').textContent=allItems.length;
     setTimeout(()=>{document.getElementById('pb').style.display='none';document.getElementById('pf').style.width='0';},500);
-    toast('✓ 上传成功！');f.value='';cv.value='';document.getElementById('dzIcon').textContent='📁';document.getElementById('dzText').textContent='点击或拖拽文件到此处';document.getElementById('upTitle').value='';if(document.getElementById('upDesc')._quillInstance)document.getElementById('upDesc')._quillInstance.root.innerHTML='';document.getElementById('upLikes').value='0';renderUpCatBox([]);document.getElementById('fileInp')._mpFile=null;document.getElementById('coverInp')._mpFile=null;
+    toast('✓ 上传成功！');f.value='';cv.value='';document.getElementById('dzIcon').textContent='📁';document.getElementById('dzText').textContent='点击或拖拽文件到此处';resetUploadPreview();document.getElementById('upTitle').value='';if(document.getElementById('upDesc')._quillInstance)document.getElementById('upDesc')._quillInstance.root.innerHTML='';document.getElementById('upLikes').value='0';renderUpCatBox([]);document.getElementById('fileInp')._mpFile=null;document.getElementById('coverInp')._mpFile=null;
   }else{toast('上传失败','err');document.getElementById('pb').style.display='none';}
 }
 
@@ -2210,7 +2410,11 @@ document.getElementById('editDesc')._quillInstance.root.innerHTML=item.descripti
   const fWrap=document.getElementById('editFilePrev');
   const isExtFile = item.filename && (item.filename.startsWith('http://')||item.filename.startsWith('https://'));
   if (isExtFile) {
-    fWrap.innerHTML=`<div class="file-prev-ph" style="font-size:11px;color:var(--mu);flex-direction:column;gap:4px"><span>🔗</span><span style="font-size:9px">外链</span></div>`;
+    if (item.type === 'image') {
+      fWrap.innerHTML = `<img class="file-prev" src="${item.filename}" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+    } else {
+      fWrap.innerHTML=`<div class="file-prev-ph" style="font-size:11px;color:var(--mu);flex-direction:column;gap:4px"><span>🔗</span><span style="font-size:9px">外链</span></div>`;
+    }
   } else {
     const src=item.type==='image'?item.filename:null;
     fWrap.innerHTML=src?`<img class="file-prev" src="/static/uploads/${src}">`:`<div class="file-prev-ph">🎬</div>`;
