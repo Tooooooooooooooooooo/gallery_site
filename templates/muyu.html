@@ -46,11 +46,21 @@ html, body {
 }
 
 /* ── 背景图层（PNG 叠加） ── */
-.muyu-bg-layer {
+.muyu-bg-box {
   position:fixed;
-  inset:0;
+  left:50%;
+  top:50%;
+  translate:-50% -50%;
+  width:min(100vw, 100vh);
+  height:min(100vw, 100vh);
   pointer-events:none;
   z-index:0;
+  overflow:hidden;
+}
+.muyu-bg-layer {
+  position:absolute;
+  inset:0;
+  pointer-events:none;
   background-color: transparent;
   background-position:center;
   background-size:contain;
@@ -902,6 +912,16 @@ async function loadConfig() {
 function setupBgLayers(layers) {
   // 清理旧图层
   document.querySelectorAll('.muyu-bg-layer').forEach(el => el.remove());
+
+  // 确保背景容器为正方形并裁切溢出
+  let box = document.getElementById('muyuBgBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'muyuBgBox';
+    box.className = 'muyu-bg-box';
+    document.body.appendChild(box);
+  }
+
   const valid = (layers || []).filter(l => l && l.file);
   valid.slice(0, 3).forEach((layer, idx) => {
     const div = document.createElement('div');
@@ -941,7 +961,7 @@ function setupBgLayers(layers) {
     if (!follow) {
       div.classList.add('breathe');
     }
-    document.body.appendChild(div);
+    box.appendChild(div);
   });
 }
 
@@ -979,6 +999,8 @@ function stopBgCycle() {
 
 function clearBgLayers() {
   document.querySelectorAll('.muyu-bg-layer').forEach(el => el.remove());
+  const box = document.getElementById('muyuBgBox');
+  if (box) box.remove();
 }
 
 function ensureBgLayers() {
