@@ -173,6 +173,19 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .bk-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx);cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:6px 10px;user-select:none}
 .bk-chk:hover{border-color:var(--ac)}
 .bk-chk input{accent-color:var(--ac)}
+/* 木鱼背景图层紧凑布局 */
+.muyu-bg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.muyu-bg-grid{grid-template-columns:1fr}}
+.muyu-bg-item{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:12px;min-width:0}
+.muyu-bg-item .mprev{width:100%;aspect-ratio:16/10;border-radius:6px;border:1px solid var(--bd);background:var(--s3);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mu);margin-bottom:8px}
+.muyu-bg-item .mprev img{width:100%;height:100%;object-fit:cover}
+.muyu-bg-item .mbtns{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.muyu-bg-item .mbtns .btn{font-size:11px;padding:3px 6px}
+.muyu-bg-item .mrow{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center;margin-bottom:4px;font-size:10px;color:var(--mu)}
+.muyu-bg-item .mrow.full{grid-template-columns:1fr}
+.muyu-bg-item .mrow input{width:100%;padding:4px 6px;font-size:11px}
+.muyu-bg-item .mchk{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--mu);cursor:pointer;margin-top:4px}
+.muyu-bg-item .mchk input{accent-color:var(--ac);width:11px;height:11px}
 </style>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
@@ -397,14 +410,9 @@ tr:hover td{background:rgba(255,255,255,.012)}
 
   <!-- 背景图层（PNG 叠加） -->
   <div class="card">
-    <div class="ct">🌌 背景图层（最多 3 张 PNG 叠加）</div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">
-      由后端上传 PNG 背景图，可叠加最多 3 层，并为每层设置透明度与缩放波动，播放背景音乐时会自动轮换强调不同图层。
-    </p>
-    <div id="mBgLayerList"></div>
-    <p style="font-size:10px;color:var(--mu);margin-top:6px">
-      缩放波动为围绕 100% 的缩放幅度，例如 8% 表示在约 96%～104% 之间缓慢呼吸缩放。
-    </p>
+    <div class="ct">🌌 背景图层</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">最多 3 层 PNG 叠加，播放背景音乐时显示；停止后清空。可设置透明度、缩放、旋转、跟随敲击放大。</p>
+    <div id="mBgLayerList" class="muyu-bg-grid"></div>
   </div>
 
   <!-- VIP / SVIP -->
@@ -2015,12 +2023,14 @@ function ensureMuyuBgLayers() {
   if (!_muyuCfg.bg_layers) _muyuCfg.bg_layers = [];
   for (let i = 0; i < 3; i++) {
     if (!_muyuCfg.bg_layers[i]) {
-      _muyuCfg.bg_layers[i] = { file: '', opacity: 60, scale: 6, follow_hit: false, hit_scale: 8 };
+      _muyuCfg.bg_layers[i] = { file: '', opacity: 60, scale: 6, follow_hit: false, hit_scale: 8, rotate: false, rotate_speed: 60 };
     } else {
       if (typeof _muyuCfg.bg_layers[i].opacity !== 'number') _muyuCfg.bg_layers[i].opacity = 60;
       if (typeof _muyuCfg.bg_layers[i].scale !== 'number') _muyuCfg.bg_layers[i].scale = 6;
       if (typeof _muyuCfg.bg_layers[i].follow_hit !== 'boolean') _muyuCfg.bg_layers[i].follow_hit = false;
       if (typeof _muyuCfg.bg_layers[i].hit_scale !== 'number') _muyuCfg.bg_layers[i].hit_scale = 8;
+      if (typeof _muyuCfg.bg_layers[i].rotate !== 'boolean') _muyuCfg.bg_layers[i].rotate = false;
+      if (typeof _muyuCfg.bg_layers[i].rotate_speed !== 'number') _muyuCfg.bg_layers[i].rotate_speed = 60;
     }
   }
 }
@@ -2032,48 +2042,29 @@ function renderMuyuBgLayers() {
   const layers = _muyuCfg.bg_layers.slice(0, 3);
   listEl.innerHTML = layers.map((layer, i) => {
     const file = layer.file || '';
-    const src = file
-      ? (file.startsWith('http://') || file.startsWith('https://') ? file : fileSrc(file))
-      : '';
+    const src = file ? (file.startsWith('http') ? file : fileSrc(file)) : '';
     const op = typeof layer.opacity === 'number' ? layer.opacity : 60;
     const sc = typeof layer.scale === 'number' ? layer.scale : 6;
     const fh = !!layer.follow_hit;
     const hs = typeof layer.hit_scale === 'number' ? layer.hit_scale : 8;
-    return `
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-        <div id="mBgPrev${i}" style="width:72px;height:54px;border-radius:8px;border:1px solid var(--bd);background:var(--s2);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mu)">
-          ${src ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : `第 ${i+1} 层`}
-        </div>
-        <div style="flex:1;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.3fr);gap:8px;align-items:flex-start;min-width:0">
-          <div>
-            <div style="display:flex;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-              <button class="btn btn-s btn-xs" type="button" onclick="document.getElementById('mBgFile${i}').click()">📎 上传 PNG</button>
-              <button class="btn btn-s btn-xs" type="button" onclick="chooseMuyuBgFromMedia(${i})">🗂 从媒体库选</button>
-              <button class="btn btn-s btn-xs" type="button" onclick="setMuyuBgFromUrl(${i})">🔗 从URL载入</button>
-              <button class="btn btn-d btn-xs" type="button" onclick="clearMuyuBg(${i})">✕ 清除</button>
-            </div>
-            <input type="file" id="mBgFile${i}" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadMuyuBg(this,${i})">
-            <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">文件：${file || '（未设置）'}</div>
-          </div>
-          <div>
-            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">透明度（0-100%）</div>
-            <input class="inp" type="number" min="0" max="100" value="${op}"
-              oninput="updateMuyuBgField(${i},'opacity',this.value)" style="margin-bottom:4px">
-            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">缩放波动（0-30%）</div>
-            <input class="inp" type="number" min="0" max="30" value="${sc}"
-              oninput="updateMuyuBgField(${i},'scale',this.value)" style="margin-bottom:4px">
-            <div style="font-size:10px;color:var(--mu);margin-bottom:3px">敲击放大（0-30%）</div>
-            <input class="inp" type="number" min="0" max="30" value="${hs}"
-              oninput="updateMuyuBgField(${i},'hit_scale',this.value)" style="margin-bottom:4px">
-            <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--mu);margin-top:2px;cursor:pointer">
-              <input type="checkbox" ${fh ? 'checked' : ''} style="width:12px;height:12px;accent-color:var(--ac)"
-                onchange="toggleMuyuBgFollowHit(${i},this.checked)">
-              跟随敲击缩放（覆盖波动动画）
-            </label>
-          </div>
-        </div>
+    const rot = !!layer.rotate;
+    const rs = typeof layer.rotate_speed === 'number' ? layer.rotate_speed : 60;
+    return `<div class="muyu-bg-item">
+      <div class="mprev">${src ? `<img src="${src}" onerror="this.style.display='none'">` : `第 ${i+1} 层`}</div>
+      <div class="mbtns">
+        <button class="btn btn-s btn-xs" onclick="document.getElementById('mBgFile${i}').click()">📎 上传</button>
+        <button class="btn btn-s btn-xs" onclick="chooseMuyuBgFromMedia(${i})">🗂 媒体库</button>
+        <button class="btn btn-s btn-xs" onclick="setMuyuBgFromUrl(${i})">🔗 URL</button>
+        <button class="btn btn-d btn-xs" onclick="clearMuyuBg(${i})">✕</button>
       </div>
-    `;
+      <input type="file" id="mBgFile${i}" accept="image/*" style="display:none" onchange="uploadMuyuBg(this,${i})">
+      <div class="mrow"><span>透明度</span><input type="number" min="0" max="100" value="${op}" oninput="updateMuyuBgField(${i},'opacity',this.value)"></div>
+      <div class="mrow"><span>缩放波动</span><input type="number" min="0" max="30" value="${sc}" oninput="updateMuyuBgField(${i},'scale',this.value)"></div>
+      <div class="mrow"><span>敲击放大</span><input type="number" min="0" max="30" value="${hs}" oninput="updateMuyuBgField(${i},'hit_scale',this.value)"></div>
+      <label class="mchk"><input type="checkbox" ${fh?'checked':''} onchange="toggleMuyuBgFollowHit(${i},this.checked)"> 跟随敲击</label>
+      <label class="mchk"><input type="checkbox" ${rot?'checked':''} onchange="toggleMuyuBgRotate(${i},this.checked)"> 旋转</label>
+      <div class="mrow" style="margin-top:4px"><span>旋转速度</span><input type="number" min="10" max="300" value="${rs}" oninput="updateMuyuBgField(${i},'rotate_speed',this.value)" placeholder="秒/圈"></div>
+    </div>`;
   }).join('');
 }
 
@@ -2090,6 +2081,9 @@ function updateMuyuBgField(idx, key, val) {
   } else if (key === 'hit_scale') {
     v = Math.max(0, Math.min(30, v));
     _muyuCfg.bg_layers[idx].hit_scale = v;
+  } else if (key === 'rotate_speed') {
+    v = Math.max(10, Math.min(300, v));
+    _muyuCfg.bg_layers[idx].rotate_speed = v;
   }
 }
 
@@ -2137,6 +2131,10 @@ function setMuyuBgFromUrl(idx) {
 function toggleMuyuBgFollowHit(idx, checked) {
   ensureMuyuBgLayers();
   _muyuCfg.bg_layers[idx].follow_hit = !!checked;
+}
+function toggleMuyuBgRotate(idx, checked) {
+  ensureMuyuBgLayers();
+  _muyuCfg.bg_layers[idx].rotate = !!checked;
 }
 
 async function clearSoundCode() {

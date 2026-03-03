@@ -1081,8 +1081,8 @@ def load_muyu():
         'bg_music_list': [],
         'bg_music_btn_label': '背景音乐',
         'bg_music_stop_label': '停止播放',
-        # 背景图层：最多 3 层，每层 PNG，可设置透明度与缩放波动、是否跟随敲击缩放
-        # opacity: 0–100（百分比），scale: 0–30（围绕 100% 的缩放幅度），follow_hit: bool
+        # 背景图层：最多 3 层，每层 PNG，可设置透明度、缩放波动、跟随敲击、旋转及速度
+        # opacity, scale, follow_hit, hit_scale, rotate: bool, rotate_speed: 秒/圈
         'bg_layers': []
     }
     d = load_json(MUYU_FILE, default)
