@@ -1077,6 +1077,11 @@ def load_muyu():
         'sound_enabled': True,
         'custom_sound': '',
         'custom_svg': '',
+        'custom_image': '',
+        # 多木鱼图案（图片为主），供前端用户切换
+        # item: {id, name, file}
+        'patterns': [],
+        'pattern_btn_label': '切换图案',
         'back_label': '返回首页',
         'sound_code': '',
         'bg_music_list': [],
@@ -1091,6 +1096,15 @@ def load_muyu():
     for k, v in default.items():
         if k not in d:
             d[k] = v
+    # 兼容：旧版只设置了 custom_image，但未建立 patterns
+    if d.get('custom_image') and not d.get('patterns'):
+        d['patterns'] = [{
+            'id': 'legacy_custom_image',
+            'name': '自定义图案',
+            'file': d.get('custom_image')
+        }]
+    if 'pattern_btn_label' not in d:
+        d['pattern_btn_label'] = default.get('pattern_btn_label', '切换图案')
     return d
 
 def save_muyu(d): save_json(MUYU_FILE, d)
@@ -1155,6 +1169,8 @@ def admin_muyu_upload_svg():
         fp.write(svg_content)
     d = load_muyu()
     d['custom_svg'] = 'data/muyu_custom.svg'
+    # SVG 与自定义图片互斥：保存 SVG 时清除图片
+    d['custom_image'] = ''
     save_muyu(d)
     return jsonify({'success': True})
 
@@ -1168,6 +1184,118 @@ def admin_muyu_svg_content():
     return '', 404
 
 
+@app.route('/api/muyu/svg-content')
+def api_muyu_svg_content():
+    """公开读取木鱼 SVG（前台页面使用，避免未登录访问 admin 路由）"""
+    svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+    if os.path.exists(svg_path):
+        with open(svg_path, 'r', encoding='utf-8') as fp:
+            return fp.read(), 200, {'Content-Type': 'image/svg+xml'}
+    return '', 404
+
+
+@app.route('/admin/muyu/upload-image', methods=['POST'])
+@login_required
+def admin_muyu_upload_image():
+    """上传木鱼图像（图片文件），保存到 uploads 并写入 muyu 配置"""
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': '无文件'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif'):
+        return jsonify({'success': False, 'error': '仅支持 png/jpg/webp/gif'}), 400
+    fn = save_upload(f, 'muyu_img_')
+    d = load_muyu()
+    d['custom_image'] = fn
+    # 自定义图片与 SVG 互斥：保存图片时清除 SVG
+    d['custom_svg'] = ''
+    save_muyu(d)
+    return jsonify({'success': True, 'filename': fn, 'url': '/static/uploads/' + fn})
+
+
+@app.route('/admin/muyu/patterns/upload', methods=['POST'])
+@login_required
+def admin_muyu_patterns_upload():
+    """上传木鱼图案（图片），追加到 patterns"""
+    f = request.files.get('file')
+    name = (request.form.get('name') or '').strip()
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': '无文件'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ('png', 'jpg', 'jpeg', 'webp', 'gif'):
+        return jsonify({'success': False, 'error': '仅支持 png/jpg/webp/gif'}), 400
+    fn = save_upload(f, 'muyu_pat_')
+    d = load_muyu()
+    d.setdefault('patterns', [])
+    item = {'id': str(uuid.uuid4()), 'name': name or os.path.basename(f.filename), 'file': fn}
+    d['patterns'].append(item)
+    save_muyu(d)
+    return jsonify({'success': True, 'item': item, 'patterns': d['patterns'], 'url': '/static/uploads/' + fn})
+
+
+@app.route('/admin/muyu/patterns/add-from-media', methods=['POST'])
+@login_required
+def admin_muyu_patterns_add_from_media():
+    body = request.json or {}
+    fn = (body.get('filename') or '').strip()
+    name = (body.get('name') or '').strip()
+    if not fn:
+        return jsonify({'success': False, 'error': '无文件名'}), 400
+    d = load_muyu()
+    d.setdefault('patterns', [])
+    item = {'id': str(uuid.uuid4()), 'name': name or os.path.basename(fn), 'file': fn}
+    d['patterns'].append(item)
+    save_muyu(d)
+    return jsonify({'success': True, 'item': item, 'patterns': d['patterns']})
+
+
+@app.route('/admin/muyu/patterns/add-from-url', methods=['POST'])
+@login_required
+def admin_muyu_patterns_add_from_url():
+    """从 URL 下载图片并追加到 patterns（保存到 uploads）"""
+    body = request.json or {}
+    url = (body.get('url') or '').strip()
+    name = (body.get('name') or '').strip()
+    if not url or not url.startswith('http'):
+        return jsonify({'success': False, 'error': '无效URL'}), 400
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            content_type = resp.headers.get('Content-Type', '')
+            ext = mimetypes.guess_extension(content_type.split(';')[0].strip()) or ''
+            url_path = urllib.parse.urlparse(url).path
+            url_ext = os.path.splitext(url_path)[1].lower()
+            if url_ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp'):
+                ext = url_ext
+            elif ext in ('.jpeg',):
+                ext = '.jpg'
+            elif ext not in ('.jpg', '.png', '.gif', '.webp'):
+                ext = '.png'
+            data = resp.read(25 * 1024 * 1024)  # 最大 25MB
+        fn = 'muyu_pat_url_' + str(uuid.uuid4())[:8] + ext
+        path = os.path.join(UPLOAD_FOLDER, fn)
+        with open(path, 'wb') as f:
+            f.write(data)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    d = load_muyu()
+    d.setdefault('patterns', [])
+    item = {'id': str(uuid.uuid4()), 'name': name or os.path.basename(fn), 'file': fn}
+    d['patterns'].append(item)
+    save_muyu(d)
+    return jsonify({'success': True, 'item': item, 'patterns': d['patterns'], 'url': '/static/uploads/' + fn})
+
+
+@app.route('/admin/muyu/patterns/<pid>', methods=['DELETE'])
+@login_required
+def admin_muyu_patterns_delete(pid):
+    d = load_muyu()
+    items = d.get('patterns', [])
+    d['patterns'] = [i for i in items if i.get('id') != pid]
+    save_muyu(d)
+    return jsonify({'success': True, 'patterns': d['patterns']})
+
+
 @app.route('/admin/muyu', methods=['PUT'])
 @login_required
 def admin_muyu_save():
@@ -1175,14 +1303,23 @@ def admin_muyu_save():
     d = load_muyu()
     allowed = [
         'messages', 'vip', 'svip', 'title', 'subtitle', 'total_label', 'sound_enabled',
-        'back_label', 'sound_code', 'custom_sound', 'custom_svg',
+        'back_label', 'sound_code', 'custom_sound', 'custom_svg', 'custom_image',
         'bg_music_list', 'bg_music_btn_label', 'bg_music_stop_label',
         'bg_color',
-        'bg_layers'
+        'bg_layers',
+        'patterns',
+        'pattern_btn_label'
     ]
     for k in allowed:
         if k in body:
             d[k] = body[k]
+
+    # custom_image 与 custom_svg 互斥：仅允许一个生效
+    if ('custom_image' in body) and body.get('custom_image'):
+        d['custom_svg'] = ''
+    if ('custom_svg' in body) and body.get('custom_svg'):
+        d['custom_image'] = ''
+
     save_muyu(d)
     return jsonify({'success': True})
 
@@ -1319,6 +1456,11 @@ def admin_backup_export():
             fp = DATA_TYPES.get(t)
             if fp and os.path.exists(fp):
                 zf.write(fp, f'data/{os.path.basename(fp)}')
+        # 附加：木鱼自定义 SVG 文件（不在 JSON 内）
+        if 'muyu' in types:
+            svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+            if os.path.exists(svg_path):
+                zf.write(svg_path, 'data/muyu_custom.svg')
         if include_uploads and os.path.isdir(UPLOAD_FOLDER):
             for fn in os.listdir(UPLOAD_FOLDER):
                 fp = os.path.join(UPLOAD_FOLDER, fn)
@@ -1357,6 +1499,13 @@ def admin_backup_import():
                         with open(fp, 'wb') as dst:
                             dst.write(src.read())
                     restored.append(t)
+            # 附加：木鱼自定义 SVG
+            if 'muyu' in types and 'data/muyu_custom.svg' in names:
+                svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+                os.makedirs(os.path.dirname(svg_path), exist_ok=True)
+                with zf.open('data/muyu_custom.svg') as src:
+                    with open(svg_path, 'wb') as dst:
+                        dst.write(src.read())
             if uploads:
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 for nm in names:

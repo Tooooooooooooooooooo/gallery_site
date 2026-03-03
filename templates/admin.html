@@ -396,7 +396,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <!-- 自定义 SVG -->
   <div class="card">
     <div class="ct">🖼 自定义木鱼图像 (SVG)</div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">粘贴 SVG 代码替换默认木鱼图像，留空使用内置木鱼</p>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">粘贴 SVG 代码替换默认木鱼图像，留空使用内置木鱼。与图片互斥：保存 SVG 会自动清除图片。</p>
     <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
       <div id="mSvgPreview" style="width:100px;height:100px;border:1px solid var(--bd);border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:12px;flex-shrink:0;overflow:hidden">预览</div>
       <div style="flex:1;min-width:200px">
@@ -407,6 +407,45 @@ tr:hover td{background:rgba(255,255,255,.012)}
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- 自定义木鱼图像（图片） -->
+  <div class="card">
+    <div class="ct">🖼 自定义木鱼图像（图片）</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:12px">支持本地上传 / 媒体库 / 从 URL 下载到服务器。与 SVG 互斥：设置图片会自动禁用 SVG。</p>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <div id="mImgPreview" style="width:100px;height:100px;border:1px solid var(--bd);border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:12px;flex-shrink:0;overflow:hidden">预览</div>
+      <div style="flex:1;min-width:220px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+          <input type="file" id="mImgInp" accept="image/*" style="display:none" onchange="uploadMuyuImage(this)">
+          <button class="btn btn-s btn-sm" onclick="document.getElementById('mImgInp').click()">📎 本地上传</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>setMuyuImageFromMedia(fn,url),'image')">🗂 从媒体库选</button>
+          <button class="btn btn-s btn-sm" onclick="setMuyuImageFromUrl()">🔗 从URL上传</button>
+          <button class="btn btn-d btn-sm" id="mImgClearBtn" style="display:none" onclick="clearMuyuImage()">✕ 清除</button>
+        </div>
+        <div id="mImgStatus" style="font-size:11px;color:var(--mu);margin-top:8px">未设置</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 木鱼图案库（多图案） -->
+  <div class="card">
+    <div class="ct">🧩 木鱼图案库（可上传多个）</div>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">用户可在木鱼页切换不同图案（本地保存选择）。优先级高于单一自定义图片/ SVG。</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <div style="min-width:160px">
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">按钮文字</label>
+        <input class="inp" id="mPatternBtnLabel" placeholder="切换图案" style="max-width:220px">
+      </div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:18px">
+        <input type="file" id="mPatInp" accept="image/*" multiple style="display:none" onchange="uploadMuyuPatterns(this)">
+        <button class="btn btn-s btn-sm" onclick="document.getElementById('mPatInp').click()">📎 本地上传</button>
+        <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url)=>addMuyuPatternFromMedia(fn,url),'image')">🗂 从媒体库选</button>
+        <button class="btn btn-s btn-sm" onclick="addMuyuPatternFromUrl()">🔗 从URL上传</button>
+      </div>
+    </div>
+    <div id="mPatGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+    <div style="font-size:10px;color:var(--mu);margin-top:8px">提示：备份时请勾选“muyu”以及“媒体文件（uploads/）”，才能完整迁移图案图片。</div>
   </div>
 
   <!-- 背景图层（PNG 叠加） -->
@@ -1665,6 +1704,11 @@ async function loadMuyuAdmin() {
     document.getElementById('mSoundPreviewBtn').style.display = 'none';
     document.getElementById('mSoundClearBtn').style.display = 'none';
   }
+  // 图片木鱼状态
+  renderMuyuImageStatus();
+  // 多图案
+  document.getElementById('mPatternBtnLabel').value = _muyuCfg.pattern_btn_label ?? '切换图案';
+  renderMuyuPatternGrid();
   // SVG 状态 - ✨ 修改部分：添加时间戳防止缓存
   if (c.custom_svg) {
     document.getElementById('mSvgClearBtn').style.display = '';
@@ -1809,6 +1853,7 @@ async function saveMuyuBasic() {
   const bcVal = (document.getElementById('mBgColorText')||{}).value.trim() || document.getElementById('mBgColor').value;
   _muyuCfg.bg_color = /^#[0-9a-fA-F]{6}$/.test(bcVal) ? bcVal : '#0a0a08';
   _muyuCfg.sound_enabled = document.getElementById('mSoundEnabled').checked;
+  _muyuCfg.pattern_btn_label = document.getElementById('mPatternBtnLabel').value.trim() || '切换图案';
   _muyuCfg.vip = {
     name:    document.getElementById('mVipName').value.trim(),
     speed:   parseInt(document.getElementById('mVipSpeed').value) || 1000,
@@ -1872,6 +1917,202 @@ async function clearMuyuSound() {
   }
 }
 
+// ── 木鱼图片 ──
+function renderMuyuImageStatus() {
+  const fn = (_muyuCfg.custom_image || '').trim();
+  const prev = document.getElementById('mImgPreview');
+  const st = document.getElementById('mImgStatus');
+  const clr = document.getElementById('mImgClearBtn');
+  if (!prev || !st || !clr) return;
+  if (fn) {
+    const src = fn.startsWith('http://') || fn.startsWith('https://') ? fn : fileSrc(fn);
+    prev.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:contain;display:block" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+    st.textContent = '当前：' + fn;
+    st.style.color = 'var(--ac)';
+    clr.style.display = '';
+  } else {
+    prev.innerHTML = '预览';
+    st.textContent = '未设置';
+    st.style.color = 'var(--mu)';
+    clr.style.display = 'none';
+  }
+}
+
+async function uploadMuyuImage(inp) {
+  if (!inp.files || !inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch('/admin/muyu/upload-image', {method:'POST', body:fd});
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.custom_image = d.filename;
+    _muyuCfg.custom_svg = '';
+    document.getElementById('mSvgCode').value = '';
+    document.getElementById('mSvgPreview').innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+    document.getElementById('mSvgClearBtn').style.display = 'none';
+    renderMuyuImageStatus();
+    toast('木鱼图片已上传（已自动禁用 SVG）');
+  } else toast(d.error || '上传失败', 'err');
+  inp.value = '';
+}
+
+async function setMuyuImageFromMedia(fn, url) {
+  _muyuCfg.custom_image = fn;
+  _muyuCfg.custom_svg = '';
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_image: fn, custom_svg: ''})
+  });
+  if ((await res.json()).success) {
+    document.getElementById('mSvgCode').value = '';
+    document.getElementById('mSvgPreview').innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+    document.getElementById('mSvgClearBtn').style.display = 'none';
+    renderMuyuImageStatus();
+    toast('木鱼图片已设置（已自动禁用 SVG）');
+  } else toast('保存失败', 'err');
+}
+
+async function setMuyuImageFromUrl() {
+  if (typeof openUrlLoader !== 'function') return;
+  openUrlLoader(async (fn, url) => {
+    const res = await fetch('/admin/upload-from-url', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url})
+    });
+    const d = await res.json();
+    if (d.success && d.filename) {
+      _muyuCfg.custom_image = d.filename;
+      _muyuCfg.custom_svg = '';
+      const r2 = await fetch('/admin/muyu', {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({custom_image: d.filename, custom_svg: ''})
+      });
+      if ((await r2.json()).success) {
+        document.getElementById('mSvgCode').value = '';
+        document.getElementById('mSvgPreview').innerHTML = '<span style="color:var(--mu);font-size:11px">预览</span>';
+        document.getElementById('mSvgClearBtn').style.display = 'none';
+        renderMuyuImageStatus();
+        toast('已从URL上传木鱼图片（已自动禁用 SVG）');
+      } else toast('保存失败', 'err');
+    } else {
+      toast(d.error || 'URL 上传失败', 'err');
+    }
+  }, 'image');
+}
+
+async function clearMuyuImage() {
+  _muyuCfg.custom_image = '';
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({custom_image: ''})
+  });
+  if ((await res.json()).success) {
+    renderMuyuImageStatus();
+    toast('已清除木鱼图片');
+  } else toast('失败', 'err');
+}
+
+// ── 木鱼图案库（多图案） ──
+function renderMuyuPatternGrid() {
+  const el = document.getElementById('mPatGrid');
+  if (!el) return;
+  const list = _muyuCfg.patterns || [];
+  if (!list.length) {
+    el.innerHTML = `<div style="font-size:12px;color:var(--mu);padding:8px 0">暂无图案，可上传多个供用户切换</div>`;
+    return;
+  }
+  el.innerHTML = list.map((p, i) => {
+    const file = (p.file || '').trim();
+    const src = file ? (file.startsWith('http') ? file : fileSrc(file)) : '';
+    return `
+      <div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center;min-width:0">
+        <div style="width:54px;height:54px;border-radius:8px;border:1px solid var(--bd);background:var(--s3);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mu)">
+          ${src ? `<img src="${src}" style="width:100%;height:100%;object-fit:contain" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '—'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <input class="inp" value="${esc(p.name||'')}" placeholder="图案名称"
+            oninput="_muyuCfg.patterns[${i}].name=this.value" style="margin-bottom:6px;font-size:12px">
+          <div style="font-size:10px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(file||'')}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <button class="btn btn-s btn-xs" onclick="saveMuyuPatterns()">保存</button>
+          <button class="btn btn-d btn-xs" onclick="deleteMuyuPattern('${p.id}')">删除</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveMuyuPatterns() {
+  const label = document.getElementById('mPatternBtnLabel').value.trim() || '切换图案';
+  _muyuCfg.pattern_btn_label = label;
+  const res = await fetch('/admin/muyu', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({patterns: _muyuCfg.patterns || [], pattern_btn_label: label})
+  });
+  if ((await res.json()).success) toast('图案已保存');
+  else toast('保存失败', 'err');
+}
+
+async function uploadMuyuPatterns(inp) {
+  const files = [...(inp.files || [])];
+  if (!files.length) return;
+  for (const f of files) {
+    const fd = new FormData();
+    fd.append('file', f);
+    const res = await fetch('/admin/muyu/patterns/upload', {method:'POST', body:fd});
+    const d = await res.json();
+    if (d.success) {
+      _muyuCfg.patterns = d.patterns || _muyuCfg.patterns || [];
+    } else {
+      toast(d.error || '上传失败', 'err');
+      break;
+    }
+  }
+  renderMuyuPatternGrid();
+  toast('图案上传完成');
+  inp.value = '';
+}
+
+async function addMuyuPatternFromMedia(fn, url) {
+  const res = await fetch('/admin/muyu/patterns/add-from-media', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({filename: fn, name: ''})
+  });
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.patterns = d.patterns || [];
+    renderMuyuPatternGrid();
+    toast('已添加图案');
+  } else toast(d.error || '失败', 'err');
+}
+
+async function addMuyuPatternFromUrl() {
+  if (typeof openUrlLoader !== 'function') return;
+  openUrlLoader(async (fn, url) => {
+    const res = await fetch('/admin/muyu/patterns/add-from-url', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url})
+    });
+    const d = await res.json();
+    if (d.success) {
+      _muyuCfg.patterns = d.patterns || [];
+      renderMuyuPatternGrid();
+      toast('已从URL添加图案');
+    } else toast(d.error || '失败', 'err');
+  }, 'image');
+}
+
+async function deleteMuyuPattern(id) {
+  const res = await fetch('/admin/muyu/patterns/' + encodeURIComponent(id), {method:'DELETE'});
+  const d = await res.json();
+  if (d.success) {
+    _muyuCfg.patterns = d.patterns || [];
+    renderMuyuPatternGrid();
+    toast('已删除');
+  } else toast(d.error || '失败', 'err');
+}
+
 // ── 木鱼 SVG ──
 function previewMuyuSvg() {
   const code = document.getElementById('mSvgCode').value.trim();
@@ -1896,12 +2137,14 @@ async function saveMuyuSvg() {
   const d = await res.json();
   if (d.success) {
     _muyuCfg.custom_svg = 'data/muyu_custom.svg';
+    _muyuCfg.custom_image = '';
     document.getElementById('mSvgClearBtn').style.display = '';
     // ✨ 立即更新预览，不依赖重新加载
     document.getElementById('mSvgPreview').innerHTML = code;
     // 同时也更新textarea里的代码（已经是原来的，但确保格式）
     document.getElementById('mSvgCode').value = code;
-    toast('SVG 已保存');
+    renderMuyuImageStatus();
+    toast('SVG 已保存（已自动清除图片）');
   } else toast(d.error || '保存失败', 'err');
 }
 
