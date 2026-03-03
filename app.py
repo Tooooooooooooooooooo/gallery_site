@@ -1073,6 +1073,7 @@ def load_muyu():
         'title': '电子木鱼',
         'subtitle': '敲电子木鱼，见机甲佛祖，修赛博真经',
         'total_label': '功德',
+        'bg_color': '#0a0a08',
         'sound_enabled': True,
         'custom_sound': '',
         'custom_svg': '',
@@ -1176,6 +1177,7 @@ def admin_muyu_save():
         'messages', 'vip', 'svip', 'title', 'subtitle', 'total_label', 'sound_enabled',
         'back_label', 'sound_code', 'custom_sound', 'custom_svg',
         'bg_music_list', 'bg_music_btn_label', 'bg_music_stop_label',
+        'bg_color',
         'bg_layers'
     ]
     for k in allowed:

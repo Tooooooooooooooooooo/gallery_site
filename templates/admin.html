@@ -338,6 +338,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="fg"><label>副标题</label><input class="inp" id="mSubtitle" placeholder="敲电子木鱼，见机甲佛祖..."></div>
       <div class="fg" style="max-width:160px"><label>功德标签</label><input class="inp" id="mTotalLabel" placeholder="功德"></div>
       <div class="fg" style="max-width:180px"><label>返回按钮名称</label><input class="inp" id="mBackLabel" placeholder="返回首页"><div style="font-size:10px;color:var(--mu);margin-top:3px">留空则隐藏按钮</div></div>
+      <div class="fg" style="max-width:140px"><label>背景颜色</label><div style="display:flex;gap:6px;align-items:center"><input class="inp" type="color" id="mBgColor" value="#0a0a08" style="width:40px;height:32px;padding:2px;cursor:pointer" oninput="document.getElementById('mBgColorText').value=this.value"><input class="inp" type="text" id="mBgColorText" placeholder="#0a0a08" style="flex:1;min-width:0" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('mBgColor').value=this.value"></div></div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
@@ -1636,6 +1637,11 @@ async function loadMuyuAdmin() {
   document.getElementById('mSubtitle').value    = c.subtitle || '';
   document.getElementById('mTotalLabel').value  = c.total_label || '';
   document.getElementById('mBackLabel').value   = c.back_label != null ? c.back_label : '返回首页';
+  const bc = (c.bg_color || '#0a0a08').trim();
+  const mBc = document.getElementById('mBgColor');
+  const mBcT = document.getElementById('mBgColorText');
+  if (mBc) mBc.value = /^#[0-9a-fA-F]{6}$/.test(bc) ? bc : '#0a0a08';
+  if (mBcT) mBcT.value = bc;
   document.getElementById('mSoundEnabled').checked = c.sound_enabled !== false;
   const vip = c.vip || {};
   document.getElementById('mVipName').value    = vip.name || 'VIP自动敲';
@@ -1800,6 +1806,8 @@ async function saveMuyuBasic() {
   _muyuCfg.subtitle    = document.getElementById('mSubtitle').value.trim();
   _muyuCfg.total_label = document.getElementById('mTotalLabel').value.trim();
   _muyuCfg.back_label  = document.getElementById('mBackLabel').value.trim();
+  const bcVal = (document.getElementById('mBgColorText')||{}).value.trim() || document.getElementById('mBgColor').value;
+  _muyuCfg.bg_color = /^#[0-9a-fA-F]{6}$/.test(bcVal) ? bcVal : '#0a0a08';
   _muyuCfg.sound_enabled = document.getElementById('mSoundEnabled').checked;
   _muyuCfg.vip = {
     name:    document.getElementById('mVipName').value.trim(),

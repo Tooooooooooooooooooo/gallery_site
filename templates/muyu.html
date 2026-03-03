@@ -52,7 +52,7 @@ html, body {
   pointer-events:none;
   z-index:0;
   background-position:center;
-  background-size:cover;
+  background-size:contain;
   background-repeat:no-repeat;
   opacity:0;
   transform-origin:center center;
@@ -723,6 +723,8 @@ async function loadConfig() {
   document.getElementById('meritLabel').textContent = cfg.total_label || '功德';
   document.getElementById('cornerTitle').textContent = cfg.title || '电子木鱼';
   document.getElementById('cornerSub').textContent = cfg.subtitle || '';
+  const bgCol = (cfg.bg_color || '#0a0a08').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(bgCol)) document.documentElement.style.setProperty('--bg', bgCol);
   vipBtn.textContent  = (cfg.vip  && cfg.vip.name)  || 'VIP自动敲';
   svipBtn.textContent = (cfg.svip && cfg.svip.name)  || 'SVIP自动狂敲';
 
