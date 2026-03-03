@@ -1456,11 +1456,40 @@ def admin_backup_export():
             fp = DATA_TYPES.get(t)
             if fp and os.path.exists(fp):
                 zf.write(fp, f'data/{os.path.basename(fp)}')
-        # 附加：木鱼自定义 SVG 文件（不在 JSON 内）
+        # 附加：木鱼自定义 SVG 文件（不在 JSON 内）+ 木鱼引用的媒体文件
         if 'muyu' in types:
             svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
             if os.path.exists(svg_path):
                 zf.write(svg_path, 'data/muyu_custom.svg')
+
+            # 无论是否勾选“媒体文件”，都把木鱼配置里引用到的 uploads 文件打包，避免迁移丢失
+            try:
+                mcfg = load_muyu() or {}
+                refs = set()
+
+                def _add_ref(v):
+                    if not isinstance(v, str):
+                        return
+                    s = v.strip()
+                    if not s:
+                        return
+                    if s.startswith('http://') or s.startswith('https://'):
+                        return
+                    refs.add(os.path.basename(s))
+
+                _add_ref(mcfg.get('custom_sound'))
+                _add_ref(mcfg.get('custom_image'))
+                for p in (mcfg.get('patterns') or []):
+                    _add_ref((p or {}).get('file'))
+                for bl in (mcfg.get('bg_layers') or []):
+                    _add_ref((bl or {}).get('file'))
+
+                for fn in refs:
+                    fp = os.path.join(UPLOAD_FOLDER, fn)
+                    if os.path.isfile(fp):
+                        zf.write(fp, f'muyu_uploads/{fn}')
+            except Exception:
+                pass
         if include_uploads and os.path.isdir(UPLOAD_FOLDER):
             for fn in os.listdir(UPLOAD_FOLDER):
                 fp = os.path.join(UPLOAD_FOLDER, fn)
@@ -1499,13 +1528,22 @@ def admin_backup_import():
                         with open(fp, 'wb') as dst:
                             dst.write(src.read())
                     restored.append(t)
-            # 附加：木鱼自定义 SVG
-            if 'muyu' in types and 'data/muyu_custom.svg' in names:
-                svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
-                os.makedirs(os.path.dirname(svg_path), exist_ok=True)
-                with zf.open('data/muyu_custom.svg') as src:
-                    with open(svg_path, 'wb') as dst:
-                        dst.write(src.read())
+            # 附加：木鱼自定义 SVG + 木鱼专属媒体
+            if 'muyu' in types:
+                if 'data/muyu_custom.svg' in names:
+                    svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
+                    os.makedirs(os.path.dirname(svg_path), exist_ok=True)
+                    with zf.open('data/muyu_custom.svg') as src:
+                        with open(svg_path, 'wb') as dst:
+                            dst.write(src.read())
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                for nm in names:
+                    if nm.startswith('muyu_uploads/') and not nm.endswith('/'):
+                        fn = os.path.basename(nm)
+                        with zf.open(nm) as src:
+                            with open(os.path.join(UPLOAD_FOLDER, fn), 'wb') as dst:
+                                dst.write(src.read())
+
             if uploads:
                 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
                 for nm in names:

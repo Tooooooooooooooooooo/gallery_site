@@ -51,6 +51,7 @@ html, body {
   inset:0;
   pointer-events:none;
   z-index:0;
+  background-color: transparent;
   background-position:center;
   background-size:contain;
   background-repeat:no-repeat;
@@ -67,11 +68,17 @@ html, body {
 .muyu-bg-layer.layer-2 { mix-blend-mode:overlay; }
 
 .muyu-bg-layer.breathe {
-  animation: muyuBgPulse 24s ease-in-out infinite alternate;
+  animation: muyuBgPulse var(--breathe-duration, 24s) ease-in-out infinite alternate;
 }
 
 .muyu-bg-layer.rotate {
   animation: muyuBgRotate var(--rotate-duration, 60s) linear infinite;
+}
+
+.muyu-bg-layer.rotate.breathe {
+  animation:
+    muyuBgRotate var(--rotate-duration, 60s) linear infinite,
+    muyuBgPulse var(--breathe-duration, 24s) ease-in-out infinite alternate;
 }
 
 .muyu-bg-layer.hit-pulse {
@@ -849,25 +856,9 @@ async function loadConfig() {
     customAudio.preload = 'auto';
   }
 
-  // ── 默认显示逻辑：优先“用户已选图案”，否则 SVG，其次图片，最后内置 ──
+  // ── 默认显示逻辑：优先“用户已选图案”，否则默认效果（SVG/图片/内置） ──
   if (!appliedUserPattern) {
-    if (cfg.custom_svg) {
-      try {
-        const svgText = await fetch('/api/muyu/svg-content').then(r=>r.ok?r.text():null);
-        if (svgText && svgText.includes('<svg')) {
-          const wrap = document.getElementById('muyuSvgWrap');
-          wrap.innerHTML = svgText;
-          const svg = wrap.querySelector('svg');
-          if (svg) { svg.style.width='100%'; svg.style.height='100%'; svg.style.display='block'; }
-        }
-      } catch(e) {}
-    } else if (cfg.custom_image) {
-      const wrap = document.getElementById('muyuSvgWrap');
-      const src = cfg.custom_image.startsWith('http://') || cfg.custom_image.startsWith('https://')
-        ? cfg.custom_image
-        : ('/static/uploads/' + cfg.custom_image);
-      wrap.innerHTML = `<img class="muyu-svg muyu-pat" src="${src}" style="width:100%;height:100%;object-fit:contain;display:block" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
-    }
+    await applyDefaultMuyuVisual();
   }
 
   // ── 返回按钮 ──
@@ -921,15 +912,20 @@ function setupBgLayers(layers) {
       : '/static/uploads/' + file;
     const op = typeof layer.opacity === 'number' ? layer.opacity : 60;
     const sc = typeof layer.scale === 'number' ? layer.scale : 6;
+    const sizePct = typeof layer.size === 'number' ? layer.size : 100;
+    const breatheSec = typeof layer.breathe_speed === 'number' ? layer.breathe_speed : 24;
     const follow = !!layer.follow_hit;
     const hitScalePct = typeof layer.hit_scale === 'number' ? layer.hit_scale : 8;
     const baseOpacity = Math.max(0, Math.min(100, op)) / 100;
     const amp = Math.max(0, Math.min(30, sc)) / 100; // 百分比 -> 0-0.3
-    const minScale = follow ? 1 : (1 - amp / 2);
-    const maxScale = follow ? 1 : (1 + amp / 2);
+    const baseScale = Math.max(20, Math.min(300, sizePct)) / 100;
+    const minScale = follow ? baseScale : (baseScale * (1 - amp / 2));
+    const maxScale = follow ? baseScale : (baseScale * (1 + amp / 2));
     div.style.backgroundImage = `url('${src}')`;
+    div.style.backgroundSize = `${Math.max(20, Math.min(300, sizePct))}%`;
     div.style.setProperty('--scale-min', String(minScale));
     div.style.setProperty('--scale-max', String(maxScale));
+    div.style.setProperty('--breathe-duration', `${Math.max(4, Math.min(180, breatheSec))}s`);
     const base = baseOpacity || 0.8;
     div.style.opacity = '0'; // 仅在播放背景音乐时显示
     div.dataset.baseOpacity = String(base);
@@ -937,11 +933,12 @@ function setupBgLayers(layers) {
     div.style.setProperty('--hit-scale', String(1 + Math.max(0, Math.min(30, hitScalePct)) / 100));
     const rot = !!layer.rotate;
     const rotSec = typeof layer.rotate_speed === 'number' ? Math.max(10, Math.min(300, layer.rotate_speed)) : 60;
+    div.dataset.rotate = rot ? '1' : '0';
     if (rot) {
       div.classList.add('rotate');
       div.style.setProperty('--rotate-duration', rotSec + 's');
     }
-    if (!follow && !rot) {
+    if (!follow) {
       div.classList.add('breathe');
     }
     document.body.appendChild(div);
@@ -994,11 +991,37 @@ function ensureBgLayers() {
 function pulseBgOnHit() {
   const layers = document.querySelectorAll('.muyu-bg-layer');
   layers.forEach(el => {
-    if (el.dataset.followHit === '1') {
+    if (el.dataset.followHit !== '1') return;
+
+    const rot = el.dataset.rotate === '1';
+    if (rot) {
+      // 旋转层不能直接覆盖 transform（会重置角度），改用叠加动画做“大小+亮度”脉冲
+      try {
+        el.animate(
+          [
+            { transform: 'scale(1)' },
+            { transform: 'scale(1.08)' },
+            { transform: 'scale(1)' }
+          ],
+          { duration: 150, easing: 'linear', iterations: 1, composite: 'add' }
+        );
+      } catch(e) {}
+      try {
+        el.animate(
+          [
+            { filter: 'brightness(1) saturate(1)' },
+            { filter: 'brightness(1.28) saturate(1.12)' },
+            { filter: 'brightness(1) saturate(1)' }
+          ],
+          { duration: 160, easing: 'linear', iterations: 1 }
+        );
+      } catch(e) {}
+    } else {
       el.classList.remove('hit-pulse');
       // 触发重新渲染以便重复动画
       void el.offsetWidth;
       el.classList.add('hit-pulse');
+      setTimeout(() => el.classList.remove('hit-pulse'), 170);
     }
   });
 }
@@ -1080,6 +1103,33 @@ function applyPatternById(pid) {
   wrap.innerHTML = `<img class="muyu-svg muyu-pat" src="${src}" style="width:100%;height:100%;object-fit:contain;display:block" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
 }
 
+async function applyDefaultMuyuVisual() {
+  if (cfg.custom_svg) {
+    try {
+      const svgText = await fetch('/api/muyu/svg-content').then(r=>r.ok?r.text():null);
+      if (svgText && svgText.includes('<svg')) {
+        const wrap = document.getElementById('muyuSvgWrap');
+        wrap.innerHTML = svgText;
+        const svg = wrap.querySelector('svg');
+        if (svg) {
+          svg.classList.add('muyu-svg');
+          svg.style.width='100%';
+          svg.style.height='100%';
+          svg.style.display='block';
+        }
+        return;
+      }
+    } catch(e) {}
+  }
+  if (cfg.custom_image) {
+    const wrap = document.getElementById('muyuSvgWrap');
+    const src = cfg.custom_image.startsWith('http://') || cfg.custom_image.startsWith('https://')
+      ? cfg.custom_image
+      : ('/static/uploads/' + cfg.custom_image);
+    wrap.innerHTML = `<img class="muyu-svg muyu-pat" src="${src}" style="width:100%;height:100%;object-fit:contain;display:block" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+  }
+}
+
 function openPatternModal() {
   renderPatternGrid();
   document.getElementById('patternOverlay').classList.add('open');
@@ -1091,18 +1141,36 @@ function renderPatternGrid() {
   const el = document.getElementById('patternGrid');
   if (!el) return;
   if (!patterns.length) {
-    el.innerHTML = `<div style="text-align:center;color:rgba(200,169,110,.4);padding:20px;font-size:13px">暂无图案</div>`;
+    el.innerHTML = `<div class="pattern-item${!hasUserPatternChoice ? ' active' : ''}" onclick="selectPatternDefault()">
+      <div class="pattern-thumb" style="font-size:12px;color:rgba(200,169,110,.8)">默认效果</div>
+      <div class="pattern-name">默认效果（SVG）</div>
+    </div>`;
     return;
   }
-  el.innerHTML = patterns.map(p => {
+  const defaultItem = `<div class="pattern-item${!hasUserPatternChoice ? ' active' : ''}" onclick="selectPatternDefault()">
+    <div class="pattern-thumb" style="font-size:12px;color:rgba(200,169,110,.8)">默认效果</div>
+    <div class="pattern-name">默认效果（SVG）</div>
+  </div>`;
+  const customItems = patterns.map(p => {
     const src = fileSrcAny((p.file || '').trim());
-    const active = p.id === curPatternId;
+    const active = hasUserPatternChoice && p.id === curPatternId;
     return `<div class="pattern-item${active ? ' active' : ''}" onclick="selectPattern('${p.id}')">
       <div class="pattern-thumb">${src ? `<img src="${src}" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}</div>
       <div class="pattern-name">${esc(p.name || '未命名')}</div>
     </div>`;
   }).join('');
+  el.innerHTML = defaultItem + customItems;
 }
+
+async function selectPatternDefault() {
+  hasUserPatternChoice = false;
+  curPatternId = '';
+  localStorage.removeItem('muyu_pattern_id');
+  await applyDefaultMuyuVisual();
+  renderPatternGrid();
+  setTimeout(closePatternModal, 200);
+}
+
 function selectPattern(pid) {
   curPatternId = pid;
   hasUserPatternChoice = true;

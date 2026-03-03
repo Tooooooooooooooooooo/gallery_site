@@ -2274,10 +2274,12 @@ function ensureMuyuBgLayers() {
   if (!_muyuCfg.bg_layers) _muyuCfg.bg_layers = [];
   for (let i = 0; i < 3; i++) {
     if (!_muyuCfg.bg_layers[i]) {
-      _muyuCfg.bg_layers[i] = { file: '', opacity: 60, scale: 6, follow_hit: false, hit_scale: 8, rotate: false, rotate_speed: 60 };
+      _muyuCfg.bg_layers[i] = { file: '', opacity: 60, scale: 6, breathe_speed: 24, size: 100, follow_hit: false, hit_scale: 8, rotate: false, rotate_speed: 60 };
     } else {
       if (typeof _muyuCfg.bg_layers[i].opacity !== 'number') _muyuCfg.bg_layers[i].opacity = 60;
       if (typeof _muyuCfg.bg_layers[i].scale !== 'number') _muyuCfg.bg_layers[i].scale = 6;
+      if (typeof _muyuCfg.bg_layers[i].breathe_speed !== 'number') _muyuCfg.bg_layers[i].breathe_speed = 24;
+      if (typeof _muyuCfg.bg_layers[i].size !== 'number') _muyuCfg.bg_layers[i].size = 100;
       if (typeof _muyuCfg.bg_layers[i].follow_hit !== 'boolean') _muyuCfg.bg_layers[i].follow_hit = false;
       if (typeof _muyuCfg.bg_layers[i].hit_scale !== 'number') _muyuCfg.bg_layers[i].hit_scale = 8;
       if (typeof _muyuCfg.bg_layers[i].rotate !== 'boolean') _muyuCfg.bg_layers[i].rotate = false;
@@ -2296,6 +2298,8 @@ function renderMuyuBgLayers() {
     const src = file ? (file.startsWith('http') ? file : fileSrc(file)) : '';
     const op = typeof layer.opacity === 'number' ? layer.opacity : 60;
     const sc = typeof layer.scale === 'number' ? layer.scale : 6;
+    const bs = typeof layer.breathe_speed === 'number' ? layer.breathe_speed : 24;
+    const sz = typeof layer.size === 'number' ? layer.size : 100;
     const fh = !!layer.follow_hit;
     const hs = typeof layer.hit_scale === 'number' ? layer.hit_scale : 8;
     const rot = !!layer.rotate;
@@ -2310,7 +2314,9 @@ function renderMuyuBgLayers() {
       </div>
       <input type="file" id="mBgFile${i}" accept="image/*" style="display:none" onchange="uploadMuyuBg(this,${i})">
       <div class="mrow"><span>透明度</span><input type="number" min="0" max="100" value="${op}" oninput="updateMuyuBgField(${i},'opacity',this.value)"></div>
+      <div class="mrow"><span>背景大小(%)</span><input type="number" min="20" max="300" value="${sz}" oninput="updateMuyuBgField(${i},'size',this.value)"></div>
       <div class="mrow"><span>缩放波动</span><input type="number" min="0" max="30" value="${sc}" oninput="updateMuyuBgField(${i},'scale',this.value)"></div>
+      <div class="mrow"><span>呼吸频率(秒)</span><input type="number" min="4" max="180" value="${bs}" oninput="updateMuyuBgField(${i},'breathe_speed',this.value)"></div>
       <div class="mrow"><span>敲击放大</span><input type="number" min="0" max="30" value="${hs}" oninput="updateMuyuBgField(${i},'hit_scale',this.value)"></div>
       <label class="mchk"><input type="checkbox" ${fh?'checked':''} onchange="toggleMuyuBgFollowHit(${i},this.checked)"> 跟随敲击</label>
       <label class="mchk"><input type="checkbox" ${rot?'checked':''} onchange="toggleMuyuBgRotate(${i},this.checked)"> 旋转</label>
@@ -2329,6 +2335,12 @@ function updateMuyuBgField(idx, key, val) {
   } else if (key === 'scale') {
     v = Math.max(0, Math.min(30, v));
     _muyuCfg.bg_layers[idx].scale = v;
+  } else if (key === 'breathe_speed') {
+    v = Math.max(4, Math.min(180, v));
+    _muyuCfg.bg_layers[idx].breathe_speed = v;
+  } else if (key === 'size') {
+    v = Math.max(20, Math.min(300, v));
+    _muyuCfg.bg_layers[idx].size = v;
   } else if (key === 'hit_scale') {
     v = Math.max(0, Math.min(30, v));
     _muyuCfg.bg_layers[idx].hit_scale = v;
