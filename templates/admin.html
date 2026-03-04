@@ -285,10 +285,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="pt">上传内容</div><div class="ps">支持图片与视频</div>
   <div class="card"><div class="ct">📁 选择文件</div>
     <div class="dz" id="dz">
-      <input type="file" id="fileInp" accept="image/*,video/*" onchange="handleFile(this)">
+      <input type="file" id="fileInp" accept="image/*,video/*,.glb,.gltf,model/*" onchange="handleFile(this)">
       <div class="dz-icon" id="dzIcon">📁</div>
       <div class="dz-text" id="dzText">点击或拖拽文件到此处</div>
-      <div class="dz-hint">JPG PNG GIF WEBP MP4 MOV WEBM</div>
+      <div class="dz-hint">JPG PNG GIF WEBP MP4 MOV WEBM GLB GLTF</div>
     </div>
     <button class="btn btn-s btn-sm" style="margin-top:7px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;setUploadPreviewFromUrl(url,type);})">🗂 从媒体库选</button>
     <button class="btn btn-s btn-sm" style="margin-top:4px" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('dzText').textContent=fn;document.getElementById('dzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('fileInp')._mpFile=fn;document.getElementById('fileInp')._mpUrl=url;setUploadPreviewFromUrl(url,type);})">🔗 从URL载入</button>
@@ -667,6 +667,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <input class="inp" type="text" id="ftNewTitle" placeholder="标题（可选）">
     </div>
     <div class="fg" style="margin-bottom:10px">
+      <label>文本内容（富文本）</label>
+      <div id="ftNewContent" style="background:rgb(34,34,46);border-radius:8px;min-height:140px;font-size:14px"></div>
+    </div>
+    <div class="fg" style="margin-bottom:10px">
       <label>图片（可多选，支持多张）</label>
       <div id="ftNewPreviews" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -690,7 +694,14 @@ tr:hover td{background:rgba(255,255,255,.012)}
 
   <!-- 内容列表 -->
   <div class="card">
-    <div class="ct">📋 内容列表 <span id="ftCount" style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px"></span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <div class="ct" style="margin-bottom:0">📋 内容列表 <span id="ftCount" style="font-size:11px;color:var(--mu);font-weight:400;margin-left:6px"></span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="ftOrderDirty" style="display:none;font-size:11px;color:#f4c27c">⚠ 排序未保存</span>
+        <button class="btn btn-s btn-sm" onclick="ftSaveOrder()">💾 保存排序</button>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:10px">拖动每条内容左上角“⠿”可调整顺序</div>
     <div id="ftList" style="display:flex;flex-direction:column;gap:12px;margin-top:4px"></div>
   </div>
 </div>
@@ -804,7 +815,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
           <span id="scDzIcon">📁</span>
           <span id="scDzText" style="margin-left:6px">点击选择图片或视频</span>
         </div>
-        <input type="file" id="scFile" accept="image/*,video/*" style="display:none" onchange="scFileChange(this)">
+        <input type="file" id="scFile" accept="image/*,video/*,.glb,.gltf,model/*" style="display:none" onchange="scFileChange(this)">
         <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scDzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('scDzText').textContent=fn;document.getElementById('scFile')._mpFile=fn;})">🗂 从媒体库选</button>
         <button class="btn btn-s btn-sm" style="margin-top:4px" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('scDzIcon').textContent=type==='video'?'🎬':'🖼️';document.getElementById('scDzText').textContent=fn;document.getElementById('scFile')._mpFile=fn;})">🔗 从URL载入</button>
       </div>
@@ -865,7 +876,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div class="fg">
         <label>主文件</label>
         <div id="scEditFileThumb" style="display:none;margin-bottom:6px;border-radius:7px;overflow:hidden;border:1px solid var(--bd)"></div>
-        <input class="inp" type="file" id="scEditFile" accept="image/*,video/*" style="padding:5px;margin-bottom:5px">
+        <input class="inp" type="file" id="scEditFile" accept="image/*,video/*,.glb,.gltf,model/*" style="padding:5px;margin-bottom:5px">
         <button class="btn btn-s btn-xs" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;showScEditThumb('scEditFileThumb',url,type);},'')" style="width:100%">🗂 从媒体库选</button>
         <button class="btn btn-s btn-xs" onclick="openUrlLoader((fn,url,type)=>{document.getElementById('scEditFile')._mpFile=fn;document.getElementById('scEditFilename').textContent=fn;showScEditThumb('scEditFileThumb',url,type);},'')" style="width:100%">🔗 从URL载入</button>
         <div id="scEditFilename" style="font-size:10px;color:var(--ac);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
@@ -904,7 +915,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
     </select>
     <span id="mediaCount" style="font-size:12px;color:var(--mu);margin-left:auto"></span>
     <button class="btn btn-p btn-sm" onclick="document.getElementById('mediaDirectUpload').click()" style="white-space:nowrap">⬆️ 上传文件</button>
-    <input type="file" id="mediaDirectUpload" accept="image/*,video/*" multiple style="display:none" onchange="mediaDirectUploadFiles(this)">
+    <input type="file" id="mediaDirectUpload" accept="image/*,video/*,.glb,.gltf,model/*" multiple style="display:none" onchange="mediaDirectUploadFiles(this)">
     <button class="btn btn-d btn-sm" onclick="mediaCleanup()" title="删除所有未被任何内容引用的文件" style="white-space:nowrap">🧹 清理垃圾</button>
   </div>
   <!-- 上传进度条 -->
@@ -938,7 +949,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="div"></div>
     <div style="font-size:12px;font-weight:600;color:var(--tx);margin-bottom:8px">🔄 替换文件</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-      <input class="inp" type="file" id="mediaReplaceInp" accept="image/*,video/*" style="padding:5px;flex:1">
+      <input class="inp" type="file" id="mediaReplaceInp" accept="image/*,video/*,.glb,.gltf,model/*" style="padding:5px;flex:1">
       <button class="btn btn-s btn-sm" onclick="doMediaReplace()">上传替换</button>
     </div>
     <div class="mact">
@@ -1140,11 +1151,19 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card"><div class="ct">📊 技能条 <button class="btn btn-s btn-xs" onclick="addSkill()" style="margin-left:auto">+ 添加</button></div>
     <p style="font-size:11px;color:var(--mu);margin-bottom:10px">点击左侧图标区域可上传图标图片，值为 0~100</p>
     <div class="about-skill-list" id="skillList"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <button class="btn btn-s btn-sm" onclick="saveAboutOrderOnly('skills')">保存技能排序</button>
+      <span id="skillOrderDirty" style="display:none;font-size:11px;color:#f4c27c">⚠ 技能排序未保存</span>
+    </div>
   </div>
 
   <div class="card"><div class="ct">🔗 社交链接 <button class="btn btn-s btn-xs" onclick="addSocial()" style="margin-left:auto">+ 添加</button></div>
-    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">点击左侧图标区域可上传图标图片</p>
+    <p style="font-size:11px;color:var(--mu);margin-bottom:10px">支持图标 + 悬停浮图（本地上传 / 媒体库 / URL 外链），可设置浮图宽高</p>
     <div class="link-list" id="socialLinkList"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+      <button class="btn btn-s btn-sm" onclick="saveAboutOrderOnly('socials')">保存社交排序</button>
+      <span id="socialOrderDirty" style="display:none;font-size:11px;color:#f4c27c">⚠ 社交排序未保存</span>
+    </div>
   </div>
 
   <button class="btn btn-p" onclick="saveAbout()" style="margin-top:4px">保存关于我页面</button>
@@ -1195,7 +1214,14 @@ tr:hover td{background:rgba(255,255,255,.012)}
   </div>
   <div class="tw">
     <div class="th"><h3>访问日志</h3>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select class="inp" id="visPathFilter" style="max-width:190px;margin:0" onchange="loadVisitors()">
+          <option value="">全部页面</option>
+          <option value="/">首页</option>
+          <option value="/about">关于我</option>
+          <option value="/messages">留言</option>
+          <option value="/muyu">木鱼</option>
+        </select>
         <button class="btn btn-s btn-sm" onclick="loadVisitors()" title="刷新（IP地区异步查询，稍后刷新可看到）">🔄 刷新</button>
         <button class="btn btn-d btn-sm" onclick="clearVisitors()">清空记录</button>
       </div>
@@ -1267,7 +1293,6 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="fg" style="margin-bottom:16px"><label>横幅副标题</label>
       <input class="inp" id="mpSubtitle" placeholder="留下你的足迹，与我分享你的想法">
     </div>
-    <button class="btn btn-p" onclick="saveMsgPage()">保存留言板外观</button>
   </div>
 
   <div class="card"><div class="ct">👤 默认头像（访客未上传时显示）</div>
@@ -1328,6 +1353,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
         <div style="font-size:10px;color:var(--mu);margin-top:4px">0 = 不限制次数 · 计数重启后清零</div>
       </div>
     </div>
+  </div>
+
+  <div style="padding:8px 0 4px">
+    <button class="btn btn-p" onclick="saveMsgPage()">保存留言板外观</button>
   </div>
 </div>
 
@@ -1419,7 +1448,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
     <div class="replace-row">
       <div id="editFilePrev"></div>
       <div style="flex:1">
-        <input class="inp" type="file" id="editFileInp" accept="image/*,video/*" style="padding:5px;margin-bottom:5px" onchange="prevEditFile(this)">
+        <input class="inp" type="file" id="editFileInp" accept="image/*,video/*,.glb,.gltf,model/*" style="padding:5px;margin-bottom:5px" onchange="prevEditFile(this)">
         <div style="display:flex;gap:7px;margin-top:2px">
           <button class="btn btn-s btn-sm" onclick="replaceFile()">上传替换</button>
           <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url,type)=>{document.getElementById('editFileInp')._mpFile=fn;document.getElementById('editFileInp')._mpUrl=url;prevEditFileMp(fn,url,type);})">🗂 从媒体库选</button>
@@ -1544,7 +1573,7 @@ function ftImgDragEnd(e) {
 async function ftImgDrop(e, itemId, toIdx) {
   e.preventDefault();
   e.currentTarget.style.borderColor = '';
-  if (_ftDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
+  if (_ftImgDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
   const item = _ftItems.find(i => i.id === itemId);
   if (!item) return;
   // 重新排列
@@ -2405,7 +2434,7 @@ async function clearSoundCode() {
   await saveSoundCode();
 }
 
-let allItems=[], categories=[], siteData={}, visPage=1;
+let allItems=[], categories=[], siteData={}, visPage=1, visPathFilter='';
 
 async function init(){
   const [ir,cr,mr,sr]=await Promise.all([
@@ -2608,7 +2637,7 @@ function loadManage(){
         <button class="btn btn-s btn-xs" id="cat-save-${i.id}" onclick="saveRowCats('${i.id}')" style="display:none;margin-left:2px">保存</button>
       </div>
     </td>
-    <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图':'视'}</span></td>
+    <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图':(i.type==='model'?'3D':'视')}</span></td>
     <td>
       <div style="display:flex;align-items:center;gap:4px">
         <span style="color:var(--ac);font-size:13px" id="lc-${i.id}">❤️ ${i.likes||0}</span>
@@ -3305,6 +3334,8 @@ async function saveNav(){const logo=document.getElementById('navLogo').value;sit
 // ABOUT
 function loadAbout(){
   const ab=siteData.about||{};
+  setAboutOrderDirty('skills', false);
+  setAboutOrderDirty('socials', false);
   document.getElementById('aboutName').value=ab.name||'';
   document.getElementById('aboutTagline').value=ab.tagline||'';
   document.getElementById('aboutEmoji').value=ab.emoji||'🎨';
@@ -3546,7 +3577,14 @@ function iconThumbHtml(icon, type, idx){
 }
 function renderSkills(skills){
   document.getElementById('skillList').innerHTML=skills.map((s,i)=>`
-    <div class="skill-row">
+    <div class="skill-row" draggable="true"
+      ondragstart="aboutSkillDragStart(event,${i})"
+      ondragover="aboutSkillDragOver(event)"
+      ondragleave="aboutSkillDragLeave(event)"
+      ondrop="aboutSkillDrop(event,${i})"
+      ondragend="aboutSkillDragEnd()"
+      style="grid-template-columns:18px 36px 1fr 80px auto">
+      <span class="drag-handle" title="拖动排序">⠿</span>
       ${iconThumbHtml(s.icon||'','skill',i)}
       <input placeholder="技能名称" value="${esc(s.label||'')}" oninput="siteData.about.skills[${i}].label=this.value">
       <input type="number" min="0" max="100" value="${s.value||0}" oninput="siteData.about.skills[${i}].value=parseInt(this.value)||0">
@@ -3556,16 +3594,138 @@ function renderSkills(skills){
 function addSkill(){if(!siteData.about)siteData.about={};if(!siteData.about.skills)siteData.about.skills=[];siteData.about.skills.push({label:'新技能',icon:'',value:80});renderSkills(siteData.about.skills);}
 function removeSkill(i){siteData.about.skills.splice(i,1);renderSkills(siteData.about.skills);}
 function renderSocialLinks(links){
-  document.getElementById('socialLinkList').innerHTML=links.map((l,i)=>`
-    <div class="social-row">
+  document.getElementById('socialLinkList').innerHTML=links.map((l,i)=>{
+    const hover = l.hover_image || '';
+    const hoverSrc = hover ? fileSrc(hover) : '';
+    const hoverW = Math.max(80, Math.min(800, parseInt(l.hover_w)||220));
+    const hoverH = Math.max(60, Math.min(800, parseInt(l.hover_h)||140));
+    return `
+    <div class="social-row" draggable="true"
+      ondragstart="aboutSocialDragStart(event,${i})"
+      ondragover="aboutSocialDragOver(event)"
+      ondragleave="aboutSocialDragLeave(event)"
+      ondrop="aboutSocialDrop(event,${i})"
+      ondragend="aboutSocialDragEnd()"
+      style="grid-template-columns:18px 36px 1fr 1fr 80px 80px auto;align-items:start">
+      <span class="drag-handle" title="拖动排序">⠿</span>
       ${iconThumbHtml(l.icon||'','social',i)}
       <input placeholder="显示文字" value="${esc(l.label||'')}" oninput="siteData.about.socials[${i}].label=this.value">
       <input placeholder="链接地址" value="${esc(l.href||'')}" oninput="siteData.about.socials[${i}].href=this.value">
+      <input type="number" min="80" max="800" placeholder="宽" value="${hoverW}" oninput="siteData.about.socials[${i}].hover_w=Math.max(80,Math.min(800,parseInt(this.value)||220))">
+      <input type="number" min="60" max="800" placeholder="高" value="${hoverH}" oninput="siteData.about.socials[${i}].hover_h=Math.max(60,Math.min(800,parseInt(this.value)||140))">
       <button class="btn btn-d btn-xs" onclick="removeSocial(${i})">×</button>
-    </div>`).join('');
+      <div style="grid-column:3 / span 5;display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:6px">
+        <div style="width:56px;height:44px;border:1px solid var(--bd);border-radius:6px;overflow:hidden;background:var(--s3);display:flex;align-items:center;justify-content:center;color:var(--mu)">
+          ${hoverSrc ? `<img src="${hoverSrc}" style="width:100%;height:100%;object-fit:cover">` : '🖼️'}
+        </div>
+        <input type="file" id="socialHoverInp-${i}" accept="image/*" style="display:none" onchange="uploadSocialHoverImage(${i},this)">
+        <button class="btn btn-s btn-xs" onclick="document.getElementById('socialHoverInp-${i}').click()">📎 本地上传</button>
+        <button class="btn btn-s btn-xs" onclick="pickSocialHoverFromMedia(${i})">🗂 媒体库</button>
+        <button class="btn btn-s btn-xs" onclick="pickSocialHoverFromUrl(${i})">🔗 URL 外链</button>
+        ${hover ? `<button class="btn btn-d btn-xs" onclick="clearSocialHoverImage(${i})">清除</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
-function addSocial(){if(!siteData.about)siteData.about={};if(!siteData.about.socials)siteData.about.socials=[];siteData.about.socials.push({label:'新链接',icon:'',href:'#'});renderSocialLinks(siteData.about.socials);}
+function addSocial(){if(!siteData.about)siteData.about={};if(!siteData.about.socials)siteData.about.socials=[];siteData.about.socials.push({label:'新链接',icon:'',href:'#',hover_image:'',hover_w:220,hover_h:140});renderSocialLinks(siteData.about.socials);}
 function removeSocial(i){siteData.about.socials.splice(i,1);renderSocialLinks(siteData.about.socials);}
+
+let _aboutSkillDragIdx=-1;
+function setAboutOrderDirty(type, dirty){
+  const id = type==='skills' ? 'skillOrderDirty' : 'socialOrderDirty';
+  const el = document.getElementById(id);
+  if (el) el.style.display = dirty ? '' : 'none';
+}
+
+function aboutSkillDragStart(e, idx){ _aboutSkillDragIdx=idx; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function aboutSkillDragOver(e){ e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function aboutSkillDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function aboutSkillDrop(e, toIdx){
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if(_aboutSkillDragIdx<0 || _aboutSkillDragIdx===toIdx) return;
+  const arr=siteData.about.skills||[];
+  const [moved]=arr.splice(_aboutSkillDragIdx,1);
+  arr.splice(toIdx,0,moved);
+  renderSkills(arr);
+  setAboutOrderDirty('skills', true);
+}
+function aboutSkillDragEnd(){
+  document.querySelectorAll('#skillList .skill-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+  _aboutSkillDragIdx=-1;
+}
+
+let _aboutSocialDragIdx=-1;
+function aboutSocialDragStart(e, idx){ _aboutSocialDragIdx=idx; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function aboutSocialDragOver(e){ e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function aboutSocialDragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function aboutSocialDrop(e, toIdx){
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  if(_aboutSocialDragIdx<0 || _aboutSocialDragIdx===toIdx) return;
+  const arr=siteData.about.socials||[];
+  const [moved]=arr.splice(_aboutSocialDragIdx,1);
+  arr.splice(toIdx,0,moved);
+  renderSocialLinks(arr);
+  setAboutOrderDirty('socials', true);
+}
+function aboutSocialDragEnd(){
+  document.querySelectorAll('#socialLinkList .social-row').forEach(r=>r.classList.remove('dragging','drag-over'));
+  _aboutSocialDragIdx=-1;
+}
+
+async function saveAboutOrderOnly(type){
+  if(!siteData.about) siteData.about = {};
+  const body = {};
+  if(type==='skills') body.skills = siteData.about.skills || [];
+  if(type==='socials') body.socials = siteData.about.socials || [];
+  const res = await fetch('/admin/site/about', {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({...siteData.about, ...body})
+  });
+  if(res.ok){
+    setAboutOrderDirty(type, false);
+    toast(type==='skills' ? '技能排序已保存' : '社交排序已保存');
+  } else toast('保存失败','err');
+}
+
+async function uploadSocialHoverImage(i, inp){
+  if(!inp.files || !inp.files[0]) return;
+  const fd = new FormData();
+  fd.append('file', inp.files[0]);
+  const res = await fetch('/admin/site/about/upload-image', {method:'POST', body:fd});
+  const d = await res.json();
+  if(d.success){
+    if(siteData.about && siteData.about.socials && siteData.about.socials[i]){
+      siteData.about.socials[i].hover_image = d.filename;
+      renderSocialLinks(siteData.about.socials);
+      toast('悬停图片已上传');
+    }
+  } else toast(d.error || '上传失败', 'err');
+  inp.value = '';
+}
+function pickSocialHoverFromMedia(i){
+  openMediaPicker((fn,url)=>{
+    if(siteData.about && siteData.about.socials && siteData.about.socials[i]){
+      siteData.about.socials[i].hover_image = fn;
+      renderSocialLinks(siteData.about.socials);
+      toast('已选择悬停图片');
+    }
+  }, 'image');
+}
+function pickSocialHoverFromUrl(i){
+  openUrlLoader((fn,url)=>{
+    if(siteData.about && siteData.about.socials && siteData.about.socials[i]){
+      siteData.about.socials[i].hover_image = url;
+      renderSocialLinks(siteData.about.socials);
+      toast('已设置外链悬停图片');
+    }
+  }, 'image');
+}
+function clearSocialHoverImage(i){
+  if(siteData.about && siteData.about.socials && siteData.about.socials[i]){
+    siteData.about.socials[i].hover_image = '';
+    renderSocialLinks(siteData.about.socials);
+  }
+}
 
 // Icon upload for skills/socials — shared hidden file input
 let _iconType='', _iconIdx=0;
@@ -3623,14 +3783,93 @@ async function saveAbout(){
   siteData.about.paragraphs=paras;
   siteData.about.heroHeight=Math.min(800,Math.max(200,parseInt(document.getElementById('aboutHeroHeight').value)||420));
   const res=await fetch('/admin/site/about',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.about)});
-  if(res.ok)toast('关于我页面已保存');else toast('保存失败','err');
+  if(res.ok){
+    setAboutOrderDirty('skills', false);
+    setAboutOrderDirty('socials', false);
+    toast('关于我页面已保存');
+  }else toast('保存失败','err');
 }
 
 // FOOTER
-function loadFooter(){const ft=siteData.footer||{};document.getElementById('ftLogo').value=ft.brand?.logo||'';if(!document.getElementById('ftDesc')._quillInstance)createQuillEditor('ftDesc','页脚描述文字...');
-document.getElementById('ftDesc')._quillInstance.root.innerHTML=ft.brand?.desc||'';document.getElementById('ftCopy').value=ft.copyright||'';renderFtCols(ft.columns||[]);}
-function renderFtCols(cols){document.getElementById('ftColList').innerHTML=cols.map((col,ci)=>`<div class="col-item"><div class="cih"><input class="inp" value="${esc(col.title||'')}" placeholder="栏目标题" style="flex:1;margin-right:7px" oninput="siteData.footer.columns[${ci}].title=this.value"><button class="btn btn-s btn-xs" onclick="addFtLink(${ci})">+ 链接</button><button class="btn btn-d btn-xs" onclick="removeFtCol(${ci})" style="margin-left:4px">删除</button></div><div class="col-links">${(col.links||[]).map((l,li)=>`<div class="clr"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].href=this.value"><button onclick="removeFtLink(${ci},${li})" style="width:24px;height:24px;padding:0;border-radius:5px;border:1px solid rgba(220,80,80,.4);background:rgba(220,80,80,.12);color:#e05c5c;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button></div>`).join('')}</div></div>`).join('');}
-function addFtCol(){if(!siteData.footer)siteData.footer={columns:[]};siteData.footer.columns.push({title:'新栏目',links:[]});renderFtCols(siteData.footer.columns);}
+function loadFooter(){
+  const ft=siteData.footer||{};
+  document.getElementById('ftLogo').value=ft.brand?.logo||'';
+  if(!document.getElementById('ftDesc')._quillInstance) createQuillEditor('ftDesc','页脚描述文字...');
+  document.getElementById('ftDesc')._quillInstance.root.innerHTML=ft.brand?.desc||'';
+  document.getElementById('ftCopy').value=ft.copyright||'';
+  renderFtCols(ft.columns||[]);
+}
+
+function renderFtCols(cols){
+  document.getElementById('ftColList').innerHTML=cols.map((col,ci)=>{
+    const img = col.image || '';
+    const imgSrc = img ? fileSrc(img) : '';
+    return `<div class="col-item">
+      <div class="cih">
+        <input class="inp" value="${esc(col.title||'')}" placeholder="栏目标题" style="flex:1;margin-right:7px" oninput="siteData.footer.columns[${ci}].title=this.value">
+        <button class="btn btn-s btn-xs" onclick="addFtLink(${ci})">+ 链接</button>
+        <button class="btn btn-d btn-xs" onclick="removeFtCol(${ci})" style="margin-left:4px">删除</button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;margin:8px 0 10px;flex-wrap:wrap">
+        <div id="ftColImgPrev-${ci}" style="width:56px;height:56px;border-radius:8px;border:1px solid var(--bd);background:var(--s3);overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--mu);font-size:18px;flex-shrink:0">
+          ${imgSrc ? `<img src="${imgSrc}" style="width:100%;height:100%;object-fit:cover">` : '🖼️'}
+        </div>
+        <input type="file" id="ftColImgInp-${ci}" accept="image/*" style="display:none" onchange="uploadFtColImage(${ci},this)">
+        <button class="btn btn-s btn-xs" onclick="document.getElementById('ftColImgInp-${ci}').click()">📎 本地上传</button>
+        <button class="btn btn-s btn-xs" onclick="pickFtColImageFromMedia(${ci})">🗂 媒体库</button>
+        <button class="btn btn-s btn-xs" onclick="pickFtColImageFromUrl(${ci})">🔗 URL 外链</button>
+        ${img ? `<button class="btn btn-d btn-xs" onclick="clearFtColImage(${ci})">清除</button>` : ''}
+      </div>
+
+      <div class="col-links">${(col.links||[]).map((l,li)=>`<div class="clr"><input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].label=this.value"><input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.footer.columns[${ci}].links[${li}].href=this.value"><button onclick="removeFtLink(${ci},${li})" style="width:24px;height:24px;padding:0;border-radius:5px;border:1px solid rgba(220,80,80,.4);background:rgba(220,80,80,.12);color:#e05c5c;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button></div>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function uploadFtColImage(ci, inp){
+  if(!inp.files || !inp.files[0]) return;
+  const fd=new FormData();
+  fd.append('file', inp.files[0]);
+  const res=await fetch('/admin/site/footer/upload-image',{method:'POST',body:fd});
+  const d=await res.json();
+  if(d.success){
+    if(!siteData.footer) siteData.footer={columns:[]};
+    if(!siteData.footer.columns[ci]) return;
+    siteData.footer.columns[ci].image = d.filename;
+    renderFtCols(siteData.footer.columns);
+    toast('栏目图片已上传');
+  }else toast(d.error||'上传失败','err');
+  inp.value='';
+}
+
+function pickFtColImageFromMedia(ci){
+  openMediaPicker((fn,url)=>{
+    if(!siteData.footer) siteData.footer={columns:[]};
+    if(!siteData.footer.columns[ci]) return;
+    siteData.footer.columns[ci].image = fn;
+    renderFtCols(siteData.footer.columns);
+    toast('已选择栏目图片');
+  }, 'image');
+}
+
+function pickFtColImageFromUrl(ci){
+  openUrlLoader((fn,url)=>{
+    if(!siteData.footer) siteData.footer={columns:[]};
+    if(!siteData.footer.columns[ci]) return;
+    siteData.footer.columns[ci].image = url;
+    renderFtCols(siteData.footer.columns);
+    toast('已设置栏目图片外链');
+  }, 'image');
+}
+
+function clearFtColImage(ci){
+  if(!siteData.footer || !siteData.footer.columns || !siteData.footer.columns[ci]) return;
+  siteData.footer.columns[ci].image = '';
+  renderFtCols(siteData.footer.columns);
+}
+
+function addFtCol(){if(!siteData.footer)siteData.footer={columns:[]};siteData.footer.columns.push({title:'新栏目',image:'',links:[]});renderFtCols(siteData.footer.columns);}
 function removeFtCol(ci){siteData.footer.columns.splice(ci,1);renderFtCols(siteData.footer.columns);}
 function addFtLink(ci){siteData.footer.columns[ci].links.push({label:'链接',href:'#'});renderFtCols(siteData.footer.columns);}
 function removeFtLink(ci,li){siteData.footer.columns[ci].links.splice(li,1);renderFtCols(siteData.footer.columns);}
@@ -3639,7 +3878,9 @@ async function saveFooter(){const logo=document.getElementById('ftLogo').value,d
 // VISITORS
 async function loadVisitors(){
   visPage=1;
-  const d=await fetch('/admin/visitors?page=1').then(r=>r.json());
+  visPathFilter = (document.getElementById('visPathFilter')?.value || '').trim();
+  const q = visPathFilter ? `&path=${encodeURIComponent(visPathFilter)}` : '';
+  const d=await fetch('/admin/visitors?page=1'+q).then(r=>r.json());
   const today=new Date().toISOString().slice(0,10);
   const todayCount=d.visitors.filter(v=>v.time&&v.time.startsWith(today)).length;
   // Count across all (already fetched first page)
@@ -3675,7 +3916,8 @@ function renderVisitorTable(visitors){
 }
 async function loadMoreVisitors(){
   visPage++;
-  const d=await fetch(`/admin/visitors?page=${visPage}`).then(r=>r.json());
+  const q = visPathFilter ? `&path=${encodeURIComponent(visPathFilter)}` : '';
+  const d=await fetch(`/admin/visitors?page=${visPage}${q}`).then(r=>r.json());
   const tbody=document.getElementById('visTb');
   d.visitors.forEach(v=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td><td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(v.region)}</span>`:''}</td><td style="font-size:11px">${esc(v.path||'')}</td><td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td><td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;tbody.appendChild(tr);});
   if(!d.has_more)document.getElementById('visLoadMore').style.display='none';
@@ -4743,11 +4985,15 @@ init();
 // 详情精选管理
 // ════════════════════════════════════════
 let _ftItems = [], _ftNewImgs = [];
+let _ftItemDragId = '';
+let _ftOrderDirty = false;
 
 async function loadFeaturedAdmin() {
   const d = await fetch('/admin/featured').then(r => r.json()).catch(() => ({items:[],config:{}}));
   _ftItems = d.items || [];
   const cfg = d.config || {};
+  setFtOrderDirty(false);
+  if(!document.getElementById('ftNewContent')._quillInstance) createQuillEditor('ftNewContent','输入详情正文...');
   // 填入设置
   document.getElementById('ftEnabled').checked = !!cfg.enabled;
   ftSyncToggle();
@@ -4760,6 +5006,12 @@ async function loadFeaturedAdmin() {
 function ftSyncToggle() {
   const on = document.getElementById('ftEnabled').checked;
   document.getElementById('ftToggleTrack').style.background = on ? 'var(--ac)' : 'var(--bd)';
+}
+
+function setFtOrderDirty(v){
+  _ftOrderDirty = !!v;
+  const el = document.getElementById('ftOrderDirty');
+  if(el) el.style.display = _ftOrderDirty ? '' : 'none';
 }
 
 function ftCfgChanged() { ftSyncToggle(); }
@@ -4903,6 +5155,7 @@ async function ftSubmitNew() {
   if (!_ftNewImgs.length) { toast('请至少添加一张图片', 'err'); return; }
   const fd = new FormData();
   fd.append('title', document.getElementById('ftNewTitle').value.trim());
+  fd.append('content', document.getElementById('ftNewContent')._quillInstance ? document.getElementById('ftNewContent')._quillInstance.root.innerHTML : '');
   if (_ftNewCover) fd.append('cover', _ftNewCover);
   _ftNewImgs.forEach(img => {
     if (img.type === 'file') fd.append('images', img.file);
@@ -4915,6 +5168,7 @@ async function ftSubmitNew() {
     _ftNewImgs = [];
     _ftNewCover = '';
     document.getElementById('ftNewTitle').value = '';
+    if(document.getElementById('ftNewContent')._quillInstance) document.getElementById('ftNewContent')._quillInstance.root.innerHTML = '';
     document.getElementById('ftNewPreviews').innerHTML = '';
     const cp = document.getElementById('ftNewCoverPrev');
     if(cp) cp.innerHTML = '🖼';
@@ -4946,34 +5200,55 @@ function renderFtList() {
           style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.85);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
       </div>`
     ).join('');
-    return `<div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px">
-      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
-        <div style="flex:1">
-          <input class="inp" value="${esc(item.title||'')}" placeholder="标题"
-            onblur="ftSaveTitle('${item.id}',this.value)"
+    return `<div class="ft-item-row" draggable="true"
+      ondragstart="ftItemDragStart(event,'${item.id}')"
+      ondragover="ftItemDragOver(event)"
+      ondragleave="ftItemDragLeave(event)"
+      ondrop="ftItemDrop(event,'${item.id}')"
+      ondragend="ftItemDragEnd()"
+      style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;display:grid;grid-template-columns:minmax(360px,1.3fr) minmax(260px,1fr);gap:12px;align-items:start">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="drag-handle" title="拖动排序" style="cursor:grab;font-size:16px;color:var(--mu)">⠿</span>
+          <input class="inp" id="ftItemTitle-${item.id}" value="${esc(item.title||'')}" placeholder="标题"
             onkeydown="if(event.key==='Enter')this.blur()"
-            style="margin-bottom:0;font-size:13px">
+            style="margin-bottom:0;font-size:13px;flex:1">
+          <button class="btn btn-d btn-sm" onclick="ftDeleteItem('${item.id}')">删除</button>
         </div>
-        <button class="btn btn-d btn-sm" onclick="ftDeleteItem('${item.id}')">删除</button>
-      </div>
-      <div style="font-size:11px;color:var(--mu);margin-bottom:8px">${imgs.length} 张图片</div>
-      <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">${thumbsHtml}</div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:var(--s3);border-radius:7px">
-        <span style="font-size:11px;color:var(--mu);flex-shrink:0">封面缩图：</span>
-        <div id="ftCoverPrev-${item.id}" style="width:60px;height:46px;border-radius:5px;overflow:hidden;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
-          ${item.cover ? `<img src="${fileSrc(item.cover)}" style="width:100%;height:100%;object-fit:cover">` : '🖼'}
+        <div id="ftItemContent-${item.id}" style="background:rgb(34,34,46);border-radius:8px;min-height:120px;font-size:13px"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:6px;gap:6px">
+          <button class="btn btn-s btn-xs" onclick="ftSaveContentEditor('${item.id}')">保存文本内容</button>
+          <button class="btn btn-p btn-xs" onclick="ftSaveItem('${item.id}')">保存修改</button>
         </div>
-        <button class="btn btn-s btn-sm" onclick="ftSetCover('${item.id}')">选择</button>
-        ${item.cover ? `<button class="btn btn-s btn-sm" onclick="ftClearCover('${item.id}')">清除</button>` : ''}
       </div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <input type="file" id="ftAddImg-${item.id}" accept="image/*" multiple style="display:none" onchange="ftUploadMoreImgs('${item.id}',this)">
-        <button class="btn btn-s btn-sm" onclick="document.getElementById('ftAddImg-${item.id}').click()">📎 上传图片</button>
-        <button class="btn btn-s btn-sm" onclick="ftPickMediaForItem('${item.id}')">🗂 媒体库</button>
-        <button class="btn btn-s btn-sm" onclick="ftPickUrlForItem('${item.id}')">🔗 URL</button>
+      <div>
+        <div style="font-size:11px;color:var(--mu);margin-bottom:8px">${imgs.length} 张图片（可拖动缩略图排序）</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">${thumbsHtml}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:var(--s3);border-radius:7px">
+          <span style="font-size:11px;color:var(--mu);flex-shrink:0">封面缩图：</span>
+          <div id="ftCoverPrev-${item.id}" style="width:60px;height:46px;border-radius:5px;overflow:hidden;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
+            ${item.cover ? `<img src="${fileSrc(item.cover)}" style="width:100%;height:100%;object-fit:cover">` : '🖼'}
+          </div>
+          <button class="btn btn-s btn-sm" onclick="ftSetCover('${item.id}')">选择</button>
+          ${item.cover ? `<button class="btn btn-s btn-sm" onclick="ftClearCover('${item.id}')">清除</button>` : ''}
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <input type="file" id="ftAddImg-${item.id}" accept="image/*" multiple style="display:none" onchange="ftUploadMoreImgs('${item.id}',this)">
+          <button class="btn btn-s btn-sm" onclick="document.getElementById('ftAddImg-${item.id}').click()">📎 上传图片</button>
+          <button class="btn btn-s btn-sm" onclick="ftPickMediaForItem('${item.id}')">🗂 媒体库</button>
+          <button class="btn btn-s btn-sm" onclick="ftPickUrlForItem('${item.id}')">🔗 URL</button>
+        </div>
       </div>
     </div>`;
   }).join('');
+
+  _ftItems.forEach(item => {
+    const id = `ftItemContent-${item.id}`;
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!el._quillInstance) createQuillEditor(id, '输入文本内容...');
+    el._quillInstance.root.innerHTML = item.content || '';
+  });
 }
 
 async function ftSetCover(itemId) {
@@ -5014,11 +5289,89 @@ async function ftSaveTitle(id, title) {
   toast('已保存');
 }
 
+async function ftSaveContent(id, content) {
+  const item = _ftItems.find(i => i.id === id);
+  if (!item || (item.content||'') === content) return;
+  item.content = content;
+  await fetch(`/admin/featured/${id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({content})
+  });
+  toast('内容已保存');
+}
+
+async function ftSaveContentEditor(id) {
+  const el = document.getElementById(`ftItemContent-${id}`);
+  if (!el || !el._quillInstance) return;
+  const content = el._quillInstance.root.innerHTML;
+  await ftSaveContent(id, content);
+}
+
+async function ftSaveItem(id) {
+  const item = _ftItems.find(i => i.id === id);
+  if (!item) return;
+  const titleEl = document.getElementById(`ftItemTitle-${id}`);
+  const contentEl = document.getElementById(`ftItemContent-${id}`);
+  const title = titleEl ? titleEl.value : (item.title || '');
+  const content = (contentEl && contentEl._quillInstance) ? contentEl._quillInstance.root.innerHTML : (item.content || '');
+  const res = await fetch(`/admin/featured/${id}`, {
+    method: 'PUT', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({title, content})
+  });
+  if (res.ok) {
+    item.title = title;
+    item.content = content;
+    toast('已保存修改');
+  } else {
+    toast('保存失败', 'err');
+  }
+}
+
+function ftItemDragStart(e, id){
+  _ftItemDragId = id;
+  e.currentTarget.style.opacity = '.45';
+  e.dataTransfer.effectAllowed = 'move';
+}
+function ftItemDragOver(e){
+  e.preventDefault();
+  e.currentTarget.style.outline = '2px solid var(--ac)';
+}
+function ftItemDragLeave(e){
+  e.currentTarget.style.outline = '';
+}
+function ftItemDrop(e, toId){
+  e.preventDefault();
+  e.currentTarget.style.outline = '';
+  if(!_ftItemDragId || _ftItemDragId===toId) return;
+  const fi = _ftItems.findIndex(i=>i.id===_ftItemDragId);
+  const ti = _ftItems.findIndex(i=>i.id===toId);
+  if(fi<0 || ti<0) return;
+  const [moved] = _ftItems.splice(fi,1);
+  _ftItems.splice(ti,0,moved);
+  setFtOrderDirty(true);
+  renderFtList();
+}
+function ftItemDragEnd(){
+  document.querySelectorAll('#ftList .ft-item-row').forEach(el=>{el.style.opacity='';el.style.outline='';});
+  _ftItemDragId = '';
+}
+async function ftSaveOrder(){
+  const ids = _ftItems.map(i=>i.id);
+  const res = await fetch('/admin/featured/reorder', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})
+  });
+  if(res.ok){
+    setFtOrderDirty(false);
+    toast('排序已保存');
+  }else toast('排序保存失败','err');
+}
+
 async function ftDeleteItem(id) {
   if (!confirm('确认删除此内容？')) return;
   const res = await fetch(`/admin/featured/${id}`, {method: 'DELETE'});
   if (res.ok) {
     _ftItems = _ftItems.filter(i => i.id !== id);
+    setFtOrderDirty(true);
     renderFtList();
     toast('已删除');
   }
@@ -5136,10 +5489,10 @@ function addEmojiFromUrl() {
 // ════════════════════════════════════════
 // 详情精选图片拖拽排序
 // ════════════════════════════════════════
-let _ftDragItemId = null, _ftDragFromIdx = null;
+let _ftImgDragItemId = null, _ftDragFromIdx = null;
 
 function ftImgDragStart(e, itemId, idx) {
-  _ftDragItemId = itemId; _ftDragFromIdx = idx;
+  _ftImgDragItemId = itemId; _ftDragFromIdx = idx;
   e.dataTransfer.effectAllowed = 'move';
   e.currentTarget.style.opacity = '0.4';
 }

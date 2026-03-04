@@ -5,6 +5,7 @@
 <title>GALLERY</title>
 <link rel="icon" id="faviconLink" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Noto+Sans+SC:wght@300;400;500&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 <style>
 /* THEMES */
 :root{--bg:#faf9f7;--s:#fff;--tx:#1a1a1a;--mu:#8a8680;--ac:#c8a97e;--bd:#e8e4df;--nav-bg:rgba(250,249,247,.93)}
@@ -142,7 +143,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
 .modal.open{opacity:1;pointer-events:all}
 .modal-inner{max-width:92vw;max-height:92vh;position:relative;border-radius:18px;overflow:hidden}
-.modal-inner img,.modal-inner video{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
+.modal-inner img,.modal-inner video,.modal-inner model-viewer{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
 .modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
 .modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
@@ -171,22 +172,22 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .fv-close:hover{background:rgba(255,255,255,.22)}
 .fv-title{color:#fff;font-size:15px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fv-counter{color:rgba(255,255,255,.5);font-size:12px;flex-shrink:0}
-.fv-body{flex:1;display:flex;position:relative;overflow:hidden}
-.fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;position:relative}
+.fv-body{flex:1;display:flex;position:relative;overflow:hidden;min-height:0}
+.fv-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+.fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;padding-right:8px}
 .fv-img-wrap::-webkit-scrollbar{width:4px}
 .fv-img-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
-.fv-img{width:100%;display:block;max-width:900px;margin:0 auto}
-.fv-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:44px;height:64px;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:24px;cursor:pointer;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s;backdrop-filter:blur(4px)}
-.fv-arrow:hover{background:rgba(255,255,255,.22)}
-.fv-arrow.prev{left:10px}
-.fv-arrow.next{right:10px}
-.fv-arrow:disabled{opacity:.2;cursor:default}
-.fv-thumbs{width:88px;flex-shrink:0;overflow-y:auto;padding:10px 8px;display:flex;flex-direction:column;gap:6px;background:rgba(0,0,0,.4)}
-.fv-thumbs::-webkit-scrollbar{width:3px}
-.fv-thumbs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15)}
-.fv-thumb{width:72px;height:56px;object-fit:cover;border-radius:5px;cursor:pointer;opacity:.5;transition:opacity .15s,outline .15s;flex-shrink:0;border:2px solid transparent}
-.fv-thumb.active{opacity:1;border-color:var(--ac,#c8a97e)}
-.fv-thumb:hover{opacity:.85}
+.fv-list{width:100%;max-width:900px;margin:0 auto}
+.fv-list img{width:100%;display:block;object-fit:cover}
+.fv-aside{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:10px;background:rgba(255,255,255,.04);border-left:1px solid rgba(255,255,255,.08)}
+.fv-aside::-webkit-scrollbar{width:4px}
+.fv-aside::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+.fv-thumb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fv-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;border:2px solid transparent;cursor:pointer;opacity:.75;transition:all .15s}
+.fv-thumb:hover{opacity:.95}
+.fv-thumb.active{border-color:var(--ac,#c8a97e);opacity:1}
+.fv-content{padding:10px 2px 16px;color:rgba(255,255,255,.88);font-size:14px;line-height:1.75;border-top:1px solid rgba(255,255,255,.08)}
+.fv-content:empty{display:none}
 
 </style>
 </head>
@@ -361,8 +362,10 @@ function renderFooter(ft){
     const links=(c.links||[]).map(l=>
       `<li><a href="${l.href}">${l.label}</a></li>`
     ).join('');
+    const img = c.image ? `<img src="${fileSrc(c.image)}" style="width:100%;max-width:150px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.14);margin-bottom:10px" onerror="this.style.display='none'">` : '';
     return `<div style="flex:1;min-width:120px">
       <p class="footer-col-title">${c.title}</p>
+      ${img}
       <ul>${links}</ul>
     </div>`;
   }).join('');
@@ -496,13 +499,16 @@ function openScModal(id) {
   const item = scMap[id]; if (!item) return;
   const src = fileSrc(item.filename);
   const isVid = item.type === 'video';
+  const isModel = item.type === 'model';
   document.getElementById('modalBody').innerHTML = isVid
     ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
-    : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+    : (isModel
+      ? `<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
+      : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   document.getElementById('modalTitle').textContent = item.title || '';
   document.getElementById('modalDesc').innerHTML = item.description || '';
   const bigBtn = document.getElementById('modalBigBtn');
-  if (bigBtn) { bigBtn.style.display = isVid ? 'none' : 'flex'; bigBtn.onclick = () => window.open(src,'_blank'); }
+  if (bigBtn) { bigBtn.style.display = (isVid || isModel) ? 'none' : 'flex'; bigBtn.onclick = () => window.open(src,'_blank'); }
   document.getElementById('modal').classList.add('open');
 }
 
@@ -758,15 +764,18 @@ function openModal(id){
   const item=itemMap[id];if(!item)return;
   const src=fileSrc(item.filename);
   const isVid=item.type==='video';
+  const isModel=item.type==='model';
   document.getElementById('modalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
-    :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+    :(isModel
+      ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
+      :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   document.getElementById('modalTitle').textContent=item.title||'';
   const _catsStr=cats.length?cats.join(' · '):'';document.getElementById('modalDesc').innerHTML=(item.description||'')+(_catsStr?`<span style="opacity:.6;margin-left:6px">${esc(_catsStr)}</span>`:'');
   // 查看大图按钮（仅图片）
   const bigBtn=document.getElementById('modalBigBtn');
-  if(bigBtn){bigBtn.style.display=isVid?'none':'flex';bigBtn.onclick=()=>window.open(src,'_blank');}
+  if(bigBtn){bigBtn.style.display=(isVid||isModel)?'none':'flex';bigBtn.onclick=()=>window.open(src,'_blank');}
   document.getElementById('modal').classList.add('open');
 }
 function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';}
@@ -779,7 +788,8 @@ init();
 // ════════════════════════════════════════
 // 详情精选
 // ════════════════════════════════════════
-let _fvImages = [], _fvIdx = 0;
+let _fvImages = [];
+let _fvContent = '';
 
 async function loadFeatured() {
   const d = await fetch('/api/featured').then(r => r.json()).catch(() => null);
@@ -834,10 +844,11 @@ async function loadFeatured() {
 
 function openFv(item) {
   _fvImages = item.images || [];
-  _fvIdx = 0;
+  _fvContent = item.content || '';
   document.getElementById('fvTitle').textContent = item.title || '';
+  document.getElementById('fvCounter').textContent = _fvImages.length ? `共 ${_fvImages.length} 张` : '';
+  renderFvList();
   renderFvThumbs();
-  fvShow(0);
   document.getElementById('fvOverlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -847,118 +858,51 @@ function closeFv() {
   document.body.style.overflow = '';
 }
 
-function fvShow(idx) {
-  _fvIdx = Math.max(0, Math.min(_fvImages.length - 1, idx));
-  const src = fileSrc(_fvImages[_fvIdx]);
-  const img = document.getElementById('fvImg');
-  img.style.display = '';
-  img.referrerPolicy = 'no-referrer';
-  img.src = src;
-  const err = document.getElementById('fvImgErr');
-  if (err) { err.style.display = 'none'; }
-  const errUrl = document.getElementById('fvImgErrUrl');
-  if (errUrl) errUrl.textContent = src;
-  document.getElementById('fvImgWrap').scrollTop = 0;
-  // 更新计数
-  document.getElementById('fvCounter').textContent =
-    _fvImages.length > 1 ? `${_fvIdx + 1} / ${_fvImages.length}` : '';
-  // 箭头状态
-  document.getElementById('fvPrev').disabled = _fvIdx === 0;
-  document.getElementById('fvNext').disabled = _fvIdx === _fvImages.length - 1;
-  // 缩略图高亮
-  document.querySelectorAll('.fv-thumb').forEach((t, i) => {
-    t.classList.toggle('active', i === _fvIdx);
-    if (i === _fvIdx) t.scrollIntoView({block: 'nearest', behavior: 'smooth'});
-  });
-  // 单张图时隐藏箭头和缩略图栏
-  const single = _fvImages.length <= 1;
-  document.getElementById('fvPrev').style.display  = single ? 'none' : '';
-  document.getElementById('fvNext').style.display  = single ? 'none' : '';
-  document.getElementById('fvThumbs').style.display = single ? 'none' : '';
+function renderFvList() {
+  const wrap = document.getElementById('fvImgWrap');
+  wrap.scrollTop = 0;
+  wrap.innerHTML = `<div class="fv-list">${_fvImages.map((fn,i) => {
+    const src = fileSrc(fn);
+    return `<img id="fv-img-${i}" src="${src}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+  }).join('')}</div>`;
+  setTimeout(updateFvActiveThumb, 60);
 }
 
-function fvMove(delta) { fvShow(_fvIdx + delta); }
+function renderFvThumbs(){
+  const aside = document.getElementById('fvAside');
+  aside.innerHTML = `<div class="fv-thumb-grid">${_fvImages.map((fn,i)=>`<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(fn)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join('')}</div><div class="fv-content" id="fvContent">${_fvContent||''}</div>`;
+}
 
-function renderFvThumbs() {
-  document.getElementById('fvThumbs').innerHTML = _fvImages.map((fn, i) =>
-    `<img class="fv-thumb" src="${fileSrc(fn)}" loading="lazy" referrerpolicy="no-referrer"
-      onclick="fvShow(${i})" onerror="this.style.display='none'">`
-  ).join('');
+function fvScrollTo(idx){
+  const el = document.getElementById('fv-img-'+idx);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+  setTimeout(()=>setFvActiveThumb(idx), 120);
+}
+
+function setFvActiveThumb(idx){
+  document.querySelectorAll('.fv-thumb').forEach((t,i)=>t.classList.toggle('active', i===idx));
+}
+
+function updateFvActiveThumb(){
+  const wrap = document.getElementById('fvImgWrap');
+  const imgs = _fvImages.map((_,i)=>document.getElementById('fv-img-'+i)).filter(Boolean);
+  if(!imgs.length) return;
+  const wrapTop = wrap.getBoundingClientRect().top;
+  let bestIdx = 0, bestDist = Infinity;
+  imgs.forEach((img,i)=>{
+    const d = Math.abs(img.getBoundingClientRect().top - wrapTop - 20);
+    if(d < bestDist){ bestDist = d; bestIdx = i; }
+  });
+  setFvActiveThumb(bestIdx);
 }
 
 // 键盘控制
 document.addEventListener('keydown', e => {
   if (!document.getElementById('fvOverlay').classList.contains('open')) return;
-  if (e.key === 'Escape')     closeFv();
-  if (e.key === 'ArrowLeft')  fvMove(-1);
-  if (e.key === 'ArrowRight') fvMove(1);
+  if (e.key === 'Escape') closeFv();
 });
-
-// 滚动到边界自动切换图片
-// 思路：监听 overlay 上的 wheel；先让 wrap 自然滚动；
-//       若 wrap 已在边界且继续同向滚动，累计 delta 超阈值后切换
-(function(){
-  const overlay = document.getElementById('fvOverlay');
-  let _acc   = 0;      // 累计 deltaY（边界处积累）
-  let _prev  = 0;      // 上一次滚动方向
-  let _busy  = false;  // 切换锁
-
-  const THRESHOLD = 120; // 需要累计多少 px 的 deltaY 才切换
-
-  overlay.addEventListener('wheel', function(e) {
-    if (_fvImages.length <= 1) return;
-    if (_busy) { e.preventDefault(); return; }
-
-    const wrap = document.getElementById('fvImgWrap');
-    const maxScroll = wrap.scrollHeight - wrap.clientHeight;
-    const atTop    = wrap.scrollTop <= 0;
-    const atBottom = wrap.scrollTop >= maxScroll - 1;
-
-    const dir = e.deltaY > 0 ? 1 : -1;
-
-    // 方向变了就重置累计
-    if (dir !== _prev) { _acc = 0; _prev = dir; }
-
-    if (dir > 0 && atBottom && _fvIdx < _fvImages.length - 1) {
-      // 底部 → 继续向下 → 累计
-      e.preventDefault();
-      _acc += Math.abs(e.deltaY);
-      if (_acc >= THRESHOLD) {
-        _acc = 0; _busy = true;
-        fvMove(1);
-        setTimeout(() => { _busy = false; }, 600);
-      }
-    } else if (dir < 0 && atTop && _fvIdx > 0) {
-      // 顶部 → 继续向上 → 累计
-      e.preventDefault();
-      _acc += Math.abs(e.deltaY);
-      if (_acc >= THRESHOLD) {
-        _acc = 0; _busy = true;
-        fvMove(-1);
-        setTimeout(() => { _busy = false; }, 600);
-      }
-    } else {
-      // 正常滚动，重置累计
-      _acc = 0;
-    }
-  }, {passive: false});
-
-  // 触摸
-  let _ty0 = 0;
-  overlay.addEventListener('touchstart', e => { _ty0 = e.touches[0].clientY; }, {passive:true});
-  overlay.addEventListener('touchend', function(e) {
-    if (_fvImages.length <= 1 || _busy) return;
-    const wrap  = document.getElementById('fvImgWrap');
-    const dy    = _ty0 - e.changedTouches[0].clientY; // 正=上划(下一张)
-    const maxSc = wrap.scrollHeight - wrap.clientHeight;
-    if (Math.abs(dy) < 60) return;
-    if (dy > 0 && wrap.scrollTop >= maxSc - 1 && _fvIdx < _fvImages.length - 1) {
-      _busy = true; fvMove(1);  setTimeout(()=>{_busy=false;},600);
-    } else if (dy < 0 && wrap.scrollTop <= 0 && _fvIdx > 0) {
-      _busy = true; fvMove(-1); setTimeout(()=>{_busy=false;},600);
-    }
-  }, {passive:true});
-})();
+document.getElementById('fvImgWrap').addEventListener('scroll', ()=>{ updateFvActiveThumb(); });
 </script>
 
 <!-- 详情精选查看器 -->
@@ -969,13 +913,10 @@ document.addEventListener('keydown', e => {
     <span class="fv-counter" id="fvCounter"></span>
   </div>
   <div class="fv-body">
-    <button class="fv-arrow prev" id="fvPrev" onclick="fvMove(-1)">&#8249;</button>
-    <div class="fv-img-wrap" id="fvImgWrap">
-      <img class="fv-img" id="fvImg" src="" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';document.getElementById('fvImgErr').style.display=''" onload="this.style.display='';document.getElementById('fvImgErr').style.display='none'">
-      <div id="fvImgErr" style="display:none;padding:60px 20px;text-align:center;color:rgba(255,255,255,.5)"><div style="font-size:40px;margin-bottom:12px">🔗</div><div style="font-size:13px">外链图片加载失败</div><div id="fvImgErrUrl" style="font-size:10px;word-break:break-all;margin-top:8px;opacity:.6"></div></div>
+    <div class="fv-main">
+      <div class="fv-img-wrap" id="fvImgWrap"></div>
     </div>
-    <button class="fv-arrow next" id="fvNext" onclick="fvMove(1)">&#8250;</button>
-    <div class="fv-thumbs" id="fvThumbs"></div>
+    <div class="fv-aside" id="fvAside"></div>
   </div>
 </div>
 

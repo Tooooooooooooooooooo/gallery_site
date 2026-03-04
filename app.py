@@ -21,7 +21,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 _BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(_BASE, 'static', 'uploads')
 THUMBS_FOLDER = os.path.join(_BASE, 'static', 'thumbs')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm', 'glb', 'gltf'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 DATA_FILE     = os.path.join(_BASE, 'data', 'content.json')
 MESSAGES_FILE = os.path.join(_BASE, 'data', 'messages.json')
@@ -78,6 +78,11 @@ def is_video(f):
     if not f or '.' not in f: return False
     ext = f.rsplit('.', 1)[1].lower().split('?')[0]
     return ext in {'mp4', 'mov', 'webm'}
+
+def is_model(f):
+    if not f or '.' not in f: return False
+    ext = f.rsplit('.', 1)[1].lower().split('?')[0]
+    return ext in {'glb', 'gltf'}
 def hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
 
 def load_json(path, default):
@@ -189,7 +194,11 @@ def get_default_site():
                 "我相信，美无处不在，关键在于是否有一双发现美的眼睛。"
             ],
             "skills": [{"label": "摄影", "icon": "", "value": 90}, {"label": "插画", "icon": "", "value": 75}, {"label": "设计", "icon": "", "value": 80}],
-            "socials": [{"label": "微博", "icon": "", "href": "#"}, {"label": "Instagram", "icon": "", "href": "#"}, {"label": "小红书", "icon": "", "href": "#"}]
+            "socials": [
+                {"label": "微博", "icon": "", "href": "#", "hover_image": "", "hover_w": 220, "hover_h": 140},
+                {"label": "Instagram", "icon": "", "href": "#", "hover_image": "", "hover_w": 220, "hover_h": 140},
+                {"label": "小红书", "icon": "", "href": "#", "hover_image": "", "hover_w": 220, "hover_h": 140}
+            ]
         },
         "messages_page": {
             "bgType": "gradient",
@@ -202,11 +211,11 @@ def get_default_site():
         "footer": {
             "brand": {"logo": "GAL·LERY", "desc": "记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。"},
             "columns": [
-                {"title": "导航", "links": [
+                {"title": "导航", "image": "", "links": [
                     {"label": "作品集", "href": "#gallery"}, {"label": "关于我", "href": "/about"},
                     {"label": "留言板", "href": "/messages"}, {"label": "管理后台", "href": "/admin"}
                 ]},
-                {"title": "关于", "links": [
+                {"title": "关于", "image": "", "links": [
                     {"label": "隐私政策", "href": "#"}, {"label": "版权声明", "href": "#"}
                 ]}
             ],
@@ -224,6 +233,14 @@ def load_site():
         for k, v in default['about'].items():
             if k not in d['about']: d['about'][k] = v
     if 'messages_page' not in d: d['messages_page'] = default['messages_page']
+    if 'footer' not in d: d['footer'] = default['footer']
+    else:
+        d['footer'].setdefault('brand', default['footer']['brand'])
+        d['footer'].setdefault('columns', default['footer']['columns'])
+        d['footer'].setdefault('copyright', default['footer']['copyright'])
+        for c in d['footer'].get('columns', []):
+            if 'image' not in c:
+                c['image'] = ''
     if 'theme' not in d: d['theme'] = 'warm'
     if 'thumb_scale' not in d: d['thumb_scale'] = 50
     if 'enabled' not in d.get('hero', {}): d['hero']['enabled'] = True
@@ -544,7 +561,7 @@ def admin_upload():
         'categories': cats, 'category': cats[0] if cats else '其他',
         'description': request.form.get('description', ''),
         'filename': filename, 'cover': cover_filename,
-        'type': 'video' if is_video(filename) else 'image',
+        'type': 'model' if is_model(filename) else ('video' if is_video(filename) else 'image'),
         'thumb': None,
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'width': int(request.form.get('width', 800)),
@@ -555,7 +572,7 @@ def admin_upload():
     save_likes(likes)
     data['items'].insert(0, item)
     # 自动生成缩图（仅图片）
-    if not is_video(filename):
+    if (not is_video(filename)) and (not is_model(filename)):
         scale = load_site().get('thumb_scale', 50)
         src_fn = cover_filename if cover_filename else filename
         thumb_fn = make_thumb(src_fn, scale)
@@ -735,18 +752,25 @@ def admin_visitors():
     visitors = load_visitors()
     page = int(request.args.get('page', 1))
     per_page = 50
-    start = (page - 1) * per_page
-    end = start + per_page
+    path_filter = (request.args.get('path', '') or '').strip()
     from collections import Counter
     from datetime import timedelta
-    paths = Counter(v['path'] for v in visitors)
-    ips = Counter(v['ip'] for v in visitors)
+
+    filtered = visitors
+    if path_filter:
+        filtered = [v for v in visitors if (v.get('path') or '') == path_filter]
+
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    paths = Counter(v.get('path', '') for v in filtered)
+    ips = Counter(v.get('ip', '') for v in filtered)
     today = datetime.now().date()
     daily = {}
     for i in range(13, -1, -1):
         d = (today - timedelta(days=i)).strftime('%m-%d')
         daily[d] = 0
-    for v in visitors:
+    for v in filtered:
         try:
             k = v['time'][5:10]
             if k in daily: daily[k] += 1
@@ -767,8 +791,8 @@ def admin_visitors():
         if changed:
             save_visitors(vs)
     threading.Thread(target=_backfill, daemon=True).start()
-    return jsonify({'total': len(visitors), 'visitors': visitors[start:end],
-                    'has_more': end < len(visitors), 'page': page,
+    return jsonify({'total': len(filtered), 'visitors': filtered[start:end],
+                    'has_more': end < len(filtered), 'page': page,
                     'top_pages': paths.most_common(10), 'top_ips': ips.most_common(10),
                     'daily': list(daily.items())})
 
@@ -851,15 +875,33 @@ def admin_nav():
 @login_required
 def admin_footer():
     site = load_site()
-    site['footer'] = request.json
+    ft = request.json or {}
+    for c in ft.get('columns', []) or []:
+        c.setdefault('image', '')
+    site['footer'] = ft
     save_site(site)
     return jsonify({'success': True})
+
+@app.route('/admin/site/footer/upload-image', methods=['POST'])
+@login_required
+def admin_footer_upload_image():
+    file = request.files.get('file')
+    if not file or not allowed_img(file.filename):
+        return jsonify({'success': False, 'error': '无效图片'}), 400
+    filename = save_upload(file, 'footer_col_')
+    return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename})
 
 @app.route('/admin/site/about', methods=['PUT'])
 @login_required
 def admin_about():
     site = load_site()
-    site['about'] = request.json
+    ab = request.json or {}
+    socials = ab.get('socials', []) or []
+    for s in socials:
+        s.setdefault('hover_image', '')
+        s['hover_w'] = max(80, min(800, int(s.get('hover_w', 220) or 220)))
+        s['hover_h'] = max(60, min(800, int(s.get('hover_h', 140) or 140)))
+    site['about'] = ab
     save_site(site)
     return jsonify({'success': True})
 
@@ -960,7 +1002,7 @@ def admin_media_list():
             if os.path.isfile(fp):
                 stat = os.stat(fp)
                 ext = fn.rsplit('.', 1)[-1].lower() if '.' in fn else ''
-                ftype = 'video' if ext in {'mp4','mov','webm'} else ('image' if ext in {'png','jpg','jpeg','gif','webp'} else 'other')
+                ftype = 'model' if ext in {'glb','gltf'} else ('video' if ext in {'mp4','mov','webm'} else ('image' if ext in {'png','jpg','jpeg','gif','webp'} else 'other'))
                 files.append({
                     'filename': fn,
                     'size': stat.st_size,
@@ -1124,6 +1166,8 @@ def load_featured():
     cfg.setdefault("title", "详情精选")
     cfg.setdefault("subtitle", "FEATURED")
     cfg.setdefault("position", "after_showcase")
+    for it in d.get('items', []) or []:
+        it.setdefault('content', '')
     return d
 
 def save_featured(d): save_json(FEATURED_FILE, d)
@@ -1134,6 +1178,7 @@ def save_featured(d): save_json(FEATURED_FILE, d)
 
 @app.route('/muyu')
 def muyu_page():
+    record_visitor()
     return render_template('muyu.html')
 
 @app.route('/api/muyu')
@@ -1611,6 +1656,7 @@ def admin_featured_upload():
     item = {
         'id': str(uuid.uuid4()),
         'title': request.form.get('title', '').strip(),
+        'content': request.form.get('content', '').strip(),
         'images': images,
         'cover': cover,
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -1629,6 +1675,7 @@ def admin_featured_update(item_id):
     if request.is_json:
         body = request.json or {}
         if 'title' in body: item['title'] = body['title']
+        if 'content' in body: item['content'] = body['content']
         if 'images_order' in body: item['images'] = body['images_order']
         if 'cover' in body: item['cover'] = body['cover']
     else:
@@ -2165,17 +2212,17 @@ def admin_upload_from_url():
             # 从 URL 末尾猜扩展名
             url_path = urllib.parse.urlparse(url).path
             url_ext = os.path.splitext(url_path)[1].lower()
-            if url_ext in ('.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov','.webm','.avi'):
+            if url_ext in ('.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov','.webm','.avi','.glb','.gltf'):
                 ext = url_ext
             elif ext in ('.jpeg',): ext = '.jpg'
-            elif ext not in ('.jpg','.png','.gif','.webp','.mp4','.mov','.webm'):
+            elif ext not in ('.jpg','.png','.gif','.webp','.mp4','.mov','.webm','.glb','.gltf'):
                 ext = '.jpg'  # 默认
             data = resp.read(50 * 1024 * 1024)  # 最大50MB
         fn = 'url_' + str(uuid.uuid4()) + ext
         path = os.path.join(UPLOAD_FOLDER, fn)
         with open(path, 'wb') as f:
             f.write(data)
-        file_type = 'video' if ext in ('.mp4','.mov','.webm','.avi') else 'image'
+        file_type = 'model' if ext in ('.glb','.gltf') else ('video' if ext in ('.mp4','.mov','.webm','.avi') else 'image')
         return jsonify({'success': True, 'filename': fn, 'type': file_type,
                         'url': '/static/uploads/' + fn})
     except Exception as e:

@@ -464,6 +464,41 @@ body.immersive .corner-info { opacity:0; transition:opacity .5s; }
 body.immersive:hover .controls,
 body.immersive:hover .corner-info { opacity:1; }
 
+/* 全屏沉浸：隐藏所有按钮，显示左上角提示 */
+.fullscreen-tip {
+  position:fixed;
+  top:14px;
+  left:14px;
+  z-index:260;
+  display:none;
+  align-items:center;
+  gap:10px;
+  padding:8px 12px;
+  border-radius:10px;
+  background:rgba(0,0,0,.42);
+  border:1px solid rgba(255,255,255,.16);
+  color:rgba(255,255,255,.92);
+  font-size:12px;
+  letter-spacing:.04em;
+  backdrop-filter:blur(8px);
+}
+.fullscreen-tip kbd {
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.24);
+  border-radius:5px;
+  padding:1px 6px;
+  font-size:11px;
+}
+body.fullscreen-immersive .fullscreen-tip { display:flex; }
+body.fullscreen-immersive .controls,
+body.fullscreen-immersive .corner-info,
+body.fullscreen-immersive .back-btn,
+body.fullscreen-immersive .music-btn,
+body.fullscreen-immersive .pattern-btn {
+  opacity:0 !important;
+  pointer-events:none !important;
+}
+
 /* ── 粒子光点 ── */
 .spark {
   position:fixed; border-radius:50%;
@@ -778,6 +813,11 @@ body.immersive:hover .pattern-btn { opacity:1; pointer-events:auto; }
 <div class="corner-info">
   <div class="corner-title" id="cornerTitle"></div>
   <div class="corner-title" id="cornerSub" style="opacity:.6"></div>
+</div>
+
+<div class="fullscreen-tip" id="fullscreenTip">
+  <span><kbd>Esc</kbd> 退出全屏</span>
+  <span>按空格敲木鱼</span>
 </div>
 
 
@@ -1326,11 +1366,35 @@ function toggleSvip() {
 // 沉浸 / 音效
 // ════════════════════════════════════════
 let immersive = false;
-function toggleImmersive() {
+async function toggleImmersive() {
   immersive = !immersive;
   document.body.classList.toggle('immersive', immersive);
   document.getElementById('immersiveBtn').classList.toggle('active', immersive);
+
+  if (immersive) {
+    try {
+      const de = document.documentElement;
+      if (de.requestFullscreen) await de.requestFullscreen();
+    } catch(e) {}
+    document.body.classList.add('fullscreen-immersive');
+  } else {
+    document.body.classList.remove('fullscreen-immersive');
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+    } catch(e) {}
+  }
 }
+
+document.addEventListener('fullscreenchange', () => {
+  const isFs = !!document.fullscreenElement;
+  document.body.classList.toggle('fullscreen-immersive', immersive && isFs);
+  if (!isFs && immersive) {
+    immersive = false;
+    document.body.classList.remove('immersive');
+    const b = document.getElementById('immersiveBtn');
+    if (b) b.classList.remove('active');
+  }
+});
 
 function toggleSound() {
   soundEnabled = !soundEnabled;
