@@ -23,6 +23,18 @@
       "size": 25,
       "style": "zoom",
       "text": "财源广进，福气满满"
+    },
+    {
+      "color": "#f5e6c8",
+      "size": 26,
+      "style": "wave",
+      "text": "三餐四季，温暖有趣"
+    },
+    {
+      "color": "#ff33ee",
+      "size": 26,
+      "style": "glitch",
+      "text": "念念不忘，必有回响"
     }
   ],
   "vip": {
@@ -42,5 +54,93 @@
   "custom_sound": "",
   "custom_svg": "data/muyu_custom.svg",
   "back_label": "功德圆满-走人",
-  "sound_code": "// 木鱼音效（三层合成：主体 + 泛音 + 敲击噪声）\nconst now = audioCtx.currentTime;\n\n// 第一层：主体低音（基于原代码中的木鱼音色）\nconst osc1 = audioCtx.createOscillator();\nconst gain1 = audioCtx.createGain();\nosc1.connect(gain1);\ngain1.connect(audioCtx.destination);\nosc1.type = 'sine';                    // 原代码使用 sine 波\nosc1.frequency.setValueAtTime(600, now);\nosc1.frequency.exponentialRampToValueAtTime(600, now + 0.15);  // 原代码频率恒定\ngain1.gain.setValueAtTime(0.3, now);\ngain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);\nosc1.start(now);\nosc1.stop(now + 0.15);\n\n// 第二层：轻微泛音（为原木鱼音色增加一点层次感）\nconst osc2 = audioCtx.createOscillator();\nconst gain2 = audioCtx.createGain();\nosc2.connect(gain2);\ngain2.connect(audioCtx.destination);\nosc2.type = 'sine';\nosc2.frequency.setValueAtTime(1200, now);     // 两倍频的泛音\nosc2.frequency.exponentialRampToValueAtTime(1200, now + 0.1);\ngain2.gain.setValueAtTime(0.1, now);          // 音量较小，作为背景\ngain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1);\nosc2.start(now);\nosc2.stop(now + 0.1);\n\n// 第三层：轻微敲击噪声（增强敲击感）\nconst bufLen = Math.floor(audioCtx.sampleRate * 0.01);  // 更短的噪声\nconst buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);\nconst data = buf.getChannelData(0);\nfor (let i = 0; i < bufLen; i++) {\n    data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen) * 0.15;  // 较低音量\n}\nconst src = audioCtx.createBufferSource();\nconst gain3 = audioCtx.createGain();\nsrc.buffer = buf;\nsrc.connect(gain3);\ngain3.connect(audioCtx.destination);\ngain3.gain.setValueAtTime(0.2, now);\ngain3.gain.exponentialRampToValueAtTime(0.001, now + 0.02);\nsrc.start(now);"
+  "sound_code": "// 木鱼音效（三层合成：主体 + 泛音 + 敲击噪声）\nconst now = audioCtx.currentTime;\n\n// 第一层：主体低音（基于原代码中的木鱼音色）\nconst osc1 = audioCtx.createOscillator();\nconst gain1 = audioCtx.createGain();\nosc1.connect(gain1);\ngain1.connect(audioCtx.destination);\nosc1.type = 'sine';                    // 原代码使用 sine 波\nosc1.frequency.setValueAtTime(600, now);\nosc1.frequency.exponentialRampToValueAtTime(600, now + 0.15);  // 原代码频率恒定\ngain1.gain.setValueAtTime(0.3, now);\ngain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);\nosc1.start(now);\nosc1.stop(now + 0.15);\n\n// 第二层：轻微泛音（为原木鱼音色增加一点层次感）\nconst osc2 = audioCtx.createOscillator();\nconst gain2 = audioCtx.createGain();\nosc2.connect(gain2);\ngain2.connect(audioCtx.destination);\nosc2.type = 'sine';\nosc2.frequency.setValueAtTime(1200, now);     // 两倍频的泛音\nosc2.frequency.exponentialRampToValueAtTime(1200, now + 0.1);\ngain2.gain.setValueAtTime(0.1, now);          // 音量较小，作为背景\ngain2.gain.exponentialRampToValueAtTime(0.001, now + 0.1);\nosc2.start(now);\nosc2.stop(now + 0.1);\n\n// 第三层：轻微敲击噪声（增强敲击感）\nconst bufLen = Math.floor(audioCtx.sampleRate * 0.01);  // 更短的噪声\nconst buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);\nconst data = buf.getChannelData(0);\nfor (let i = 0; i < bufLen; i++) {\n    data[i] = (Math.random() * 2 - 1) * (1 - i / bufLen) * 0.15;  // 较低音量\n}\nconst src = audioCtx.createBufferSource();\nconst gain3 = audioCtx.createGain();\nsrc.buffer = buf;\nsrc.connect(gain3);\ngain3.connect(audioCtx.destination);\ngain3.gain.setValueAtTime(0.2, now);\ngain3.gain.exponentialRampToValueAtTime(0.001, now + 0.02);\nsrc.start(now);",
+  "bg_music_list": [
+    {
+      "name": "赛博老仙-法力无边",
+      "url": "http://wujiexiangsu.com/wp-content/uploads/2026/03/大悲咒七遍唱誦.m4a"
+    }
+  ],
+  "bg_music_btn_label": "【上法力】",
+  "bg_music_stop_label": "蓝已满",
+  "bg_layers": [
+    {
+      "file": "http://wujiexiangsu.com/wp-content/uploads/2026/03/001233333.png",
+      "follow_hit": true,
+      "hit_scale": 30,
+      "opacity": 100,
+      "rotate": true,
+      "rotate_speed": 10,
+      "scale": 30,
+      "breathe_speed": 180,
+      "size": 120
+    },
+    {
+      "file": "http://wujiexiangsu.com/wp-content/uploads/2026/03/Snipaste_2026-03-03_20-41-43-1.png",
+      "follow_hit": true,
+      "hit_scale": 8,
+      "opacity": 50,
+      "rotate": true,
+      "rotate_speed": 30,
+      "scale": 10,
+      "breathe_speed": 4,
+      "size": 100
+    },
+    {
+      "file": "",
+      "follow_hit": false,
+      "hit_scale": 8,
+      "opacity": 60,
+      "rotate": false,
+      "rotate_speed": 60,
+      "scale": 6,
+      "breathe_speed": 24,
+      "size": 100
+    }
+  ],
+  "bg_color": "#000000",
+  "custom_image": "",
+  "patterns": [
+    {
+      "file": "pool_avatar_06de165f-49a1-43dc-b00b-17a7c5ea87e4.png",
+      "id": "0e70527c-f598-496c-b851-eddd305cad25",
+      "name": "臭烘烘"
+    },
+    {
+      "file": "pool_avatar_6e3dad33-7276-4863-99f1-10c98415e3b9.png",
+      "id": "fd9391a8-f41e-485e-b16f-2c9332269572",
+      "name": "屁颠颠"
+    },
+    {
+      "file": "pool_avatar_fa8e3230-7d93-4a10-9dae-3cf6b9c7917c.png",
+      "id": "40ccbf09-3db3-4f0f-ad99-3c84eff862e6",
+      "name": "敲咪咪"
+    },
+    {
+      "file": "pool_avatar_485978c5-5618-48f3-af10-eba487f61792.png",
+      "id": "3027d506-d003-40fe-b977-e9bb60d11f50",
+      "name": "粘人精"
+    },
+    {
+      "file": "about_d4eca9cb-e99a-47ec-ab9c-ec56ddb7a8b2.png",
+      "id": "146ed6c4-0b50-4fcc-929f-5083ca8c402d",
+      "name": "傻乎乎"
+    },
+    {
+      "file": "pool_avatar_2eff034d-4a07-42d1-b686-43df0180a177.png",
+      "id": "27d9546f-43ef-44eb-aa91-d1e8c4b8e2a7",
+      "name": "滑溜溜"
+    },
+    {
+      "file": "pool_avatar_e4f5d717-023e-4425-952a-76b35d12797e.png",
+      "id": "0ff76898-18fa-4015-8ea5-335d12ea45fb",
+      "name": "软乎乎"
+    },
+    {
+      "file": "pool_avatar_25777f88-4256-493e-9e87-bda52065c9a1.png",
+      "id": "f620da27-9ff1-4f86-b070-3100fd891083",
+      "name": "吧唧嘴"
+    }
+  ],
+  "pattern_btn_label": "切换图案"
 }

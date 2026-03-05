@@ -3,7 +3,7 @@
     "logo": "GAL·LERY",
     "links": [
       {
-        "label": "关于我",
+        "label": "关于我❤️",
         "href": "/about"
       },
       {
@@ -11,12 +11,12 @@
         "href": "/messages"
       },
       {
-        "label": "首页",
-        "href": "/"
-      },
-      {
         "label": "功德+1",
         "href": "/muyu"
+      },
+      {
+        "label": "首页",
+        "href": "/"
       }
     ]
   },
@@ -68,7 +68,7 @@
   },
   "about": {
     "avatarImage": "about_c4f40915-1552-426f-b229-b66f159d7153.png",
-    "bio": "<p>你好，我是这个画廊的主人。热爱记录生活中的美好瞬间，每一件作品都承载着我对这个世界独特的感知与思考。</p><p>这里汇聚了我在建模、渲染、AI设计等领域的探索与实践。希望这些作品能给你带来灵感，让我们在视觉的世界里相遇。</p><blockquote>我相信，美无处不在，关键在于是否有一双发现美的眼睛。</blockquote>",
+    "bio": "<p>你好，我是这个画廊的主人。热爱记录生活中的美好瞬间，每一件作品都承载着我对这个世界独特的感知与思考。</p><p>这里汇聚了我在建模、渲染、AI设计等领域的探索与实践。希望这些作品能给你带来灵感，让我们在视觉的世界里相遇。</p><blockquote>我相信，美无处不在，关键在于是否有一双发现美的眼睛。</blockquote><p class=\"ql-align-center\"><img src=\"http://wujiexiangsu.com/wp-content/uploads/2026/03/0820.jpg\"></p>",
     "emoji": "🎨",
     "heroHeight": 420,
     "heroImage": "007.jpg",
@@ -135,22 +135,34 @@
       {
         "href": "",
         "icon": "about_27721a7e-312c-4ba9-9eea-e0165449d196.png",
-        "label": "微信：starjiekong"
+        "label": "微信：starjiekong",
+        "hover_image": "http://wujiexiangsu.com/wp-content/uploads/2026/03/0124578.png",
+        "hover_w": 150,
+        "hover_h": 150
       },
       {
         "href": "",
         "icon": "about_f8fd8d53-6737-4176-a171-93c9de0df069.png",
-        "label": "Phone：18670726951"
+        "label": "Phone：18670726951",
+        "hover_image": "",
+        "hover_w": 220,
+        "hover_h": 140
       },
       {
         "href": "",
         "icon": "about_b5eee4a3-c1b7-4b4d-9dea-1bde5e455808.png",
-        "label": "E-mail：nocmwl@gmail.com"
+        "label": "E-mail：nocmwl@gmail.com",
+        "hover_image": "",
+        "hover_w": 220,
+        "hover_h": 140
       },
       {
-        "href": "",
+        "href": "https://map.baidu.com/search/%E6%98%9F%E8%93%9D%E6%B9%BE/@12574701.332426805,3257914.912568812,15.52z?querytype=s&da_src=shareurl&wd=%E6%98%9F%E8%93%9D%E6%B9%BE&c=158&src=0&wd2=%E9%95%BF%E6%B2%99%E5%B8%82%E5%B2%B3%E9%BA%93%E5%8C%BA&pn=0&sug=1&l=14&b=(12562400.634156832,3253835.1082989224;12586192.475443354,3265631.481489101)&from=webmap&biz_forward=%7B%22scaler%22:1,%22styles%22:%22pl%22%7D&sug_forward=d0834cef77de0df0373a712b&device_ratio=1",
         "icon": "about_67aeb71f-56ed-49cd-8824-2aed358df206.png",
-        "label": "所在地：长沙"
+        "label": "所在地：长沙",
+        "hover_image": "http://wujiexiangsu.com/wp-content/uploads/2026/03/Snipaste_2026-03-04_14-14-59.png",
+        "hover_w": 400,
+        "hover_h": 230
       }
     ],
     "tagline": "用像素记录世界的美好"
@@ -190,7 +202,8 @@
             "label": "留言"
           }
         ],
-        "title": ""
+        "title": "",
+        "image": ""
       },
       {
         "links": [
@@ -199,7 +212,8 @@
             "label": "关于我"
           }
         ],
-        "title": ""
+        "title": "",
+        "image": ""
       },
       {
         "links": [
@@ -208,7 +222,8 @@
             "label": "V:starjiekong"
           }
         ],
-        "title": ""
+        "title": "",
+        "image": ""
       },
       {
         "links": [
@@ -217,7 +232,8 @@
             "label": "订阅RSS"
           }
         ],
-        "title": ""
+        "title": "",
+        "image": ""
       },
       {
         "links": [
@@ -226,7 +242,8 @@
             "label": "github"
           }
         ],
-        "title": ""
+        "title": "",
+        "image": ""
       }
     ],
     "copyright": "© 2026 GALLERY · 视觉创作集. All Rights Reserved. · Made 80万萝莉总教头 with ♥"
@@ -234,29 +251,27 @@
   "site": {
     "title": "GALLERY · 视觉创作集",
     "subtitle": "记录生活之美，分享视觉灵感",
-    "favicon": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
-    "likeIpDailyLimit": 3
+    "favicon": "about_d4eca9cb-e99a-47ec-ab9c-ec56ddb7a8b2.png",
+    "likeIpDailyLimit": 3,
+    "model_hint": "🖱️ 左键旋转 · 滚轮缩放 · 右键平移/因受限服务器等因素模型为低模预览",
+    "model_hint_position": "bottom",
+    "model_hint_bg": "rgba(0,0,0,.52)",
+    "model_hint_color": "rgba(255,255,255,.92)",
+    "model_hint_font_size": 12,
+    "model_hint_max_width": 900,
+    "model_hint_radius": 10
   },
   "theme": "warm",
   "messages_page": {
-    "bgType": "image",
-    "bgValue": "002.jpg",
-    "title": "留言板",
-    "subtitle": "留下你的足迹，与我分享你的想法",
-    "height": 420,
-    "avatarMaxSizeMB": 2,
+    "avatarDailyLimit": 2,
     "avatarFormats": [
       "jpg",
       "png",
       "webp"
     ],
-    "avatarDailyLimit": 1,
-    "titleSize": 48,
-    "overlayOpacity": 0.5,
-    "defaultAvatar": "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
+    "avatarMaxSizeMB": 0.5,
     "avatarPool": [
       "pool_avatar_25777f88-4256-493e-9e87-bda52065c9a1.png",
-      "msgbg_f838e2f7-71be-4c67-b442-9d076f185907.png",
       "pool_avatar_2eff034d-4a07-42d1-b686-43df0180a177.png",
       "pool_avatar_06de165f-49a1-43dc-b00b-17a7c5ea87e4.png",
       "pool_avatar_ed3c60f7-6ba2-4d9e-9b37-0587d5bd21c9.png",
@@ -264,7 +279,15 @@
       "pool_avatar_485978c5-5618-48f3-af10-eba487f61792.png",
       "pool_avatar_fa8e3230-7d93-4a10-9dae-3cf6b9c7917c.png",
       "pool_avatar_e4f5d717-023e-4425-952a-76b35d12797e.png"
-    ]
+    ],
+    "bgType": "image",
+    "bgValue": "002.jpg",
+    "defaultAvatar": "pool_avatar_06de165f-49a1-43dc-b00b-17a7c5ea87e4.png",
+    "height": 420,
+    "overlayOpacity": 0.5,
+    "subtitle": "留下你的足迹，与我分享你的想法",
+    "title": "留言板",
+    "titleSize": 48
   },
   "thumb_scale": 50
 }

@@ -1,9 +1,22 @@
 {
-  "items": [],
+  "items": [
+    {
+      "id": "ddbd9a59-96ba-4953-bd86-c31cdba5a1f2",
+      "title": "放大范德萨",
+      "content": "<p>地方大师傅撒</p>",
+      "images": [
+        "Gemini_Generated_Image_49zno349zno349zn.jpg",
+        "Gemini_Generated_Image_byy98qbyy98qbyy9.jpg",
+        "Gemini_Generated_Image_fyn5g7fyn5g7fyn5.jpg"
+      ],
+      "cover": "Gemini_Generated_Image_49zno349zno349zn.jpg",
+      "created_at": "2026-03-04 05:07:46"
+    }
+  ],
   "config": {
-    "enabled": true,
+    "enabled": false,
     "title": "详情精选",
     "subtitle": "FEATURED",
-    "position": "after_showcase"
+    "position": "before_footer"
   }
 }
