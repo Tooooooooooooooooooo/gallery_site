@@ -140,7 +140,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 @media(max-width:640px){.footer-cols{padding:0 24px;overflow-x:auto;-webkit-overflow-scrolling:touch}.footer-copy{padding:16px 24px 0}}
 
 /* MODAL */
-.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;pointer-events:none;transition:opacity .3s}
 .modal.open{opacity:1;pointer-events:all}
 .modal-inner{max-width:92vw;max-height:92vh;position:relative;border-radius:18px;overflow:hidden}
 .modal-inner img,.modal-inner video,.modal-inner model-viewer{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
@@ -148,6 +148,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
 .modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
+.modal-hint-out{max-width:min(92vw,900px);padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.52);border:1px solid rgba(255,255,255,.2);font-size:12px;color:rgba(255,255,255,.92);backdrop-filter:blur(8px);line-height:1.5}
 
 @media(max-width:768px){nav{padding:0 14px}.toolbar{padding:10px 12px}}
 
@@ -277,6 +278,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 </footer>
 
 <div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div id="modalHintTop" class="modal-hint-out" style="display:none"></div>
   <div class="modal-inner">
     <button class="modal-close" onclick="closeModal()">&#215;</button>
     <button id="modalBigBtn" onclick="void 0" style="position:absolute;top:12px;right:52px;height:32px;padding:0 14px;border-radius:16px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px);z-index:2;transition:background .2s" onmouseover="this.style.background='rgba(200,169,126,.7)'" onmouseout="this.style.background='rgba(0,0,0,.55)'">
@@ -285,13 +287,26 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
     <div id="modalBody"></div>
     <div class="modal-info"><h2 id="modalTitle"></h2><div id="modalDesc" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px"></div></div>
   </div>
+  <div id="modalHintBottom" class="modal-hint-out" style="display:none"></div>
 </div>
 
 <script>
 const THEME_COLORS={warm:'#c8a97e',cool:'#4a90d9',dark:'#7c6af5',green:'#4a9460',rose:'#d4607a'};
 let curSlide=0,slideTotal=0,autoT;
 let curPage=1,loading=false,hasMore=true,curCats=[],curSort='newest';
+let modelHintText = '🖱️ 左键旋转 · 滚轮缩放 · 右键平移';
+let modelHintPos = 'bottom';
+let modelHintBg = 'rgba(0,0,0,.52)';
+let modelHintColor = 'rgba(255,255,255,.92)';
+let modelHintFontSize = 12;
+let modelHintMaxWidth = 900;
+let modelHintRadius = 10;
 const itemMap={};
+function extOf(f){return String(f||'').split('?')[0].split('.').pop().toLowerCase();}
+function isModelByFile(f){const e=extOf(f);return e==='glb'||e==='gltf';}
+function isVideoByFile(f){const e=extOf(f);return e==='mp4'||e==='mov'||e==='webm';}
+function itemIsModel(it){return it&&(((it.type||'').toLowerCase()==='model')||isModelByFile(it.filename));}
+function itemIsVideo(it){return it&&(((it.type||'').toLowerCase()==='video')||isVideoByFile(it.filename));}
 
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
@@ -309,6 +324,13 @@ async function init(){
   const b=site.site||{};
   if(b.title)document.title=b.title;
   if(b.favicon)document.getElementById('faviconLink').href='/static/uploads/'+b.favicon;
+  modelHintText = (b.model_hint||'').trim() || '🖱️ 左键旋转 · 滚轮缩放 · 右键平移';
+  modelHintPos = ['top','bottom','none'].includes(b.model_hint_position) ? b.model_hint_position : 'bottom';
+  modelHintBg = (b.model_hint_bg||'').trim() || 'rgba(0,0,0,.52)';
+  modelHintColor = (b.model_hint_color||'').trim() || 'rgba(255,255,255,.92)';
+  modelHintFontSize = Number(b.model_hint_font_size) || 12;
+  modelHintMaxWidth = Number(b.model_hint_max_width) || 900;
+  modelHintRadius = Number(b.model_hint_radius) || 10;
   renderNav(site.nav||{});
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
   renderFooter(site.footer||{});
@@ -498,8 +520,8 @@ async function scDoLike(e, id, btn) {
 function openScModal(id) {
   const item = scMap[id]; if (!item) return;
   const src = fileSrc(item.filename);
-  const isVid = item.type === 'video';
-  const isModel = item.type === 'model';
+  const isVid = itemIsVideo(item);
+  const isModel = itemIsModel(item);
   document.getElementById('modalBody').innerHTML = isVid
     ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
     : (isModel
@@ -507,6 +529,23 @@ function openScModal(id) {
       : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   document.getElementById('modalTitle').textContent = item.title || '';
   document.getElementById('modalDesc').innerHTML = item.description || '';
+  const hTop = document.getElementById('modalHintTop');
+  const hBottom = document.getElementById('modalHintBottom');
+  if (hTop && hBottom) {
+    hTop.style.display = 'none';
+    hBottom.style.display = 'none';
+    hTop.textContent = '';
+    hBottom.textContent = '';
+    if (isModel && modelHintPos !== 'none' && modelHintText) {
+      if (modelHintPos === 'top') {
+        hTop.textContent = modelHintText;
+        hTop.style.display = 'block';
+      } else {
+        hBottom.textContent = modelHintText;
+        hBottom.style.display = 'block';
+      }
+    }
+  }
   const bigBtn = document.getElementById('modalBigBtn');
   if (bigBtn) { bigBtn.style.display = (isVid || isModel) ? 'none' : 'flex'; bigBtn.onclick = () => window.open(src,'_blank'); }
   document.getElementById('modal').classList.add('open');
@@ -629,12 +668,13 @@ async function loadMore(){
 function mkCard(item,idx){
   const div=document.createElement('div');
   div.className='m-item';div.style.animationDelay=(idx%8*.05)+'s';
-  const isVid=item.type==='video';
-  const cover=item.cover||(!isVid?item.filename:null);
+  const isVid=itemIsVideo(item);
+  const isModel=itemIsModel(item);
+  const cover=item.cover||((!isVid&&!isModel)?item.filename:(item.cover||item.filename));
   const isExternalUrl = cover && (cover.startsWith('http://') || cover.startsWith('https://'));
   // 外链直接用原URL，本地文件优先用缩图
-  const cardSrc = isExternalUrl ? cover : ((!isVid&&item.thumb)?item.thumb:cover);
-  const cardBase = isExternalUrl ? '' : ((!isVid&&item.thumb)?'/static/thumbs/':'/static/uploads/');
+  const cardSrc = isExternalUrl ? cover : (((!isVid&&!isModel)&&item.thumb)?item.thumb:cover);
+  const cardBase = isExternalUrl ? '' : (((!isVid&&!isModel)&&item.thumb)?'/static/thumbs/':'/static/uploads/');
   const ratio=item.height&&item.width?(item.height/item.width*100).toFixed(1):75;
 
   const hasTitle=item.title?.trim();
@@ -763,8 +803,8 @@ window.addEventListener('scroll',()=>{
 function openModal(id){
   const item=itemMap[id];if(!item)return;
   const src=fileSrc(item.filename);
-  const isVid=item.type==='video';
-  const isModel=item.type==='model';
+  const isVid=itemIsVideo(item);
+  const isModel=itemIsModel(item);
   document.getElementById('modalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
     :(isModel
@@ -772,13 +812,31 @@ function openModal(id){
       :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   document.getElementById('modalTitle').textContent=item.title||'';
-  const _catsStr=cats.length?cats.join(' · '):'';document.getElementById('modalDesc').innerHTML=(item.description||'')+(_catsStr?`<span style="opacity:.6;margin-left:6px">${esc(_catsStr)}</span>`:'');
+  const _catsStr=cats.length?cats.join(' · '):'';
+  const baseDesc=(item.description||'')+(_catsStr?`<span style="opacity:.6;margin-left:6px">${esc(_catsStr)}</span>`:'');
+  document.getElementById('modalDesc').innerHTML=baseDesc;
+  const hTop=document.getElementById('modalHintTop');
+  const hBottom=document.getElementById('modalHintBottom');
+  if(hTop&&hBottom){
+    hTop.style.display='none';hBottom.style.display='none';
+    hTop.textContent='';hBottom.textContent='';
+    if(isModel&&modelHintPos!=='none'&&modelHintText){
+      const target = modelHintPos==='top' ? hTop : hBottom;
+      target.textContent = modelHintText;
+      target.style.display = 'block';
+      target.style.background = modelHintBg;
+      target.style.color = modelHintColor;
+      target.style.fontSize = modelHintFontSize + 'px';
+      target.style.maxWidth = `min(92vw, ${modelHintMaxWidth}px)`;
+      target.style.borderRadius = modelHintRadius + 'px';
+    }
+  }
   // 查看大图按钮（仅图片）
   const bigBtn=document.getElementById('modalBigBtn');
   if(bigBtn){bigBtn.style.display=(isVid||isModel)?'none':'flex';bigBtn.onclick=()=>window.open(src,'_blank');}
   document.getElementById('modal').classList.add('open');
 }
-function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';}
+function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';const hTop=document.getElementById('modalHintTop');const hBottom=document.getElementById('modalHintBottom');if(hTop){hTop.style.display='none';hTop.textContent='';}if(hBottom){hBottom.style.display='none';hBottom.textContent='';}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
 function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}

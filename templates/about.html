@@ -6,6 +6,7 @@
 <title>关于我 · GALLERY</title>
 <link rel="icon" id="faviconLink" href="data:,">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 <style>
 :root{--bg:#faf9f7;--s:#fff;--tx:#1a1a1a;--mu:#8a8680;--ac:#c8a97e;--bd:#e8e4df;--nav-bg:rgba(250,249,247,.93)}
 [data-theme=cool]{--bg:#f0f4f8;--s:#fff;--tx:#1e2a3a;--mu:#6b7d8f;--ac:#4a90d9;--bd:#d4dde8;--nav-bg:rgba(240,244,248,.93)}
@@ -80,7 +81,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.88);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
 .modal.open{opacity:1;pointer-events:all}
 .modal-inner{max-width:92vw;max-height:92vh;position:relative;border-radius:18px;overflow:hidden}
-.modal-inner img,.modal-inner video{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
+.modal-inner img,.modal-inner video,.modal-inner model-viewer{max-width:92vw;max-height:86vh;display:block;border-radius:18px;object-fit:contain}
 .modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
 .modal-bigbtn{position:absolute;top:12px;right:52px;height:32px;padding:0 14px;border-radius:16px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px);z-index:2}
 .modal-bigbtn:hover{background:rgba(200,169,126,.7)}
@@ -239,14 +240,15 @@ async function init(){
   window._aboutItems={};
   items.items.forEach(i=>{window._aboutItems[i.id]=i;});
   gp.innerHTML=previewItems.map(item=>{
-    const src=item.cover||(!item.type||item.type==='image'?item.filename:null);
-    const isVid=item.type==='video';
+    const isVid=itemIsVideo(item);
+    const isModel=itemIsModel(item);
+    const src=item.cover||item.filename;
     return src
       ?`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer">
           <img src="${fileSrc(src)}" alt="${esc(item.title||'')}">
-          ${isVid?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;pointer-events:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''} 
+          ${(isVid||isModel)?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;pointer-events:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''} 
         </div>`
-      :`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">🎬</div>`;
+      :`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">📦</div>`;
   }).join('')+`<a class="gallery-preview-more" href="/">查看全部 →</a>`;
   renderFooter(site.footer||{});
 }
@@ -278,18 +280,26 @@ function renderFooter(ft){
 }
 
 function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
+function extOf(f){return String(f||'').split('?')[0].split('.').pop().toLowerCase();}
+function isModelByFile(f){const e=extOf(f);return e==='glb'||e==='gltf';}
+function isVideoByFile(f){const e=extOf(f);return e==='mp4'||e==='mov'||e==='webm';}
+function itemIsModel(it){return it&&(((it.type||'').toLowerCase()==='model')||isModelByFile(it.filename));}
+function itemIsVideo(it){return it&&(((it.type||'').toLowerCase()==='video')||isVideoByFile(it.filename));}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function openAboutModal(id){
   const item=window._aboutItems?.[id];if(!item)return;
   const src=fileSrc(item.filename);
-  const isVid=item.type==='video';
+  const isVid=itemIsVideo(item);
+  const isModel=itemIsModel(item);
   document.getElementById('aboutModalBody').innerHTML=isVid
     ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
-    :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`;
+    :(isModel
+      ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
+      :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   document.getElementById('aboutModalTitle').textContent=item.title||'';
   document.getElementById('aboutModalDesc').innerHTML=item.description||'';
   const bigBtn=document.getElementById('aboutModalBigBtn');
-  bigBtn.style.display=isVid?'none':'flex';
+  bigBtn.style.display=(isVid||isModel)?'none':'flex';
   bigBtn.onclick=()=>window.open(src,'_blank');
   document.getElementById('aboutModal').classList.add('open');
 }

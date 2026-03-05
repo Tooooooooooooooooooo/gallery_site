@@ -215,7 +215,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="sg">数据</div>
   <div class="ni" onclick="showPage('visitors',this)"><span class="ic">👥</span>访客记录</div>
   <div class="ni" onclick="showPage('msgpage',this)"><span class="ic">🎨</span>留言板外观</div>
-  <div class="ni" onclick="showPage('messages',this)"><span class="ic">💬</span>留言管理</div>
+  <div class="ni" id="navMessages" onclick="showPage('messages',this)"><span class="ic">💬</span>留言管理<span id="navMsgPending" style="display:none;margin-left:auto;min-width:18px;height:18px;padding:0 6px;border-radius:9px;background:var(--warn);color:#fff;font-size:10px;line-height:18px;text-align:center;font-weight:600"></span></div>
   <div class="sg">账号</div>
   <div class="ni" onclick="showPage('account',this)"><span class="ic">🔐</span>账号安全</div>
   <div class="sb-foot" style="padding-bottom:0"><a class="back" href="/" target="_blank">← 返回前台</a></div>
@@ -436,6 +436,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
       <div style="min-width:160px">
         <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">按钮文字</label>
         <input class="inp" id="mPatternBtnLabel" placeholder="切换图案" style="max-width:220px">
+      </div>
+      <div style="min-width:140px">
+        <label style="font-size:11px;color:var(--mu);display:block;margin-bottom:4px">按钮图标（Emoji/字符）</label>
+        <input class="inp" id="mPatternBtnIcon" placeholder="🧩" style="max-width:140px">
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:18px">
         <input type="file" id="mPatInp" accept="image/*" multiple style="display:none" onchange="uploadMuyuPatterns(this)">
@@ -983,6 +987,42 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card"><div class="ct">🌐 基本信息</div>
     <div class="fg" style="margin-bottom:11px"><label>网站标题</label><input class="inp" type="text" id="siteTitle" placeholder="GALLERY · 视觉创作集"></div>
     <div class="fg" style="margin-bottom:16px"><label>副标题</label><input class="inp" type="text" id="siteSub" placeholder="记录生活之美..."></div>
+    <div class="fr" style="margin-bottom:16px">
+      <div class="fg">
+        <label>3D 内容操作提示（前端弹窗显示）</label>
+        <input class="inp" type="text" id="modelHint" placeholder="🖱️ 左键旋转 · 滚轮缩放 · 右键平移">
+      </div>
+      <div class="fg" style="max-width:180px">
+        <label>提示位置</label>
+        <select class="inp" id="modelHintPos">
+          <option value="top">顶部</option>
+          <option value="bottom">底部</option>
+          <option value="none">不显示</option>
+        </select>
+      </div>
+    </div>
+    <div class="fr" style="margin-bottom:16px;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="fg" style="max-width:180px">
+        <label>背景色</label>
+        <input class="inp" type="text" id="modelHintBg" placeholder="rgba(0,0,0,.52)">
+      </div>
+      <div class="fg" style="max-width:180px">
+        <label>文字色</label>
+        <input class="inp" type="text" id="modelHintColor" placeholder="rgba(255,255,255,.92)">
+      </div>
+      <div class="fg" style="max-width:130px">
+        <label>字号(px)</label>
+        <input class="inp" type="number" id="modelHintFontSize" min="10" max="24" value="12">
+      </div>
+      <div class="fg" style="max-width:140px">
+        <label>最大宽度(px)</label>
+        <input class="inp" type="number" id="modelHintMaxWidth" min="320" max="1400" value="900">
+      </div>
+      <div class="fg" style="max-width:120px">
+        <label>圆角(px)</label>
+        <input class="inp" type="number" id="modelHintRadius" min="0" max="40" value="10">
+      </div>
+    </div>
     <div class="fg" style="margin-top:14px">
       <label>前端默认配色方案</label>
       <p style="font-size:11px;color:var(--mu);margin-bottom:10px">新访客首次打开网站时使用的配色（用户可自行切换）</p>
@@ -1737,6 +1777,7 @@ async function loadMuyuAdmin() {
   renderMuyuImageStatus();
   // 多图案
   document.getElementById('mPatternBtnLabel').value = _muyuCfg.pattern_btn_label ?? '切换图案';
+  document.getElementById('mPatternBtnIcon').value = _muyuCfg.pattern_btn_icon ?? '🧩';
   renderMuyuPatternGrid();
   // SVG 状态 - ✨ 修改部分：添加时间戳防止缓存
   if (c.custom_svg) {
@@ -1883,6 +1924,7 @@ async function saveMuyuBasic() {
   _muyuCfg.bg_color = /^#[0-9a-fA-F]{6}$/.test(bcVal) ? bcVal : '#0a0a08';
   _muyuCfg.sound_enabled = document.getElementById('mSoundEnabled').checked;
   _muyuCfg.pattern_btn_label = document.getElementById('mPatternBtnLabel').value.trim() || '切换图案';
+  _muyuCfg.pattern_btn_icon = document.getElementById('mPatternBtnIcon').value.trim() || '🧩';
   _muyuCfg.vip = {
     name:    document.getElementById('mVipName').value.trim(),
     speed:   parseInt(document.getElementById('mVipSpeed').value) || 1000,
@@ -2074,10 +2116,12 @@ function renderMuyuPatternGrid() {
 
 async function saveMuyuPatterns() {
   const label = document.getElementById('mPatternBtnLabel').value.trim() || '切换图案';
+  const icon = document.getElementById('mPatternBtnIcon').value.trim() || '🧩';
   _muyuCfg.pattern_btn_label = label;
+  _muyuCfg.pattern_btn_icon = icon;
   const res = await fetch('/admin/muyu', {
     method:'PUT', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({patterns: _muyuCfg.patterns || [], pattern_btn_label: label})
+    body: JSON.stringify({patterns: _muyuCfg.patterns || [], pattern_btn_label: label, pattern_btn_icon: icon})
   });
   if ((await res.json()).success) toast('图案已保存');
   else toast('保存失败', 'err');
@@ -2440,7 +2484,7 @@ async function init(){
   const [ir,cr,mr,sr]=await Promise.all([
     fetch('/api/items?per_page=1000').then(r=>r.json()),
     fetch('/api/categories').then(r=>r.json()),
-    fetch('/api/messages').then(r=>r.json()),
+    fetch('/admin/messages').then(r=>r.json()),
     fetch('/api/site').then(r=>r.json())
   ]);
   allItems=ir.items; categories=cr; siteData=sr;
@@ -2449,6 +2493,7 @@ async function init(){
   document.getElementById('sImg').textContent=allItems.filter(i=>i.type==='image').length;
   document.getElementById('sVid').textContent=allItems.filter(i=>i.type==='video').length;
   document.getElementById('sMsg').textContent=mr.length;
+  setPendingBadge((mr||[]).filter(m=>!m.approved).length);
   renderRecentTable(allItems.slice(0,6));
   populateCatSelects();
   // 设置 Favicon
@@ -2459,6 +2504,8 @@ async function init(){
   }
   // 静默补全缺失缩图（后台进行，不阻塞加载）
   fetch('/admin/thumbs/fill-missing',{method:'POST'}).catch(()=>{});
+  // 留言待审核提醒：后台常驻气泡
+  setInterval(refreshPendingBadge, 30000);
 }
 
 function showPage(p,el){
@@ -2639,8 +2686,11 @@ function loadManage(){
     </td>
     <td><span class="badge ${i.type==='image'?'bi':'bv'}">${i.type==='image'?'图':(i.type==='model'?'3D':'视')}</span></td>
     <td>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="color:var(--ac);font-size:13px" id="lc-${i.id}">❤️ ${i.likes||0}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="color:var(--ac);font-size:13px" id="lc-${i.id}">❤️</span>
+        <input id="likes-${i.id}" type="number" min="0" value="${i.likes||0}" style="width:64px;padding:2px 6px;border:1px solid var(--bd);border-radius:4px;background:var(--s2);color:var(--tx);font-size:12px"
+          onkeydown="if(event.key==='Enter')saveRowLikes('${i.id}')">
+        <button class="btn btn-s btn-xs" onclick="saveRowLikes('${i.id}')">保存</button>
         <div style="display:flex;flex-direction:column;gap:1px">
           <button onclick="adjLikes('${i.id}',1,this)" style="width:16px;height:14px;padding:0;border:1px solid var(--bd);border-radius:3px;background:var(--s2);cursor:pointer;font-size:9px;line-height:1;color:var(--tx)">▲</button>
           <button onclick="adjLikes('${i.id}',-1,this)" style="width:16px;height:14px;padding:0;border:1px solid var(--bd);border-radius:3px;background:var(--s2);cursor:pointer;font-size:9px;line-height:1;color:var(--tx)">▼</button>
@@ -2661,9 +2711,11 @@ function loadManage(){
       </div>
     </td>
     <td style="color:var(--mu);font-size:11px">${(i.created_at||'').split(' ')[0]}</td>
-    <td style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="btn btn-s btn-sm" onclick='openEdit(${JSON.stringify(i).replace(/'/g,"&#39;")})'>编辑</button>
-      <button class="btn btn-d btn-sm" onclick="deleteItem('${i.id}')">删除</button>
+    <td style="vertical-align:middle">
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-s btn-sm" onclick='openEdit(${JSON.stringify(i).replace(/'/g,"&#39;")})'>编辑</button>
+        <button class="btn btn-d btn-sm" onclick="deleteItem('${i.id}')">删除</button>
+      </div>
     </td>
   </tr>`).join('');
 }
@@ -3125,7 +3177,7 @@ async function removeCat(cat) {
 }
 
 // BASIC
-function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';const ts=siteData.thumb_scale||50;document.getElementById('thumbScale').value=ts;document.getElementById('thumbScaleRange').value=ts;const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){
+function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitle').value=b.title||'';document.getElementById('siteSub').value=b.subtitle||'';document.getElementById('modelHint').value=b.model_hint||'🖱️ 左键旋转 · 滚轮缩放 · 右键平移';document.getElementById('modelHintPos').value=(b.model_hint_position||'bottom');document.getElementById('modelHintBg').value=b.model_hint_bg||'rgba(0,0,0,.52)';document.getElementById('modelHintColor').value=b.model_hint_color||'rgba(255,255,255,.92)';document.getElementById('modelHintFontSize').value=b.model_hint_font_size||12;document.getElementById('modelHintMaxWidth').value=b.model_hint_max_width||900;document.getElementById('modelHintRadius').value=b.model_hint_radius||10;const ts=siteData.thumb_scale||50;document.getElementById('thumbScale').value=ts;document.getElementById('thumbScaleRange').value=ts;const t=siteData.theme||'warm';const r=document.querySelector(`input[name=defaultTheme][value="${t}"]`);if(r)r.checked=true;if(b.favicon){
   const src='/static/uploads/'+b.favicon;
   const p=document.getElementById('faviconPrev');
   const wrap=document.getElementById('faviconPrevWrap');
@@ -3136,7 +3188,7 @@ function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitl
   if(wrap) wrap.style.borderColor='var(--ac)';
   if(nm) nm.textContent=b.favicon.split('/').pop();
 }}
-async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const thumb_scale=parseInt(document.getElementById('thumbScale').value)||50;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,theme,thumb_scale})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.theme=theme;siteData.thumb_scale=thumb_scale;toast('已保存');}else toast('失败','err');}
+async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value,model_hint=document.getElementById('modelHint').value,model_hint_position=document.getElementById('modelHintPos').value||'bottom',model_hint_bg=document.getElementById('modelHintBg').value,model_hint_color=document.getElementById('modelHintColor').value,model_hint_font_size=parseInt(document.getElementById('modelHintFontSize').value)||12,model_hint_max_width=parseInt(document.getElementById('modelHintMaxWidth').value)||900,model_hint_radius=parseInt(document.getElementById('modelHintRadius').value)||10;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const thumb_scale=parseInt(document.getElementById('thumbScale').value)||50;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,model_hint,model_hint_position,model_hint_bg,model_hint_color,model_hint_font_size,model_hint_max_width,model_hint_radius,theme,thumb_scale})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.site.model_hint=model_hint;siteData.site.model_hint_position=model_hint_position;siteData.site.model_hint_bg=model_hint_bg;siteData.site.model_hint_color=model_hint_color;siteData.site.model_hint_font_size=model_hint_font_size;siteData.site.model_hint_max_width=model_hint_max_width;siteData.site.model_hint_radius=model_hint_radius;siteData.theme=theme;siteData.thumb_scale=thumb_scale;toast('已保存');}else toast('失败','err');}
 async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;_updateFaviconPreview(d.url, d.favicon || d.url.split('/').pop());toast('图标已上传');}else toast('失败','err');}
 
 // HERO
@@ -3926,10 +3978,31 @@ async function clearVisitors(){if(!confirm('清空所有访客记录？'))return
 
 // MESSAGES
 let allMsgs=[], msgFilter='all';
+function setPendingBadge(pending){
+  const pc=document.getElementById('pendingCount');
+  if(pc) pc.textContent=pending||'';
+  const nav=document.getElementById('navMsgPending');
+  if(nav){
+    if(pending>0){
+      nav.style.display='inline-block';
+      nav.textContent=pending>99?'99+':String(pending);
+    }else{
+      nav.style.display='none';
+      nav.textContent='';
+    }
+  }
+}
+async function refreshPendingBadge(){
+  try{
+    const msgs=await fetch('/admin/messages').then(r=>r.json());
+    const pending=msgs.filter(m=>!m.approved).length;
+    setPendingBadge(pending);
+  }catch(e){}
+}
 async function loadMessages(){
   allMsgs=await fetch('/admin/messages').then(r=>r.json());
   const pending=allMsgs.filter(m=>!m.approved).length;
-  document.getElementById('pendingCount').textContent=pending||'';
+  setPendingBadge(pending);
   renderMsgs();
 }
 function filterMsgs(f){
@@ -3982,7 +4055,7 @@ async function toggleApprove(id, approve){
     const m=allMsgs.find(m=>m.id===id);
     if(m)m.approved=approve;
     const pending=allMsgs.filter(m=>!m.approved).length;
-    document.getElementById('pendingCount').textContent=pending||'';
+    setPendingBadge(pending);
     renderMsgs();
     toast(approve?'已通过审核':'已撤销');
   }else toast('操作失败','err');
@@ -3999,7 +4072,7 @@ async function deleteMsg(id){
   await fetch(`/admin/messages/delete/${id}`,{method:'DELETE'});
   allMsgs=allMsgs.filter(m=>m.id!==id);
   const pending=allMsgs.filter(m=>!m.approved).length;
-  document.getElementById('pendingCount').textContent=pending||'';
+  setPendingBadge(pending);
   renderMsgs();
   toast('已删除');
 }

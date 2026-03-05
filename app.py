@@ -156,7 +156,7 @@ def login_required(f):
 
 def get_default_site():
     return {
-        "site": {"title": "GALLERY · 视觉创作集", "subtitle": "记录生活之美，分享视觉灵感", "favicon": ""},
+        "site": {"title": "GALLERY · 视觉创作集", "subtitle": "记录生活之美，分享视觉灵感", "favicon": "", "model_hint": "🖱️ 左键旋转 · 滚轮缩放 · 右键平移", "model_hint_position": "bottom", "model_hint_bg": "rgba(0,0,0,.52)", "model_hint_color": "rgba(255,255,255,.92)", "model_hint_font_size": 12, "model_hint_max_width": 900, "model_hint_radius": 10},
         "theme": "warm",
         "thumb_scale": 50,
         "nav": {
@@ -229,6 +229,10 @@ def load_site():
     default = get_default_site()
     for key in default:
         if key not in d: d[key] = default[key]
+    if 'site' in d:
+        for k, v in default['site'].items():
+            if k not in d['site']:
+                d['site'][k] = v
     if 'about' in d:
         for k, v in default['about'].items():
             if k not in d['about']: d['about'][k] = v
@@ -420,6 +424,8 @@ def api_items():
     end = start + per_page
     page_items = [dict(i) for i in items[start:end]]
     for item in page_items:
+        fn = item.get('filename', '')
+        item['type'] = 'model' if is_model(fn) else ('video' if is_video(fn) else item.get('type', 'image'))
         item['likes'] = likes.get(item['id'], 0)
     return jsonify({'items': page_items, 'total': total, 'page': page, 'has_more': end < total})
 
@@ -643,7 +649,7 @@ def admin_replace_file(item_id):
     for item in data['items']:
         if item['id'] == item_id:
             item['filename'] = filename
-            item['type'] = 'video' if is_video(filename) else 'image'
+            item['type'] = 'model' if is_model(filename) else ('video' if is_video(filename) else 'image')
             break
     save_data(data)
     return jsonify({'success': True, 'filename': filename})
@@ -811,6 +817,22 @@ def admin_site_basic():
     if 'site' not in site: site['site'] = {}
     site['site']['title'] = body.get('title', site['site'].get('title', ''))
     site['site']['subtitle'] = body.get('subtitle', site['site'].get('subtitle', ''))
+    site['site']['model_hint'] = body.get('model_hint', site['site'].get('model_hint', ''))
+    site['site']['model_hint_position'] = body.get('model_hint_position', site['site'].get('model_hint_position', 'bottom'))
+    site['site']['model_hint_bg'] = body.get('model_hint_bg', site['site'].get('model_hint_bg', 'rgba(0,0,0,.52)'))
+    site['site']['model_hint_color'] = body.get('model_hint_color', site['site'].get('model_hint_color', 'rgba(255,255,255,.92)'))
+    try:
+        site['site']['model_hint_font_size'] = max(10, min(24, int(body.get('model_hint_font_size', site['site'].get('model_hint_font_size', 12)))))
+    except Exception:
+        site['site']['model_hint_font_size'] = site['site'].get('model_hint_font_size', 12)
+    try:
+        site['site']['model_hint_max_width'] = max(320, min(1400, int(body.get('model_hint_max_width', site['site'].get('model_hint_max_width', 900)))))
+    except Exception:
+        site['site']['model_hint_max_width'] = site['site'].get('model_hint_max_width', 900)
+    try:
+        site['site']['model_hint_radius'] = max(0, min(40, int(body.get('model_hint_radius', site['site'].get('model_hint_radius', 10)))))
+    except Exception:
+        site['site']['model_hint_radius'] = site['site'].get('model_hint_radius', 10)
     site['theme'] = body.get('theme', site.get('theme', 'warm'))
     if 'thumb_scale' in body:
         site['thumb_scale'] = max(10, min(100, int(body.get('thumb_scale', 50))))
@@ -1083,7 +1105,7 @@ def admin_media_replace(filename):
     for item in data['items']:
         if item.get('filename') == filename:
             item['filename'] = new_filename
-            item['type'] = 'video' if is_video(new_filename) else 'image'
+            item['type'] = 'model' if is_model(new_filename) else ('video' if is_video(new_filename) else 'image')
             changed = True
         if item.get('cover') == filename:
             item['cover'] = new_filename
@@ -1123,7 +1145,8 @@ def load_muyu():
         # 多木鱼图案（图片为主），供前端用户切换
         # item: {id, name, file}
         'patterns': [],
-        'pattern_btn_label': '切换图案',
+        'pattern_btn_label': '敲咪咪',
+        'pattern_btn_icon': '🧩',
         'back_label': '返回首页',
         'sound_code': '',
         'bg_music_list': [],
@@ -1146,7 +1169,9 @@ def load_muyu():
             'file': d.get('custom_image')
         }]
     if 'pattern_btn_label' not in d:
-        d['pattern_btn_label'] = default.get('pattern_btn_label', '切换图案')
+        d['pattern_btn_label'] = default.get('pattern_btn_label', '敲咪咪')
+    if 'pattern_btn_icon' not in d:
+        d['pattern_btn_icon'] = default.get('pattern_btn_icon', '🧩')
     return d
 
 def save_muyu(d): save_json(MUYU_FILE, d)
@@ -1353,7 +1378,8 @@ def admin_muyu_save():
         'bg_color',
         'bg_layers',
         'patterns',
-        'pattern_btn_label'
+        'pattern_btn_label',
+        'pattern_btn_icon'
     ]
     for k in allowed:
         if k in body:
@@ -1486,23 +1512,40 @@ DATA_TYPES = {
     'showcase':  SHOWCASE_FILE if 'SHOWCASE_FILE' in globals() else 'data/showcase.json',
 }
 
+
+def _all_data_json_files():
+    """返回 data 目录下所有 JSON 文件（自动纳入备份）"""
+    data_dir = os.path.join(_BASE, 'data')
+    files = []
+    if os.path.isdir(data_dir):
+        for fn in os.listdir(data_dir):
+            if fn.lower().endswith('.json'):
+                files.append(os.path.join(data_dir, fn))
+    return sorted(files)
+
 @app.route('/admin/backup/export', methods=['POST'])
 @login_required
 def admin_backup_export():
-    """打包指定 JSON 和可选的 uploads/thumbs 文件为 zip 下载"""
+    """打包动态数据（默认 data/*.json 全量）及媒体文件为 zip 下载"""
     body = request.json or {}
-    types = body.get('types', list(DATA_TYPES.keys()))
-    include_uploads = body.get('include_uploads', False)
-    include_thumbs  = body.get('include_thumbs', False)
+    req_types = body.get('types', list(DATA_TYPES.keys()))
+    include_uploads = body.get('include_uploads', True)
+    include_thumbs  = body.get('include_thumbs', True)
+
+    # 动态数据：默认全量 data/*.json；如前端传了 types，则在全量基础上保持兼容
+    export_files = {os.path.abspath(p) for p in _all_data_json_files()}
+    for t in req_types:
+        fp = DATA_TYPES.get(t)
+        if fp:
+            export_files.add(os.path.abspath(fp))
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for t in types:
-            fp = DATA_TYPES.get(t)
-            if fp and os.path.exists(fp):
+        for fp in sorted(export_files):
+            if os.path.exists(fp):
                 zf.write(fp, f'data/{os.path.basename(fp)}')
         # 附加：木鱼自定义 SVG 文件（不在 JSON 内）+ 木鱼引用的媒体文件
-        if 'muyu' in types:
+        if 'muyu' in req_types:
             svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
             if os.path.exists(svg_path):
                 zf.write(svg_path, 'data/muyu_custom.svg')
@@ -1553,7 +1596,7 @@ def admin_backup_export():
 @app.route('/admin/backup/import', methods=['POST'])
 @login_required
 def admin_backup_import():
-    """从 zip 文件恢复数据"""
+    """从 zip 文件恢复数据（默认恢复 zip 内全部 data/*.json）"""
     f = request.files.get('file')
     if not f:
         return jsonify({'success': False, 'error': '缺少文件'}), 400
@@ -1564,6 +1607,18 @@ def admin_backup_import():
     try:
         with zipfile.ZipFile(f.stream, 'r') as zf:
             names = zf.namelist()
+            # 默认：恢复压缩包内所有 data/*.json
+            for nm in names:
+                if nm.startswith('data/') and nm.lower().endswith('.json') and not nm.endswith('/'):
+                    base = os.path.basename(nm)
+                    dst = os.path.join(_BASE, 'data', base)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    with zf.open(nm) as src:
+                        with open(dst, 'wb') as out:
+                            out.write(src.read())
+                    restored.append(base)
+
+            # 兼容旧逻辑：若传了 types 且 zip 中存在，确保对应文件被恢复
             for t in types:
                 fp = DATA_TYPES.get(t)
                 arc = f'data/{os.path.basename(fp)}' if fp else None
@@ -1572,9 +1627,11 @@ def admin_backup_import():
                     with zf.open(arc) as src:
                         with open(fp, 'wb') as dst:
                             dst.write(src.read())
-                    restored.append(t)
+                    if t not in restored:
+                        restored.append(t)
+
             # 附加：木鱼自定义 SVG + 木鱼专属媒体
-            if 'muyu' in types:
+            if ('muyu' in types) or ('data/muyu.json' in names):
                 if 'data/muyu_custom.svg' in names:
                     svg_path = os.path.join(_BASE, 'data', 'muyu_custom.svg')
                     os.makedirs(os.path.dirname(svg_path), exist_ok=True)
@@ -1793,7 +1850,7 @@ def admin_showcase_upload():
         'link': request.form.get('link', ''),
         'filename': filename,
         'cover': cover_filename,
-        'type': 'video' if is_video(filename) else 'image',
+        'type': 'model' if is_model(filename) else ('video' if is_video(filename) else 'image'),
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'width': int(request.form.get('width', 16)),
         'height': int(request.form.get('height', 9)),
@@ -1834,10 +1891,10 @@ def admin_showcase_replace(item_id):
         if item['id'] == item_id:
             if file and allowed_file(file.filename):
                 item['filename'] = save_upload(file)
-                item['type'] = 'video' if is_video(item['filename']) else 'image'
+                item['type'] = 'model' if is_model(item['filename']) else ('video' if is_video(item['filename']) else 'image')
             elif existing_file:
                 item['filename'] = existing_file
-                item['type'] = 'video' if is_video(existing_file) else 'image'
+                item['type'] = 'model' if is_model(existing_file) else ('video' if is_video(existing_file) else 'image')
             if cover and allowed_img(cover.filename):
                 item['cover'] = save_upload(cover, 'sc_cover_')
             elif existing_cover:

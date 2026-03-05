@@ -524,6 +524,49 @@ body.fullscreen-immersive .pattern-btn {
   .corner-info { display:none; }
 }
 
+/* 竖屏小屏：底部按钮避免重叠 */
+@media (orientation: portrait) and (max-width: 900px) {
+  .controls {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+    padding: 0 10px;
+  }
+  .hint {
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-align: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-row {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+  }
+  .ctl-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .pattern-btn {
+    right: 10px;
+    bottom: calc(176px + env(safe-area-inset-bottom));
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 6px;
+    z-index: 140;
+  }
+  .music-btn {
+    right: 10px;
+    bottom: calc(132px + env(safe-area-inset-bottom));
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 6px;
+    z-index: 140;
+  }
+}
+
 /* ── 返回按钮 ── */
 .back-btn {
   position:fixed; top:20px; left:20px;
@@ -783,8 +826,8 @@ body.immersive:hover .pattern-btn { opacity:1; pointer-events:auto; }
 </button>
 
 <button class="pattern-btn" id="patternBtn" onclick="openPatternModal()" style="display:none">
-  <span>🧩</span>
-  <span id="patternBtnText">切换图案</span>
+  <span id="patternBtnIcon">🧩</span>
+  <span id="patternBtnText">敲咪咪</span>
 </button>
 
 <!-- 背景音乐弹窗 -->
@@ -841,7 +884,8 @@ let bgCycleTimer = null;
 let bgCycleIndex = 0;
 let bgLayersCfg = [];
 let patterns = [];
-let patternBtnLabel = '切换图案';
+let patternBtnLabel = '敲咪咪';
+let patternBtnIcon = '🧩';
 let curPatternId = localStorage.getItem('muyu_pattern_id') || '';
 let hasUserPatternChoice = !!localStorage.getItem('muyu_pattern_id');
 
@@ -876,10 +920,13 @@ async function loadConfig() {
 
   // ── 图案库（用户可切换）──
   patterns = cfg.patterns || [];
-  patternBtnLabel = cfg.pattern_btn_label || '切换图案';
+  patternBtnLabel = cfg.pattern_btn_label || '敲咪咪';
+  patternBtnIcon = cfg.pattern_btn_icon || '🧩';
   const pBtn = document.getElementById('patternBtn');
   const pTxt = document.getElementById('patternBtnText');
+  const pIcon = document.getElementById('patternBtnIcon');
   if (pTxt) pTxt.textContent = patternBtnLabel;
+  if (pIcon) pIcon.textContent = patternBtnIcon;
   if (pBtn) pBtn.style.display = patterns.length ? 'flex' : 'none';
   // 图案选择记忆：仅当访客之前手动选过图案时，刷新后继续显示该图案
   let appliedUserPattern = false;
