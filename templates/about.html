@@ -300,10 +300,10 @@ function openAboutModal(id){
   const isVid=itemIsVideo(item);
   const isModel=itemIsModel(item);
   document.getElementById('aboutModalBody').innerHTML=isVid
-    ?`<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
+    ?`<video src="${src}" controls autoplay style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain"></video>`
     :(isModel
-      ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
-      :`<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
+      ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);max-width:92vw;background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
+      :`<img src="${src}" style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
   document.getElementById('aboutModalTitle').textContent=item.title||'';
   document.getElementById('aboutModalDesc').innerHTML=item.description||'';
   const bigBtn=document.getElementById('aboutModalBigBtn');
