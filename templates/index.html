@@ -305,6 +305,7 @@ const itemMap={};
 const modalOrder=[];
 let modalCurrentId='';
 let _modalWheelLock=false;
+let _modalTouchStartY=null;
 function extOf(f){return String(f||'').split('?')[0].split('.').pop().toLowerCase();}
 function isModelByFile(f){const e=extOf(f);return e==='glb'||e==='gltf';}
 function isVideoByFile(f){const e=extOf(f);return e==='mp4'||e==='mov'||e==='webm';}
@@ -861,9 +862,34 @@ function handleModalWheel(e){
   setTimeout(()=>{ _modalWheelLock = false; }, 180);
 }
 
-function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';const hTop=document.getElementById('modalHintTop');const hBottom=document.getElementById('modalHintBottom');if(hTop){hTop.style.display='none';hTop.textContent='';}if(hBottom){hBottom.style.display='none';hBottom.textContent='';}modalCurrentId='';}
+function handleModalTouchStart(e){
+  const modal = document.getElementById('modal');
+  if(!modal || !modal.classList.contains('open')) return;
+  if(!e.touches || !e.touches.length) return;
+  _modalTouchStartY = e.touches[0].clientY;
+}
+
+function handleModalTouchEnd(e){
+  const modal = document.getElementById('modal');
+  if(!modal || !modal.classList.contains('open')) return;
+  if(_modalWheelLock) return;
+  if(_modalTouchStartY == null) return;
+  const y = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : _modalTouchStartY;
+  const dy = y - _modalTouchStartY;
+  _modalTouchStartY = null;
+  if(Math.abs(dy) < 36) return;
+  // 手势：向上滑 -> 下一个；向下滑 -> 上一个
+  _modalWheelLock = true;
+  openModalByOffset(dy < 0 ? 1 : -1);
+  setTimeout(()=>{ _modalWheelLock = false; }, 220);
+}
+
+function closeModal(){const v=document.getElementById('modal');v.classList.remove('open');document.getElementById('modalBody').innerHTML='';const hTop=document.getElementById('modalHintTop');const hBottom=document.getElementById('modalHintBottom');if(hTop){hTop.style.display='none';hTop.textContent='';}if(hBottom){hBottom.style.display='none';hBottom.textContent='';}modalCurrentId='';_modalTouchStartY=null;}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='ArrowDown')openModalByOffset(1);if(e.key==='ArrowUp')openModalByOffset(-1);});
-document.getElementById('modal').addEventListener('wheel', handleModalWheel, {passive:false});
+const _modalEl = document.getElementById('modal');
+_modalEl.addEventListener('wheel', handleModalWheel, {passive:false});
+_modalEl.addEventListener('touchstart', handleModalTouchStart, {passive:true});
+_modalEl.addEventListener('touchend', handleModalTouchEnd, {passive:true});
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
 function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
