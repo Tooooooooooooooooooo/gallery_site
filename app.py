@@ -262,20 +262,25 @@ def save_upload(file, prefix=''):
 _ip_region_cache = {}
 
 def _get_real_ip():
-    """从请求头取真实 IP（Railway/Nginx 反向代理后在 X-Forwarded-For）"""
-    xff = request.headers.get("X-Forwarded-For", "")
-    if xff:
-        ip = xff.split(",")[0].strip()
-        if ip:
-            return ip
+    """从代理头取真实 IP，兼容 Cloudflare/Nginx/Railway"""
+    for hk in ("CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"):
+        hv = request.headers.get(hk, "")
+        if hv:
+            ip = hv.split(",")[0].strip()
+            if ip:
+                return ip
     return request.remote_addr or "unknown"
 
 def _is_private_ip(ip):
-    return (not ip or ip in ("unknown", "127.0.0.1", "::1")
-            or ip.startswith("192.168.") or ip.startswith("10.")
-            or ip.startswith("172.16.") or ip.startswith("172.17.")
-            or ip.startswith("172.18.") or ip.startswith("172.19.")
-            or ip.startswith("172.2") or ip.startswith("172.3"))
+    """严格判断私网/回环/链路本地地址"""
+    try:
+        import ipaddress
+        if not ip or ip == "unknown":
+            return True
+        addr = ipaddress.ip_address(ip)
+        return addr.is_private or addr.is_loopback or addr.is_link_local
+    except Exception:
+        return True
 
 def _lookup_ip_region(ip):
     if _is_private_ip(ip):
@@ -285,42 +290,54 @@ def _lookup_ip_region(ip):
     try:
         import urllib.request as _ur, json as _js
 
-        def _from_ip_api():
-            url = "http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city"
+        def _get_json(url, timeout=4):
             req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with _ur.urlopen(req, timeout=3) as resp:
+            with _ur.urlopen(req, timeout=timeout) as resp:
                 return _js.loads(resp.read())
 
-        def _from_ipapi_co():
-            # 备用：ipapi.co，返回英文字段
-            url = "https://ipapi.co/" + ip + "/json/"
-            req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with _ur.urlopen(req, timeout=4) as resp:
-                return _js.loads(resp.read())
+        providers = [
+            # 1) ipapi.co
+            lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
+            # 2) ip-api.com（部分环境会限制 https 免费访问；保留 http 兜底）
+            lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 4),
+            # 3) ipwho.is
+            lambda: _get_json("https://ipwho.is/" + ip, 4),
+            # 4) ipinfo.io（无需 token 的基础字段）
+            lambda: _get_json("https://ipinfo.io/" + ip + "/json", 4),
+        ]
 
         region = ""
         d = {}
-        try:
-            d = _from_ip_api()
-        except Exception:
-            # ip-api.com 不可用时，再尝试备用接口
+        for f in providers:
             try:
-                d = _from_ipapi_co()
+                d = f() or {}
             except Exception:
                 d = {}
+            if not d:
+                continue
 
-        if d:
-            # ip-api.com 格式
+            parts = []
+            # ip-api
             if d.get("status") == "success":
-                parts = [d.get("country",""), d.get("regionName",""), d.get("city","")]
-            else:
-                # ipapi.co 等备用格式
-                parts = [d.get("country_name",""), d.get("region",""), d.get("city","")]
+                parts = [d.get("country", ""), d.get("regionName", ""), d.get("city", "")]
+            # ipapi.co
+            elif d.get("country_name") or d.get("region") or d.get("city"):
+                parts = [d.get("country_name", ""), d.get("region", ""), d.get("city", "")]
+            # ipwho.is
+            elif ("success" in d and d.get("success") is True) or d.get("country") or d.get("region"):
+                parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
+            # ipinfo.io
+            elif d.get("country") or d.get("region") or d.get("city"):
+                parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
+
             seen, out = set(), []
             for p in parts:
                 if p and p not in seen:
-                    seen.add(p); out.append(p)
+                    seen.add(p)
+                    out.append(p)
             region = " ".join(out)
+            if region:
+                break
 
         _ip_region_cache[ip] = region or ""
         return region or ""
