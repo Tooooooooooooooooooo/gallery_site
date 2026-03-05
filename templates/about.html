@@ -239,6 +239,7 @@ async function init(){
   // 存储 items 用于 modal
   window._aboutItems={};
   items.items.forEach(i=>{window._aboutItems[i.id]=i;});
+  _aboutPreviewOrder = previewItems.map(i=>i.id);
   gp.innerHTML=previewItems.map(item=>{
     const isVid=itemIsVideo(item);
     const isModel=itemIsModel(item);
@@ -279,6 +280,12 @@ function renderFooter(ft){
     `<div class="footer-copy"><p>${copy}</p></div>`;
 }
 
+let _aboutModalHistoryPushed=false;
+let _aboutPreviewOrder=[];
+let _aboutCurrentId='';
+let _aboutNavLock=false;
+let _aboutTouchStartY=null;
+
 function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function extOf(f){return String(f||'').split('?')[0].split('.').pop().toLowerCase();}
 function isModelByFile(f){const e=extOf(f);return e==='glb'||e==='gltf';}
@@ -288,6 +295,7 @@ function itemIsVideo(it){return it&&(((it.type||'').toLowerCase()==='video')||is
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function openAboutModal(id){
   const item=window._aboutItems?.[id];if(!item)return;
+  _aboutCurrentId = id;
   const src=fileSrc(item.filename);
   const isVid=itemIsVideo(item);
   const isModel=itemIsModel(item);
@@ -301,13 +309,76 @@ function openAboutModal(id){
   const bigBtn=document.getElementById('aboutModalBigBtn');
   bigBtn.style.display=(isVid||isModel)?'none':'flex';
   bigBtn.onclick=()=>window.open(src,'_blank');
+  if(!_aboutModalHistoryPushed){
+    try{ history.pushState({aboutModalOpen:true}, ''); _aboutModalHistoryPushed=true; }catch(e){}
+  }
   document.getElementById('aboutModal').classList.add('open');
+  document.body.style.overflow='hidden';
 }
-function closeAboutModal(){
+
+function openAboutByOffset(step){
+  if(!_aboutCurrentId || !_aboutPreviewOrder.length) return;
+  const idx = _aboutPreviewOrder.indexOf(_aboutCurrentId);
+  if(idx < 0) return;
+  const next = idx + step;
+  if(next < 0 || next >= _aboutPreviewOrder.length) return;
+  openAboutModal(_aboutPreviewOrder[next]);
+}
+
+function handleAboutWheel(e){
+  const m=document.getElementById('aboutModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(_aboutNavLock) return;
+  if(Math.abs(e.deltaY) < 8) return;
+  e.preventDefault();
+  _aboutNavLock = true;
+  openAboutByOffset(e.deltaY > 0 ? 1 : -1);
+  setTimeout(()=>{ _aboutNavLock = false; }, 180);
+}
+
+function handleAboutTouchStart(e){
+  const m=document.getElementById('aboutModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(!e.touches || !e.touches.length) return;
+  _aboutTouchStartY = e.touches[0].clientY;
+}
+
+function handleAboutTouchEnd(e){
+  const m=document.getElementById('aboutModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(_aboutNavLock) return;
+  if(_aboutTouchStartY == null) return;
+  const y = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : _aboutTouchStartY;
+  const dy = y - _aboutTouchStartY;
+  _aboutTouchStartY = null;
+  if(Math.abs(dy) < 36) return;
+  _aboutNavLock = true;
+  openAboutByOffset(dy < 0 ? 1 : -1);
+  setTimeout(()=>{ _aboutNavLock = false; }, 220);
+}
+
+function closeAboutModal(fromPopstate=false){
   document.getElementById('aboutModal').classList.remove('open');
   document.getElementById('aboutModalBody').innerHTML='';
+  _aboutCurrentId='';
+  _aboutTouchStartY=null;
+  document.body.style.overflow='';
+  if(_aboutModalHistoryPushed){
+    if(!fromPopstate){
+      try{ history.back(); }catch(e){}
+    }
+    _aboutModalHistoryPushed=false;
+  }
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAboutModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAboutModal();if(e.key==='ArrowDown')openAboutByOffset(1);if(e.key==='ArrowUp')openAboutByOffset(-1);});
+window.addEventListener('popstate',()=>{
+  const m=document.getElementById('aboutModal');
+  if(m&&m.classList.contains('open')) closeAboutModal(true);
+});
+const _aboutModalEl=document.getElementById('aboutModal');
+_aboutModalEl.addEventListener('wheel', handleAboutWheel, {passive:false});
+_aboutModalEl.addEventListener('touchstart', handleAboutTouchStart, {passive:true});
+_aboutModalEl.addEventListener('touchend', handleAboutTouchEnd, {passive:true});
 
 // 监听首页配色实时同步
 

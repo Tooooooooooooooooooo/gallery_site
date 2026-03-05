@@ -228,6 +228,11 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 
 let uploadedAvatarUrl='', defaultAvatarUrl='', allMsgsData=[];
 let avatarMaxSizeMB=2, avatarFormats=['jpg','jpeg','png','webp'], avatarDailyLimit=0;
+let _msgModalHistoryPushed=false;
+let _msgPreviewOrder=[];
+let _msgCurrentId='';
+let _msgNavLock=false;
+let _msgTouchStartY=null;
 
 function renderFooter(ft){
   const colData = ft.columns||[];
@@ -269,6 +274,7 @@ async function loadMsgGallery(){
     const gp=document.getElementById('msgGalleryPreview');
     if(!gp)return;
     const preview=data.items.slice(0,5);
+    _msgPreviewOrder = preview.map(i=>i.id);
     gp.innerHTML=preview.map(item=>{
       const isVid=itemIsVideo(item);
       const isModel=itemIsModel(item);
@@ -285,6 +291,7 @@ async function loadMsgGallery(){
 
 function openMsgModal(id){
   const item=window._msgItems&&window._msgItems[id];if(!item)return;
+  _msgCurrentId = id;
   const src=fileSrc(item.filename);
   const isVid=itemIsVideo(item);
   const isModel=itemIsModel(item);
@@ -296,16 +303,76 @@ function openMsgModal(id){
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
   document.getElementById('msgModalTitle').textContent=item.title||'';
   const _mCats=cats.length?cats.join(' · '):'';document.getElementById('msgModalDesc').innerHTML=(item.description||'')+(_mCats?`<span style="opacity:.6;margin-left:6px">${_mCats}</span>`:'');
+  if(!_msgModalHistoryPushed){
+    try{ history.pushState({msgModalOpen:true}, ''); _msgModalHistoryPushed=true; }catch(e){}
+  }
   document.getElementById('msgModal').classList.add('open');
   document.body.style.overflow='hidden';
 }
 
-function closeMsgModal(){
+function openMsgByOffset(step){
+  if(!_msgCurrentId || !_msgPreviewOrder.length) return;
+  const idx = _msgPreviewOrder.indexOf(_msgCurrentId);
+  if(idx < 0) return;
+  const next = idx + step;
+  if(next < 0 || next >= _msgPreviewOrder.length) return;
+  openMsgModal(_msgPreviewOrder[next]);
+}
+
+function handleMsgWheel(e){
+  const m=document.getElementById('msgModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(_msgNavLock) return;
+  if(Math.abs(e.deltaY) < 8) return;
+  e.preventDefault();
+  _msgNavLock = true;
+  openMsgByOffset(e.deltaY > 0 ? 1 : -1);
+  setTimeout(()=>{ _msgNavLock = false; }, 180);
+}
+
+function handleMsgTouchStart(e){
+  const m=document.getElementById('msgModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(!e.touches || !e.touches.length) return;
+  _msgTouchStartY = e.touches[0].clientY;
+}
+
+function handleMsgTouchEnd(e){
+  const m=document.getElementById('msgModal');
+  if(!m || !m.classList.contains('open')) return;
+  if(_msgNavLock) return;
+  if(_msgTouchStartY == null) return;
+  const y = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : _msgTouchStartY;
+  const dy = y - _msgTouchStartY;
+  _msgTouchStartY = null;
+  if(Math.abs(dy) < 36) return;
+  _msgNavLock = true;
+  openMsgByOffset(dy < 0 ? 1 : -1);
+  setTimeout(()=>{ _msgNavLock = false; }, 220);
+}
+
+function closeMsgModal(fromPopstate=false){
   document.getElementById('msgModal').classList.remove('open');
   document.body.style.overflow='';
   document.getElementById('msgModalBody').innerHTML='';
+  _msgCurrentId='';
+  _msgTouchStartY=null;
+  if(_msgModalHistoryPushed){
+    if(!fromPopstate){
+      try{ history.back(); }catch(e){}
+    }
+    _msgModalHistoryPushed=false;
+  }
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMsgModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMsgModal();if(e.key==='ArrowDown')openMsgByOffset(1);if(e.key==='ArrowUp')openMsgByOffset(-1);});
+window.addEventListener('popstate',()=>{
+  const m=document.getElementById('msgModal');
+  if(m&&m.classList.contains('open')) closeMsgModal(true);
+});
+const _msgModalEl=document.getElementById('msgModal');
+_msgModalEl.addEventListener('wheel', handleMsgWheel, {passive:false});
+_msgModalEl.addEventListener('touchstart', handleMsgTouchStart, {passive:true});
+_msgModalEl.addEventListener('touchend', handleMsgTouchEnd, {passive:true});
 
 async function init(){
   const site=await fetch('/api/site').then(r=>r.json());
