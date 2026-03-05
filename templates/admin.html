@@ -3073,22 +3073,40 @@ function syncThumbScaleRange(){
 }
 
 
+async function saveRowLikes(id){
+  const inp = document.getElementById('likes-' + id);
+  if(!inp) return;
+  const val = Math.max(0, parseInt(inp.value,10) || 0);
+  inp.value = val;
+  try{
+    const res = await fetch('/admin/item/' + id, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({likes: val})
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const item = allItems.find(x => x.id === id);
+    if(item) item.likes = val;
+    toast('点赞数已保存');
+  }catch(e){
+    toast('保存失败','err');
+  }
+}
+
 async function adjLikes(id, delta, btn) {
   btn.disabled = true;
   try {
-    // 读当前值
-    const cell = document.getElementById('lc-' + id);
-    const cur = parseInt(cell.textContent.replace(/[^0-9]/g,'')) || 0;
+    const inp = document.getElementById('likes-' + id);
+    const cur = Math.max(0, parseInt((inp&&inp.value)||'0', 10) || 0);
     const newVal = Math.max(0, cur + delta);
+    if (inp) inp.value = newVal;
     const res = await fetch('/admin/item/' + id, {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({likes: newVal})
     });
     if (res.ok) {
-      cell.textContent = '❤️ ' + newVal;
-      // 同步 itemList 数据
-      const item = itemList.find(x => x.id === id);
+      const item = allItems.find(x => x.id === id);
       if (item) item.likes = newVal;
     } else { toast('失败', 'err'); }
   } catch(e) { toast('失败','err'); }
