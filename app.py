@@ -263,20 +263,35 @@ _ip_region_cache = {}
 # 失败缓存（避免短时间重复请求，但不会永久锁死为空）
 _ip_region_fail_cache = {}  # ip -> timestamp
 
+def _normalize_ip(ip):
+    ip = (ip or "").strip()
+    if not ip:
+        return ""
+    # 清理内部空白：如 "157. 90. 80. 40"
+    ip = "".join(str(ip).split())
+    # 处理 IPv6 映射 IPv4，如 ::ffff:157.90.80.40
+    if ip.lower().startswith("::ffff:"):
+        ip = ip.split(":")[-1]
+    # 去掉端口（如 1.2.3.4:5678）
+    if ip.count(":") == 1 and "." in ip:
+        ip = ip.split(":")[0]
+    return ip
+
 def _get_real_ip():
     """从代理头取真实 IP，兼容 Cloudflare/Nginx/Railway"""
     for hk in ("CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"):
         hv = request.headers.get(hk, "")
         if hv:
-            ip = hv.split(",")[0].strip()
+            ip = _normalize_ip(hv.split(",")[0].strip())
             if ip:
                 return ip
-    return request.remote_addr or "unknown"
+    return _normalize_ip(request.remote_addr or "unknown")
 
 def _is_private_ip(ip):
     """严格判断私网/回环/链路本地地址"""
     try:
         import ipaddress
+        ip = _normalize_ip(ip)
         if not ip or ip == "unknown":
             return True
         addr = ipaddress.ip_address(ip)
@@ -285,6 +300,7 @@ def _is_private_ip(ip):
         return True
 
 def _lookup_ip_region(ip):
+    ip = _normalize_ip(ip)
     if _is_private_ip(ip):
         return ""
     if ip in _ip_region_cache:
@@ -300,12 +316,14 @@ def _lookup_ip_region(ip):
         providers = [
             # 1) ipapi.co
             lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
-            # 2) ip-api.com（部分环境会限制 https 免费访问；保留 http 兜底）
-            lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 4),
-            # 3) ipwho.is
+            # 2) ipwho.is
             lambda: _get_json("https://ipwho.is/" + ip, 4),
+            # 3) ip-api.com（部分环境会限制 https 免费访问；保留 http 兜底）
+            lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 4),
             # 4) ipinfo.io（无需 token 的基础字段）
             lambda: _get_json("https://ipinfo.io/" + ip + "/json", 4),
+            # 5) ip.sb（国内网络下有时更稳）
+            lambda: _get_json("https://api.ip.sb/geoip/" + ip, 4),
         ]
 
         region = ""
@@ -328,9 +346,11 @@ def _lookup_ip_region(ip):
             # ipwho.is
             elif ("success" in d and d.get("success") is True) or d.get("country") or d.get("region"):
                 parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
-            # ipinfo.io
+            # ipinfo.io / ip.sb
             elif d.get("country") or d.get("region") or d.get("city"):
                 parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
+            elif d.get("country_name") or d.get("region") or d.get("city"):
+                parts = [d.get("country_name", ""), d.get("region", ""), d.get("city", "")]
 
             seen, out = set(), []
             for p in parts:
@@ -852,37 +872,63 @@ def admin_backfill_visitor_regions():
     """手动一键回填访客地区（全量）"""
     visitors = load_visitors()
     if not visitors:
-        return jsonify({'success': True, 'updated': 0, 'total': 0})
+        return jsonify({'success': True, 'updated': 0, 'total': 0, 'checked': 0, 'skipped_private': 0, 'looked_up': 0, 'lookup_failed': 0})
 
     ip_region_map = {}
     for it in visitors:
-        ip0 = (it.get('ip') or '').strip()
+        ip0 = _normalize_ip(it.get('ip') or '')
         rg0 = (it.get('region') or '').strip()
         if ip0 and rg0 and ip0 not in ip_region_map:
             ip_region_map[ip0] = rg0
 
     updated = 0
+    checked = 0
+    skipped_private = 0
+    looked_up = 0
+    lookup_failed = 0
+
     for item in visitors:
         if (item.get('region') or '').strip():
             continue
-        ip = (item.get('ip') or '').strip()
-        if not ip or _is_private_ip(ip):
+
+        raw_ip = item.get('ip') or ''
+        ip = _normalize_ip(raw_ip)
+        # 同步修正存量脏 IP（带空格/端口等）
+        if raw_ip != ip:
+            item['ip'] = ip
+
+        if not ip:
+            continue
+
+        checked += 1
+        if _is_private_ip(ip):
+            skipped_private += 1
             continue
 
         # 优先复用同 IP 已有地区
         region = ip_region_map.get(ip, '')
         if not region:
+            looked_up += 1
             region = _lookup_ip_region(ip)
+            if not region:
+                lookup_failed += 1
 
         if region:
             item['region'] = region
             ip_region_map[ip] = region
             updated += 1
 
-    if updated:
-        save_visitors(visitors)
+    save_visitors(visitors)
 
-    return jsonify({'success': True, 'updated': updated, 'total': len(visitors)})
+    return jsonify({
+        'success': True,
+        'updated': updated,
+        'total': len(visitors),
+        'checked': checked,
+        'skipped_private': skipped_private,
+        'looked_up': looked_up,
+        'lookup_failed': lookup_failed
+    })
 
 # Site config (all protected)
 @app.route('/admin/site/basic', methods=['PUT'])

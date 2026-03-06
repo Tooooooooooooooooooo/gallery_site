@@ -3979,7 +3979,7 @@ async function loadVisitors(){
 function renderVisitorTable(visitors){
   document.getElementById('visTb').innerHTML=visitors.map(v=>`<tr>
     <td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td>
-    <td><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code></td>
+    <td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(v.region)}</span>`:''}</td>
     <td style="font-size:11px">${esc(v.path||'')}</td>
     <td style="font-size:11px;color:var(--mu);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.referer||'')}">${esc(v.referer||'-')}</td>
     <td style="font-size:10px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.ua||'')}">${esc(v.ua||'').slice(0,60)}</td>
@@ -4002,7 +4002,7 @@ async function backfillVisitorRegions(){
     const r=await fetch('/admin/visitors/backfill-region',{method:'POST'});
     const d=await r.json();
     if(r.ok&&d.success){
-      toast(`补全完成：${d.updated}/${d.total}`);
+      toast(`补全完成：${d.updated}/${d.total}，查询失败 ${d.lookup_failed||0}`);
       await loadVisitors();
     }else{
       toast('补全失败','err');
