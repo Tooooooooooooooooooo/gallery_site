@@ -260,6 +260,8 @@ def save_upload(file, prefix=''):
 
 # IP region memory cache
 _ip_region_cache = {}
+# 失败缓存（避免短时间重复请求，但不会永久锁死为空）
+_ip_region_fail_cache = {}  # ip -> timestamp
 
 def _get_real_ip():
     """从代理头取真实 IP，兼容 Cloudflare/Nginx/Railway"""
@@ -339,8 +341,11 @@ def _lookup_ip_region(ip):
             if region:
                 break
 
-        _ip_region_cache[ip] = region or ""
-        return region or ""
+        # 仅缓存成功结果，避免把空结果永久缓存导致同 IP 一直不显示地区
+        if region:
+            _ip_region_cache[ip] = region
+            return region
+        return ""
     except Exception:
         return ""
 
@@ -803,14 +808,30 @@ def admin_visitors():
     def _backfill():
         vs = load_visitors()
         changed = False
-        for item in vs[:100]:  # 只补最近100条
+        # 先建立“同IP已有地区”映射，优先复用，避免重复查外部接口
+        ip_region_map = {}
+        for it in vs:
+            ip0 = (it.get("ip") or "").strip()
+            rg0 = (it.get("region") or "").strip()
+            if ip0 and rg0 and ip0 not in ip_region_map:
+                ip_region_map[ip0] = rg0
+
+        for item in vs[:300]:  # 适当扩大回填范围
             if item.get("region") is None or item.get("region") == "":
-                ip = item.get("ip","")
-                if not _is_private_ip(ip):
-                    region = _lookup_ip_region(ip)
-                    if region:
-                        item["region"] = region
-                        changed = True
+                ip = (item.get("ip","") or "").strip()
+                if not ip or _is_private_ip(ip):
+                    continue
+                # 同IP已有地区：直接补齐
+                if ip in ip_region_map:
+                    item["region"] = ip_region_map[ip]
+                    changed = True
+                    continue
+                # 否则请求外部服务
+                region = _lookup_ip_region(ip)
+                if region:
+                    item["region"] = region
+                    ip_region_map[ip] = region
+                    changed = True
         if changed:
             save_visitors(vs)
     threading.Thread(target=_backfill, daemon=True).start()
@@ -824,6 +845,44 @@ def admin_visitors():
 def admin_clear_visitors():
     save_visitors([])
     return jsonify({'success': True})
+
+@app.route('/admin/visitors/backfill-region', methods=['POST'])
+@login_required
+def admin_backfill_visitor_regions():
+    """手动一键回填访客地区（全量）"""
+    visitors = load_visitors()
+    if not visitors:
+        return jsonify({'success': True, 'updated': 0, 'total': 0})
+
+    ip_region_map = {}
+    for it in visitors:
+        ip0 = (it.get('ip') or '').strip()
+        rg0 = (it.get('region') or '').strip()
+        if ip0 and rg0 and ip0 not in ip_region_map:
+            ip_region_map[ip0] = rg0
+
+    updated = 0
+    for item in visitors:
+        if (item.get('region') or '').strip():
+            continue
+        ip = (item.get('ip') or '').strip()
+        if not ip or _is_private_ip(ip):
+            continue
+
+        # 优先复用同 IP 已有地区
+        region = ip_region_map.get(ip, '')
+        if not region:
+            region = _lookup_ip_region(ip)
+
+        if region:
+            item['region'] = region
+            ip_region_map[ip] = region
+            updated += 1
+
+    if updated:
+        save_visitors(visitors)
+
+    return jsonify({'success': True, 'updated': updated, 'total': len(visitors)})
 
 # Site config (all protected)
 @app.route('/admin/site/basic', methods=['PUT'])
