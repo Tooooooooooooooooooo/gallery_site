@@ -263,6 +263,52 @@ _ip_region_cache = {}
 # 失败缓存（避免短时间重复请求，但不会永久锁死为空）
 _ip_region_fail_cache = {}  # ip -> timestamp
 
+_CN_COUNTRY_MAP = {
+    "CN": "中国", "China": "中国", "Mainland China": "中国",
+    "HK": "中国香港", "Hong Kong": "中国香港",
+    "MO": "中国澳门", "Macau": "中国澳门", "Macao": "中国澳门",
+    "TW": "中国台湾", "Taiwan": "中国台湾",
+    "JP": "日本", "Japan": "日本",
+    "KR": "韩国", "Korea": "韩国", "South Korea": "韩国",
+    "US": "美国", "United States": "美国", "United States of America": "美国",
+    "GB": "英国", "United Kingdom": "英国", "UK": "英国",
+    "DE": "德国", "Germany": "德国",
+    "FR": "法国", "France": "法国",
+    "SG": "新加坡", "Singapore": "新加坡",
+    "RU": "俄罗斯", "Russia": "俄罗斯",
+    "CA": "加拿大", "Canada": "加拿大",
+    "AU": "澳大利亚", "Australia": "澳大利亚",
+    "NL": "荷兰", "Netherlands": "荷兰",
+    "SE": "瑞典", "Sweden": "瑞典",
+    "NO": "挪威", "Norway": "挪威",
+    "FI": "芬兰", "Finland": "芬兰",
+    "DK": "丹麦", "Denmark": "丹麦",
+    "IT": "意大利", "Italy": "意大利",
+    "ES": "西班牙", "Spain": "西班牙",
+    "IN": "印度", "India": "印度",
+    "BR": "巴西", "Brazil": "巴西",
+    "MX": "墨西哥", "Mexico": "墨西哥",
+    "ID": "印度尼西亚", "Indonesia": "印度尼西亚",
+    "TH": "泰国", "Thailand": "泰国",
+    "PH": "菲律宾", "Philippines": "菲律宾",
+    "MY": "马来西亚", "Malaysia": "马来西亚",
+    "VN": "越南", "Vietnam": "越南",
+    "AE": "阿联酋", "United Arab Emirates": "阿联酋",
+    "TR": "土耳其", "Turkey": "土耳其",
+    "PL": "波兰", "Poland": "波兰",
+    "UA": "乌克兰", "Ukraine": "乌克兰",
+}
+
+def _has_cjk(s):
+    return any('\u4e00' <= ch <= '\u9fff' for ch in (s or ''))
+
+def _cn_country(name_or_code):
+    if not name_or_code:
+        return ""
+    if _has_cjk(name_or_code):
+        return name_or_code
+    return _CN_COUNTRY_MAP.get(name_or_code, _CN_COUNTRY_MAP.get(name_or_code.upper(), name_or_code))
+
 def _normalize_ip(ip):
     ip = (ip or "").strip()
     if not ip:
@@ -351,6 +397,10 @@ def _lookup_ip_region(ip):
                 parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
             elif d.get("country_name") or d.get("region") or d.get("city"):
                 parts = [d.get("country_name", ""), d.get("region", ""), d.get("city", "")]
+
+            # 国家字段转中文（如 US -> 美国）
+            if parts:
+                parts[0] = _cn_country(parts[0])
 
             seen, out = set(), []
             for p in parts:
@@ -815,14 +865,51 @@ def admin_visitors():
     ips = Counter(v.get('ip', '') for v in filtered)
     today = datetime.now().date()
     daily = {}
+    daily_ip_sets = {}
+    today_key = today.strftime('%m-%d')
+    today_ip_set = set()
+    region_all = Counter()
+    region_unique_sets = {}
+    region_today_all = Counter()
+    region_today_unique_sets = {}
     for i in range(13, -1, -1):
         d = (today - timedelta(days=i)).strftime('%m-%d')
         daily[d] = 0
+        daily_ip_sets[d] = set()
     for v in filtered:
         try:
             k = v['time'][5:10]
-            if k in daily: daily[k] += 1
+            if k in daily:
+                daily[k] += 1
+                ipn = _normalize_ip(v.get('ip', ''))
+                if ipn:
+                    daily_ip_sets[k].add(ipn)
+                    if k == today_key:
+                        today_ip_set.add(ipn)
+            # 地区统计
+            ipn = _normalize_ip(v.get('ip', ''))
+            region = (v.get('region') or '').strip()
+            if region:
+                region_all[region] += 1
+                region_unique_sets.setdefault(region, set())
+                if ipn:
+                    region_unique_sets[region].add(ipn)
+                if k == today_key:
+                    region_today_all[region] += 1
+                    region_today_unique_sets.setdefault(region, set())
+                    if ipn:
+                        region_today_unique_sets[region].add(ipn)
         except: pass
+    daily_unique = {k: len(s) for k, s in daily_ip_sets.items()}
+    today_unique_ips = len(today_ip_set)
+    region_all_top = region_all.most_common(10)
+    region_unique_top = [(k, len(v)) for k, v in region_unique_sets.items()]
+    region_unique_top.sort(key=lambda x: -x[1])
+    region_unique_top = region_unique_top[:10]
+    region_today_all_top = region_today_all.most_common(10)
+    region_today_unique_top = [(k, len(v)) for k, v in region_today_unique_sets.items()]
+    region_today_unique_top.sort(key=lambda x: -x[1])
+    region_today_unique_top = region_today_unique_top[:10]
     # 异步补全没有 region 的记录
     import threading
     def _backfill():
@@ -858,7 +945,14 @@ def admin_visitors():
     return jsonify({'total': len(filtered), 'visitors': filtered[start:end],
                     'has_more': end < len(filtered), 'page': page,
                     'top_pages': paths.most_common(10), 'top_ips': ips.most_common(10),
-                    'daily': list(daily.items())})
+                    'unique_ips': len(ips),
+                    'today_unique_ips': today_unique_ips,
+                    'daily': list(daily.items()),
+                    'daily_unique': list(daily_unique.items()),
+                    'region_all': region_all_top,
+                    'region_unique': region_unique_top,
+                    'region_today_all': region_today_all_top,
+                    'region_today_unique': region_today_unique_top})
 
 @app.route('/admin/visitors/clear', methods=['DELETE'])
 @login_required

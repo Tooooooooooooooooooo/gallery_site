@@ -5,6 +5,7 @@
 <link rel="icon" id="faviconLink" href="data:,">
 <title>后台管理 · GALLERY</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0f0f13;--s1:#1a1a22;--s2:#22222e;--s3:#2a2a38;--bd:#2e2e3e;--ac:#c8a97e;--ac2:#7c6af5;--tx:#e8e6f0;--mu:#6b6880;--err:#e05c5c;--ok:#5cb85c;--warn:#f0a030}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -111,12 +112,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .file-prev-ph{width:76px;height:54px;border-radius:6px;border:1px solid var(--bd);background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 /* VISITORS */
 .vis-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
-.chart-bar-wrap{display:flex;flex-direction:column;gap:0;margin-bottom:18px}
-.chart-row{display:flex;align-items:center;gap:8px;margin-bottom:5px}
-.chart-label{font-size:11px;color:var(--mu);width:40px;text-align:right;flex-shrink:0}
-.chart-bar-bg{flex:1;height:18px;background:var(--s2);border-radius:3px;overflow:hidden}
-.chart-bar-fill{height:100%;background:linear-gradient(90deg,var(--ac),#e8c99a);border-radius:3px;transition:width .6s ease;min-width:2px}
-.chart-count{font-size:11px;color:var(--mu);width:30px}
+.stat.clickable{cursor:pointer;transition:transform .15s,box-shadow .15s}
+.stat.clickable:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.stat.active{border-color:var(--ac);box-shadow:0 0 0 2px rgba(200,169,126,.25) inset}
+.chart-wrap{width:100%;height:180px;display:block;max-height:180px}
 .vis-table{max-height:400px;overflow-y:auto}
 /* MSG */
 .ma{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px 15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
@@ -188,6 +187,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .muyu-bg-item .mchk input{accent-color:var(--ac);width:11px;height:11px}
 </style>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 </head>
 <body>
@@ -1244,14 +1244,16 @@ tr:hover td{background:rgba(255,255,255,.012)}
 <div class="page" id="page-visitors">
   <div class="pt">访客记录</div><div class="ps">查看网站访问数据</div>
   <div class="stats vis-stats" id="visStats">
-    <div class="stat"><div class="sv" id="visTotal">-</div><div class="sl">总访问次数</div></div>
-    <div class="stat"><div class="sv" id="visToday">-</div><div class="sl">今日访问</div></div>
-    <div class="stat"><div class="sv" id="visUniqueIp">-</div><div class="sl">独立 IP 数</div></div>
+    <div class="stat clickable active" id="visStatTotal" onclick="setVisChartMode('visits')"><div class="sv" id="visTotal">-</div><div class="sl">总访问次数</div></div>
+    <div class="stat clickable" id="visStatUnique" onclick="setVisChartMode('unique')"><div class="sv" id="visUniqueIp">-</div><div class="sl">总独立 IP</div></div>
+    <div class="stat clickable" id="visStatToday" onclick="setVisChartMode('today_visits')"><div class="sv" id="visToday">-</div><div class="sl">今日访问</div></div>
+    <div class="stat clickable" id="visStatTodayUnique" onclick="setVisChartMode('today_unique')"><div class="sv" id="visTodayUniqueIp">-</div><div class="sl">今日独立 IP</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-    <div class="card"><div class="ct">📈 近14天访问量</div><div class="chart-bar-wrap" id="dailyChart"></div></div>
-    <div class="card"><div class="ct">📄 热门页面</div><div id="topPages"></div></div>
+    <div class="card"><div class="ct">📈 近14天访问量</div><canvas class="chart-wrap" id="dailyChart"></canvas></div>
+    <div class="card"><div class="ct">📍 地区分布</div><canvas class="chart-wrap" id="regionChart"></canvas></div>
   </div>
+  <div class="card" style="margin-bottom:14px"><div class="ct">📄 热门页面</div><div id="topPages"></div></div>
   <div class="tw">
     <div class="th"><h3>访问日志</h3>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -3947,25 +3949,113 @@ function removeFtLink(ci,li){siteData.footer.columns[ci].links.splice(li,1);rend
 async function saveFooter(){const logo=document.getElementById('ftLogo').value,desc=document.getElementById('ftDesc')._quillInstance?document.getElementById('ftDesc')._quillInstance.root.innerHTML:'',copyright=document.getElementById('ftCopy').value;if(!siteData.footer)siteData.footer={};siteData.footer.brand={logo,desc};siteData.footer.copyright=copyright;const res=await fetch('/admin/site/footer',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(siteData.footer)});if(res.ok)toast('已保存');else toast('失败','err');}
 
 // VISITORS
+let visChart=null;
+let regionChart=null;
+let visChartMode='visits';
+function setVisChartMode(mode){
+  visChartMode = mode;
+  document.getElementById('visStatTotal').classList.toggle('active', mode==='visits');
+  document.getElementById('visStatUnique').classList.toggle('active', mode==='unique');
+  document.getElementById('visStatToday').classList.toggle('active', mode==='today_visits');
+  document.getElementById('visStatTodayUnique').classList.toggle('active', mode==='today_unique');
+  if(window._visChartData){
+    renderVisChart(window._visChartData);
+    renderRegionChart(window._visChartData);
+  }
+}
+function renderVisChart(d){
+  const labels=(d.daily||[]).map(([label])=>label);
+  let values = [];
+  if(visChartMode==='unique'){
+    values = (d.daily_unique||[]).map(([,v])=>v);
+  }else if(visChartMode==='today_unique' || visChartMode==='today_visits'){
+    values = (d.daily||[]).map(([,v],i)=>i===d.daily.length-1? (visChartMode==='today_unique'? (d.today_unique_ips||0) : (d.daily?.[i]?.[1]||0)) : 0);
+  }else{
+    values = (d.daily||[]).map(([,v])=>v);
+  }
+  const ctx=document.getElementById('dailyChart');
+  if(visChart){visChart.destroy();}
+  visChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{ 
+        data: values,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--ac').trim() || '#c8a97e',
+        backgroundColor: 'rgba(200,169,126,.18)',
+        tension: 0.35,
+        fill: true,
+        pointRadius: 2.5,
+        pointHoverRadius: 4,
+        borderWidth: 2
+      }]
+    },
+    options:{
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 2.6,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#8a8680',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#8a8680',font:{size:10},precision:0}}
+      }
+    }
+  });
+}
+function renderRegionChart(d){
+  let regionData = [];
+  if(visChartMode==='unique'){
+    regionData = (d.region_unique||[]);
+  }else if(visChartMode==='today_unique'){
+    regionData = (d.region_today_unique||[]);
+  }else if(visChartMode==='today_visits'){
+    regionData = (d.region_today_all||[]);
+  }else{
+    regionData = (d.region_all||[]);
+  }
+  const labels = regionData.map(([name])=>toCnRegion(name || '未知'));
+  const values = regionData.map(([,v])=>v);
+  const ctx=document.getElementById('regionChart');
+  if(regionChart){regionChart.destroy();}
+  regionChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        data: values,
+        backgroundColor: 'rgba(124,106,245,.45)',
+        borderColor: 'rgba(124,106,245,.9)',
+        borderWidth: 1,
+        borderRadius: 6,
+        barThickness: 18
+      }]
+    },
+    options:{
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 2.6,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:'#8a8680',font:{size:10}}},
+        y:{grid:{color:'rgba(0,0,0,.06)'},ticks:{color:'#8a8680',font:{size:10},precision:0}}
+      }
+    }
+  });
+}
 async function loadVisitors(){
   visPage=1;
   visPathFilter = (document.getElementById('visPathFilter')?.value || '').trim();
   const q = visPathFilter ? `&path=${encodeURIComponent(visPathFilter)}` : '';
   const d=await fetch('/admin/visitors?page=1'+q).then(r=>r.json());
+  window._visChartData = d;
   const today=new Date().toISOString().slice(0,10);
-  const todayCount=d.visitors.filter(v=>v.time&&v.time.startsWith(today)).length;
   // Count across all (already fetched first page)
   document.getElementById('visTotal').textContent=d.total;
   document.getElementById('visToday').textContent=d.daily?.find(([k])=>k===today.slice(5))?.[1]||0;
-  document.getElementById('visUniqueIp').textContent=d.top_ips?.length||0;
-  // Daily chart
-  const maxVal=Math.max(...(d.daily||[]).map(([,v])=>v),1);
-  document.getElementById('dailyChart').innerHTML=(d.daily||[]).map(([label,val])=>`
-    <div class="chart-row">
-      <span class="chart-label">${label}</span>
-      <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(val/maxVal*100).toFixed(1)}%"></div></div>
-      <span class="chart-count">${val}</span>
-    </div>`).join('');
+  document.getElementById('visUniqueIp').textContent=d.unique_ips||0;
+  document.getElementById('visTodayUniqueIp').textContent=d.today_unique_ips||0;
+  renderVisChart(d);
+  renderRegionChart(d);
   // Top pages
   document.getElementById('topPages').innerHTML=(d.top_pages||[]).slice(0,8).map(([path,count])=>`
     <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px">
@@ -3976,10 +4066,53 @@ async function loadVisitors(){
   renderVisitorTable(d.visitors);
   document.getElementById('visLoadMore').style.display=d.has_more?'block':'none';
 }
+const _cnCountryMap = {
+  CN:'中国',China:'中国','Mainland China':'中国',
+  HK:'中国香港','Hong Kong':'中国香港',
+  MO:'中国澳门',Macau:'中国澳门',Macao:'中国澳门',
+  TW:'中国台湾',Taiwan:'中国台湾',
+  JP:'日本',Japan:'日本',
+  KR:'韩国',Korea:'韩国','South Korea':'韩国',
+  US:'美国','United States':'美国','United States of America':'美国',
+  GB:'英国','United Kingdom':'英国',UK:'英国',
+  DE:'德国',Germany:'德国',
+  FR:'法国',France:'法国',
+  SG:'新加坡',Singapore:'新加坡',
+  RU:'俄罗斯',Russia:'俄罗斯',
+  CA:'加拿大',Canada:'加拿大',
+  AU:'澳大利亚',Australia:'澳大利亚',
+  NL:'荷兰',Netherlands:'荷兰',
+  SE:'瑞典',Sweden:'瑞典',
+  NO:'挪威',Norway:'挪威',
+  FI:'芬兰',Finland:'芬兰',
+  DK:'丹麦',Denmark:'丹麦',
+  IT:'意大利',Italy:'意大利',
+  ES:'西班牙',Spain:'西班牙',
+  IN:'印度',India:'印度',
+  BR:'巴西',Brazil:'巴西',
+  MX:'墨西哥',Mexico:'墨西哥',
+  ID:'印度尼西亚',Indonesia:'印度尼西亚',
+  TH:'泰国',Thailand:'泰国',
+  PH:'菲律宾',Philippines:'菲律宾',
+  MY:'马来西亚',Malaysia:'马来西亚',
+  VN:'越南',Vietnam:'越南',
+  AE:'阿联酋','United Arab Emirates':'阿联酋',
+  TR:'土耳其',Turkey:'土耳其',
+  PL:'波兰',Poland:'波兰',
+  UA:'乌克兰',Ukraine:'乌克兰'
+};
+function toCnRegion(region){
+  if(!region) return '';
+  if(/[\u4e00-\u9fff]/.test(region)) return region;
+  const parts = String(region).split(' ');
+  if(!parts.length) return region;
+  const head = _cnCountryMap[parts[0]] || _cnCountryMap[(parts[0]||'').toUpperCase()] || parts[0];
+  return [head, ...parts.slice(1)].join(' ');
+}
 function renderVisitorTable(visitors){
   document.getElementById('visTb').innerHTML=visitors.map(v=>`<tr>
     <td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td>
-    <td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(v.region)}</span>`:''}</td>
+    <td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(toCnRegion(v.region))}</span>`:''}</td>
     <td style="font-size:11px">${esc(v.path||'')}</td>
     <td style="font-size:11px;color:var(--mu);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.referer||'')}">${esc(v.referer||'-')}</td>
     <td style="font-size:10px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.ua||'')}">${esc(v.ua||'').slice(0,60)}</td>
