@@ -246,9 +246,10 @@ function renderFooter(ft){
     </div>`;
 
   const navHtml = colData.map(c=>{
-    const links=(c.links||[]).map(l=>
-      `<li><a href="${l.href}">${l.label}</a></li>`
-    ).join('');
+    const links=(c.links||[]).map(l=>{
+      const href=(l.label==='订阅RSS'&&!l.href)?'/feed.xml':(l.href||'#');
+      return `<li><a href="${href}"${(l.target==='_blank')?' target="_blank"':''}>${l.label}</a></li>`;
+    }).join('');
     return `<div style="flex:1;min-width:120px">
       <p class="footer-col-title">${c.title}</p>
       <ul>${links}</ul>

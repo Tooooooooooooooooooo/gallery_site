@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect
+from flask import Flask, render_template, request, jsonify, session, redirect, send_from_directory, abort
 from functools import wraps
 import json, os, uuid, hashlib, smtplib, secrets, time
 import urllib.request, urllib.parse, mimetypes
@@ -28,8 +28,10 @@ MESSAGES_FILE = os.path.join(_BASE, 'data', 'messages.json')
 SITE_FILE     = os.path.join(_BASE, 'data', 'site.json')
 VISITORS_FILE = os.path.join(_BASE, 'data', 'visitors.json')
 LIKES_FILE    = os.path.join(_BASE, 'data', 'likes.json')
+VIEWS_FILE    = os.path.join(_BASE, 'data', 'views.json')
 AUTH_FILE     = os.path.join(_BASE, 'data', 'auth.json')
 SMTP_FILE     = os.path.join(_BASE, 'data', 'smtp.json')
+ITEM_COMMENTS_FILE = os.path.join(_BASE, 'data', 'item_comments.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -86,10 +88,13 @@ def is_model(f):
 def hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
 
 def load_json(path, default):
-    if os.path.exists(path):
+    if not os.path.exists(path):
+        return default
+    try:
         with open(path, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return default
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return default
 
 def save_json(path, data):
     with open(path, 'w', encoding='utf-8') as f:
@@ -103,6 +108,14 @@ def load_visitors(): return load_json(VISITORS_FILE, [])
 def save_visitors(d): save_json(VISITORS_FILE, d)
 def load_likes(): return load_json(LIKES_FILE, {})
 def save_likes(d): save_json(LIKES_FILE, d)
+def load_views(): return load_json(VIEWS_FILE, {})
+def save_views(d): save_json(VIEWS_FILE, d)
+def load_item_comments():
+    raw = load_json(ITEM_COMMENTS_FILE, {})
+    if not isinstance(raw, dict):
+        return {}
+    return raw
+def save_item_comments(d): save_json(ITEM_COMMENTS_FILE, d)
 def load_auth():
     d = load_json(AUTH_FILE, {"username": "admin", "password": hash_pw("admin123")})
     d.setdefault("email", "")
@@ -162,9 +175,9 @@ def get_default_site():
         "nav": {
             "logo": "GAL·LERY",
             "links": [
-                {"label": "分类", "href": "#gallery"},
-                {"label": "关于我", "href": "/about"},
-                {"label": "留言板", "href": "/messages"}
+                {"label": "分类", "href": "#gallery", "target": "_self"},
+                {"label": "关于我", "href": "/about", "target": "_self"},
+                {"label": "留言板", "href": "/messages", "target": "_self"}
             ]
         },
         "hero": {
@@ -476,6 +489,18 @@ def admin_change_password():
     save_json(AUTH_FILE, auth)
     return jsonify({'success': True})
 
+# 占位 CSS：避免扩展或注入脚本请求 laydate/layer/code.css 时 404
+_STATIC = os.path.join(_BASE, 'static')
+@app.route('/laydate.css')
+def _placeholder_laydate_css():
+    return send_from_directory(_STATIC, 'laydate.css', mimetype='text/css')
+@app.route('/layer.css')
+def _placeholder_layer_css():
+    return send_from_directory(_STATIC, 'layer.css', mimetype='text/css')
+@app.route('/code.css')
+def _placeholder_code_css():
+    return send_from_directory(_STATIC, 'code.css', mimetype='text/css')
+
 # ── Public Routes ──
 @app.route('/')
 def index():
@@ -502,11 +527,24 @@ def api_items():
     likes = load_likes()
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 20))
+    ids_param = request.args.get('ids', '').strip()
+    if ids_param:
+        id_list = [x.strip() for x in ids_param.split(',') if x.strip()]
+        if id_list:
+            items = [i for i in data['items'] if i.get('id') in id_list]
+        else:
+            items = []
+    else:
+        items = list(data['items'])
+    # 前台公开接口：不显示已隐藏的内容
+    items = [i for i in items if not i.get('hidden')]
+    # 定时发布：未到发布时间的不显示
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    items = [i for i in items if not i.get('scheduled_publish') or (i.get('scheduled_publish', '') <= now_str)]
     categories = request.args.getlist('category')
-    sort = request.args.get('sort', 'newest')
-    items = data['items']
     if categories:
         items = [i for i in items if any(c in (i.get('categories') or [i.get('category','')]) for c in categories)]
+    sort = request.args.get('sort', 'newest')
     if sort == 'likes':
         items = sorted(items, key=lambda i: likes.get(i['id'], 0), reverse=True)
     elif sort == 'oldest':
@@ -515,11 +553,127 @@ def api_items():
     start = (page - 1) * per_page
     end = start + per_page
     page_items = [dict(i) for i in items[start:end]]
+    views = load_views()
     for item in page_items:
         fn = item.get('filename', '')
         item['type'] = 'model' if is_model(fn) else ('video' if is_video(fn) else item.get('type', 'image'))
         item['likes'] = likes.get(item['id'], 0)
+        item['views'] = views.get(item['id'], 0)
     return jsonify({'items': page_items, 'total': total, 'page': page, 'has_more': end < total})
+
+@app.route('/api/view/<item_id>', methods=['POST'])
+def api_record_view(item_id):
+    """记录作品浏览量（每次打开预览时调用）"""
+    data = load_data()
+    if not any(i['id'] == item_id for i in data['items']):
+        return jsonify({'success': False}), 404
+    views = load_views()
+    views[item_id] = views.get(item_id, 0) + 1
+    save_views(views)
+    return jsonify({'success': True, 'views': views[item_id]})
+
+@app.route('/api/items/<item_id>')
+def api_item_by_id(item_id):
+    """单条作品（用于深链接打开、分享）"""
+    data = load_data()
+    items = [i for i in data['items'] if i.get('id') == item_id]
+    if not items:
+        return jsonify({'error': 'not found'}), 404
+    item = dict(items[0])
+    if item.get('hidden'):
+        return jsonify({'error': 'not found'}), 404
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if item.get('scheduled_publish') and item.get('scheduled_publish', '') > now_str:
+        return jsonify({'error': 'not found'}), 404
+    fn = item.get('filename', '')
+    item['type'] = 'model' if is_model(fn) else ('video' if is_video(fn) else item.get('type', 'image'))
+    item['likes'] = load_likes().get(item_id, 0)
+    item['views'] = load_views().get(item_id, 0)
+    return jsonify(item)
+
+@app.route('/api/items/<item_id>/comments', methods=['GET', 'POST'])
+def api_item_comments(item_id):
+    """GET: 获取某作品评论列表；POST: 发表评论"""
+    data = load_data()
+    if not any(i['id'] == item_id for i in data['items']):
+        return jsonify({'error': 'not found'}), 404
+    if request.method == 'GET':
+        comments = load_item_comments()
+        list_ = comments.get(item_id, [])
+        # 前台只返回已审核通过的评论
+        list_ = [c for c in list_ if c.get('approved', True)]
+        return jsonify({'comments': list(list_)})
+    body = request.json or {}
+    name = (body.get('name') or '').strip() or '匿名'
+    content = (body.get('content') or '').strip()
+    if not content:
+        return jsonify({'success': False, 'error': '评论内容不能为空'}), 400
+    comments = load_item_comments()
+    if item_id not in comments:
+        comments[item_id] = []
+    comment = {
+        'id': str(uuid.uuid4()),
+        'name': name[:50],
+        'content': content[:2000],
+        'time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'approved': False,
+    }
+    comments[item_id].insert(0, comment)
+    save_item_comments(comments)
+    return jsonify({'success': True, 'comment': comment})
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """生成 sitemap.xml 便于搜索引擎收录"""
+    base = request.url_root.rstrip('/')
+    urls = [
+        (base + '/', 'daily', '1.0'),
+        (base + '/about', 'weekly', '0.8'),
+        (base + '/messages', 'weekly', '0.8'),
+        (base + '/#gallery', 'weekly', '0.9'),
+    ]
+    if os.path.exists(os.path.join(_BASE, 'templates', 'muyu.html')):
+        urls.append((base + '/muyu', 'weekly', '0.6'))
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for loc, freq, prio in urls:
+        xml += f'  <url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{prio}</priority></url>\n'
+    xml += '</urlset>'
+    from flask import Response
+    return Response(xml, mimetype='application/xml')
+
+@app.route('/feed.xml')
+@app.route('/rss.xml')
+def rss_feed():
+    """RSS 订阅 - 最新作品"""
+    import re
+    base = request.url_root.rstrip('/')
+    site = load_site()
+    title = (site.get('site') or {}).get('title', 'GALLERY')
+    subtitle = (site.get('site') or {}).get('subtitle', '')
+    data = load_data()
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    items = [i for i in data['items'] if not i.get('hidden') and (not i.get('scheduled_publish') or i.get('scheduled_publish', '') <= now_str)]
+    items = sorted(items, key=lambda x: x.get('created_at', ''), reverse=True)[:30]
+    rss = '<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">\n<channel>\n'
+    rss += f'  <title>{title}</title>\n  <link>{base}/</link>\n  <description>{subtitle}</description>\n'
+    rss += f'  <atom:link href="{base}/feed.xml" rel="self" type="application/rss+xml"/>\n'
+    for i in items:
+        link = base + '/#gallery'
+        try:
+            dt_str = (i.get('created_at') or '')[:19]
+            if dt_str:
+                dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
+                pub = dt.strftime('%a, %d %b %Y %H:%M:%S GMT')
+            else:
+                pub = ''
+        except Exception:
+            pub = (i.get('created_at') or '')[:19] or ''
+        desc = re.sub(r'<[^>]+>', '', (i.get('description') or '')[:300])
+        tit = (i.get('title') or '无标题').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        rss += f'  <item><title>{tit}</title><link>{link}</link><guid isPermaLink="false">{i["id"]}</guid><pubDate>{pub}</pubDate><description><![CDATA[{desc}]]></description></item>\n'
+    rss += '</channel></rss>'
+    from flask import Response
+    return Response(rss, mimetype='application/rss+xml')
 
 @app.route('/api/categories')
 def api_categories():
@@ -627,29 +781,104 @@ def api_liked_status():
 def admin():
     return render_template('admin.html')
 
+@app.route('/admin/api/items')
+@login_required
+def admin_api_items():
+    """管理员获取全部内容（含隐藏项），格式与 /api/items 一致"""
+    data = load_data()
+    likes = load_likes()
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 1000))
+    categories = request.args.getlist('category')
+    sort = request.args.get('sort', 'newest')
+    items = list(data['items'])  # 不过滤 hidden，管理员可见全部
+    if categories:
+        items = [i for i in items if any(c in (i.get('categories') or [i.get('category', '')]) for c in categories)]
+    if sort == 'likes':
+        items = sorted(items, key=lambda i: likes.get(i['id'], 0), reverse=True)
+    elif sort == 'oldest':
+        items = sorted(items, key=lambda i: i.get('created_at', ''))
+    total = len(items)
+    start = (page - 1) * per_page
+    end = start + per_page
+    page_items = [dict(i) for i in items[start:end]]
+    views = load_views()
+    for item in page_items:
+        fn = item.get('filename', '')
+        item['type'] = 'model' if is_model(fn) else ('video' if is_video(fn) else item.get('type', 'image'))
+        item['likes'] = likes.get(item['id'], 0)
+        item['views'] = views.get(item['id'], 0)
+    return jsonify({'items': page_items, 'total': total, 'page': page, 'has_more': end < total})
+
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def admin_upload():
     data = load_data()
+    files_list = request.files.getlist('files')
+    existing_files_list = request.form.getlist('existing_files')
     file = request.files.get('file')
     cover = request.files.get('cover')
     existing_file = request.form.get('existing_file', '')
     existing_cover = request.form.get('existing_cover', '')
-    if not file and not existing_file:
-        return jsonify({'success': False, 'error': '无效文件'}), 400
-    if file:
-        if not allowed_file(file.filename):
-            return jsonify({'success': False, 'error': '无效文件'}), 400
-        filename = save_upload(file)
+    used_existing_files = False
+    # 多图：从媒体库/URL 多选时传 existing_files[]
+    if not files_list and existing_files_list:
+        existing_files_list = [x.strip() for x in existing_files_list if x and x.strip()]
+        if existing_files_list:
+            filename = existing_files_list[0]
+            cover_filename = existing_files_list[0]
+            multi_images = existing_files_list if len(existing_files_list) > 1 else None
+            file, existing_file = None, ''
+            files_list = []
+            used_existing_files = True
+    # 多图上传：files 列表均为图片时创建一条多图作品
+    if files_list and len(files_list) >= 1:
+        if len(files_list) == 1:
+            f = files_list[0]
+            if not f.filename:
+                file, existing_file = request.files.get('file'), request.form.get('existing_file', '')
+                files_list = []
+            else:
+                if not allowed_file(f.filename):
+                    return jsonify({'success': False, 'error': '无效文件'}), 400
+                filenames = [save_upload(f)]
+                file, existing_file = None, ''
+        else:
+            filenames = []
+            for f in files_list:
+                if not f.filename:
+                    continue
+                if not allowed_img(f.filename):
+                    return jsonify({'success': False, 'error': '多图上传仅支持图片格式（JPG/PNG/GIF/WEBP）'}), 400
+                filenames.append(save_upload(f))
+            if not filenames:
+                return jsonify({'success': False, 'error': '无效文件'}), 400
+        filename = filenames[0]
+        cover_filename = filenames[0]
+        multi_images = filenames if len(filenames) > 1 else None
     else:
-        filename = existing_file
-    cover_filename = None
-    if cover and allowed_img(cover.filename):
-        cover_filename = save_upload(cover, 'cover_')
-    elif existing_cover:
-        cover_filename = existing_cover
+        if not used_existing_files:
+            multi_images = None
+            if not file and not existing_file:
+                return jsonify({'success': False, 'error': '无效文件'}), 400
+            if file:
+                if not allowed_file(file.filename):
+                    return jsonify({'success': False, 'error': '无效文件'}), 400
+                filename = save_upload(file)
+            else:
+                filename = existing_file
+            cover_filename = None
+            if cover and allowed_img(cover.filename):
+                cover_filename = save_upload(cover, 'cover_')
+            elif existing_cover:
+                cover_filename = existing_cover
     likes = load_likes()
-    item_id = str(uuid.uuid4())
+    custom_id = (request.form.get('content_id') or request.form.get('item_id') or '').strip()
+    existing_ids = {i.get('id') for i in data['items']}
+    if custom_id and custom_id not in existing_ids:
+        item_id = custom_id
+    else:
+        item_id = str(uuid.uuid4())
     cats = request.form.getlist('categories')
     if not cats:
         c = request.form.get('category', '其他')
@@ -666,11 +895,18 @@ def admin_upload():
         'height': int(request.form.get('height', 600)),
         'sort_order': int(request.form.get('sort_order', 0)),
     }
+    if multi_images:
+        item['images'] = multi_images
+        item['images_gap'] = request.form.get('images_gap') in ('1', 'true', 'yes')
+        item['images_gap_px'] = max(0, min(100, int(request.form.get('images_gap_px', 10) or 10)))
+    sp = (request.form.get('scheduled_publish') or '').strip()
+    if sp:
+        item['scheduled_publish'] = sp
     likes[item_id] = max(0, int(request.form.get('likes', 0)))
     save_likes(likes)
     data['items'].insert(0, item)
-    # 自动生成缩图（仅图片）
-    if (not is_video(filename)) and (not is_model(filename)):
+    # 自动生成缩图（仅图片，多图用首张；外链 URL 不生成缩图）
+    if (not is_video(filename)) and (not is_model(filename)) and not (isinstance(filename, str) and (filename.startswith('http://') or filename.startswith('https://'))):
         scale = load_site().get('thumb_scale', 50)
         src_fn = cover_filename if cover_filename else filename
         thumb_fn = make_thumb(src_fn, scale)
@@ -683,7 +919,12 @@ def admin_upload():
 @login_required
 def admin_edit_item(item_id):
     data = load_data()
-    body = request.json
+    body = request.json or {}
+    new_id = (body.get('id') or body.get('new_id') or '').strip()
+    if new_id and new_id != item_id:
+        existing_ids = {i['id'] for i in data['items']}
+        if new_id in existing_ids:
+            return jsonify({'success': False, 'error': '该 ID 已被使用'}), 400
     for item in data['items']:
         if item['id'] == item_id:
             item['title'] = body.get('title', item.get('title', ''))
@@ -699,9 +940,138 @@ def admin_edit_item(item_id):
                 likes = load_likes()
                 likes[item_id] = max(0, int(body['likes']))
                 save_likes(likes)
+            if 'hidden' in body:
+                item['hidden'] = bool(body['hidden'])
+            if 'scheduled_publish' in body:
+                sp = body['scheduled_publish']
+                item['scheduled_publish'] = (sp.strip() or None) if sp else None
+            if 'images' in body and isinstance(body['images'], list):
+                item['images'] = [str(x).strip() for x in body['images'] if x]
+                if item['images']:
+                    item['filename'] = item['images'][0]
+                    item['cover'] = item['images'][0]
+            if 'images_gap' in body:
+                item['images_gap'] = bool(body['images_gap'])
+            if 'images_gap_px' in body:
+                item['images_gap_px'] = max(0, min(100, int(body.get('images_gap_px', 10) or 10)))
+            if new_id and new_id != item_id:
+                old_id = item_id
+                item['id'] = new_id
+                likes = load_likes()
+                if old_id in likes and isinstance(likes.get(old_id), (int, float)):
+                    likes[new_id] = likes.pop(old_id, 0)
+                for k in list(likes.keys()):
+                    if k.startswith('ip:') and k.endswith(':' + old_id):
+                        likes[k[:-len(old_id)-1] + ':' + new_id] = likes.pop(k)
+                save_likes(likes)
+                views = load_views()
+                if old_id in views:
+                    views[new_id] = views.pop(old_id, 0)
+                    save_views(views)
+                comments = load_item_comments()
+                if old_id in comments:
+                    comments[new_id] = comments.pop(old_id, [])
+                    save_item_comments(comments)
             break
     save_data(data)
     return jsonify({'success': True})
+
+@app.route('/admin/api/item-comments/pending-count')
+@login_required
+def admin_item_comments_pending_count():
+    """待审核评论数量（用于导航气泡）"""
+    comments = load_item_comments()
+    n = 0
+    for item_id, list_ in comments.items():
+        for c in list_:
+            if c.get('approved') is False:
+                n += 1
+    return jsonify({'count': n})
+
+@app.route('/admin/api/item-comments/pending')
+@login_required
+def admin_item_comments_pending():
+    """待审核评论列表：按作品分组"""
+    data = load_data()
+    id_to_title = {i['id']: (i.get('title') or '无标题') for i in data['items']}
+    comments = load_item_comments()
+    out = []
+    for item_id, list_ in comments.items():
+        pending = [c for c in list_ if c.get('approved') is False]
+        if not pending:
+            continue
+        out.append({
+            'item_id': item_id,
+            'item_title': id_to_title.get(item_id, item_id),
+            'comments': pending,
+        })
+    return jsonify({'items': out})
+
+
+@app.route('/admin/api/item-comments/all')
+@login_required
+def admin_item_comments_all():
+    """全部作品评论列表：按作品分组，含已通过/待审核"""
+    try:
+        data = load_data()
+        if not isinstance(data, dict):
+            data = {'items': []}
+        id_to_title = {i['id']: (i.get('title') or '无标题') for i in data.get('items', [])}
+        comments = load_item_comments()
+        out = []
+        for item_id, list_ in comments.items():
+            if not list_ or not isinstance(list_, list):
+                continue
+            # 评论内：未审核(approved is False)置顶
+            sorted_comments = sorted(list_, key=lambda c: (c.get('approved') is not False,))
+            out.append({
+                'item_id': item_id,
+                'item_title': id_to_title.get(item_id, item_id),
+                'comments': sorted_comments,
+            })
+        # 作品级：有待审核评论的作品置顶
+        out.sort(key=lambda x: not any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']))
+        return jsonify({'items': out})
+    except Exception as e:
+        return jsonify({'error': str(e), 'items': []}), 500
+
+@app.route('/admin/api/item-comments/approve', methods=['POST'])
+@login_required
+def admin_item_comment_approve():
+    """通过一条评论"""
+    body = request.json or {}
+    item_id = body.get('item_id')
+    comment_id = body.get('comment_id')
+    if not item_id or not comment_id:
+        return jsonify({'success': False, 'error': '缺少参数'}), 400
+    comments = load_item_comments()
+    if item_id not in comments:
+        return jsonify({'success': False, 'error': '未找到'}), 404
+    for c in comments[item_id]:
+        if c.get('id') == comment_id:
+            c['approved'] = True
+            save_item_comments(comments)
+            return jsonify({'success': True})
+    return jsonify({'success': False, 'error': '未找到评论'}), 404
+
+@app.route('/admin/api/item-comments/reject', methods=['POST'])
+@login_required
+def admin_item_comment_reject():
+    """拒绝一条评论（设为不通过，前台不显示）"""
+    body = request.json or {}
+    item_id = body.get('item_id')
+    comment_id = body.get('comment_id')
+    if not item_id or not comment_id:
+        return jsonify({'success': False, 'error': '缺少参数'}), 400
+    comments = load_item_comments()
+    if item_id not in comments:
+        return jsonify({'success': False, 'error': '未找到'}), 404
+    for c in comments[item_id]:
+        if c.get('id') == comment_id:
+            c['approved'] = False
+            save_item_comments(comments)
+            return jsonify({'success': True})
+    return jsonify({'success': False, 'error': '未找到评论'}), 404
 
 @app.route('/admin/items/reorder', methods=['PUT'])
 @login_required
@@ -1105,7 +1475,10 @@ def admin_nav():
     site = load_site()
     body = request.json
     site['nav']['logo'] = body.get('logo', site['nav']['logo'])
-    site['nav']['links'] = body.get('links', site['nav']['links'])
+    links = body.get('links', site['nav']['links']) or []
+    for l in links:
+        l.setdefault('target', '_self')
+    site['nav']['links'] = links
     save_site(site)
     return jsonify({'success': True})
 
@@ -1720,12 +2093,14 @@ DATA_TYPES = {
     'messages':  MESSAGES_FILE,
     'visitors':  VISITORS_FILE,
     'likes':     LIKES_FILE,
+    'views':     VIEWS_FILE,
     'auth':      AUTH_FILE,
     'smtp':      SMTP_FILE,
     'featured':  FEATURED_FILE,
     'emoji':     EMOJI_FILE,
     'muyu':      MUYU_FILE,
     'showcase':  SHOWCASE_FILE if 'SHOWCASE_FILE' in globals() else 'data/showcase.json',
+    'item_comments': ITEM_COMMENTS_FILE,
 }
 
 
@@ -2469,37 +2844,69 @@ def admin_delete_thumb(filename):
         os.remove(path)
     return jsonify({'success': True})
 
+def _download_one_url(url):
+    """从单个 URL 下载并保存到 uploads，返回 (filename, file_type) 或 (None, None)"""
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        content_type = resp.headers.get('Content-Type', '')
+        ext = mimetypes.guess_extension(content_type.split(';')[0].strip()) or ''
+        url_path = urllib.parse.urlparse(url).path
+        url_ext = os.path.splitext(url_path)[1].lower()
+        if url_ext in ('.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov','.webm','.avi','.glb','.gltf'):
+            ext = url_ext
+        elif ext in ('.jpeg',): ext = '.jpg'
+        elif ext not in ('.jpg','.png','.gif','.webp','.mp4','.mov','.webm','.glb','.gltf'):
+            ext = '.jpg'
+        data = resp.read(50 * 1024 * 1024)
+    fn = 'url_' + str(uuid.uuid4()) + ext
+    path = os.path.join(UPLOAD_FOLDER, fn)
+    with open(path, 'wb') as f:
+        f.write(data)
+    file_type = 'model' if ext in ('.glb','.gltf') else ('video' if ext in ('.mp4','.mov','.webm','.avi') else 'image')
+    return fn, file_type
+
 @app.route('/admin/upload-from-url', methods=['POST'])
 @login_required
 def admin_upload_from_url():
-    """从远程 URL 下载媒体文件并保存到 uploads"""
-    url = (request.json or {}).get('url', '').strip()
-    if not url:
+    """从远程 URL 下载媒体文件并保存到 uploads。支持单 URL 或 urls 数组（多图）"""
+    body = request.json or {}
+    url = (body.get('url') or '').strip()
+    urls = body.get('urls')
+    if urls and isinstance(urls, list):
+        urls = [u.strip() for u in urls if u and isinstance(u, str) and u.strip()]
+    if not url and not urls:
         return jsonify({'success': False, 'error': '缺少 URL'}), 400
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            content_type = resp.headers.get('Content-Type', '')
-            # 判断扩展名
-            ext = mimetypes.guess_extension(content_type.split(';')[0].strip()) or ''
-            # 从 URL 末尾猜扩展名
-            url_path = urllib.parse.urlparse(url).path
-            url_ext = os.path.splitext(url_path)[1].lower()
-            if url_ext in ('.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov','.webm','.avi','.glb','.gltf'):
-                ext = url_ext
-            elif ext in ('.jpeg',): ext = '.jpg'
-            elif ext not in ('.jpg','.png','.gif','.webp','.mp4','.mov','.webm','.glb','.gltf'):
-                ext = '.jpg'  # 默认
-            data = resp.read(50 * 1024 * 1024)  # 最大50MB
-        fn = 'url_' + str(uuid.uuid4()) + ext
-        path = os.path.join(UPLOAD_FOLDER, fn)
-        with open(path, 'wb') as f:
-            f.write(data)
-        file_type = 'model' if ext in ('.glb','.gltf') else ('video' if ext in ('.mp4','.mov','.webm','.avi') else 'image')
-        return jsonify({'success': True, 'filename': fn, 'type': file_type,
-                        'url': '/static/uploads/' + fn})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 400
+    to_fetch = [url] if url else urls
+    if not to_fetch:
+        return jsonify({'success': False, 'error': '缺少 URL'}), 400
+    filenames = []
+    errors = []
+    for u in to_fetch:
+        if not u.startswith('http://') and not u.startswith('https://'):
+            errors.append(u[:50] + '...' if len(u) > 50 else u)
+            continue
+        try:
+            fn, ft = _download_one_url(u)
+            filenames.append(fn)
+        except Exception as e:
+            errors.append(str(e))
+    if not filenames:
+        return jsonify({'success': False, 'error': '全部下载失败', 'details': errors}), 400
+    if len(filenames) == 1:
+        return jsonify({'success': True, 'filename': filenames[0], 'filenames': filenames,
+                        'url': '/static/uploads/' + filenames[0]})
+    return jsonify({'success': True, 'filenames': filenames, 'urls': ['/static/uploads/' + f for f in filenames], 'errors': errors if errors else None})
+
+# 兜底：扩展在子路径（如 /admin）下相对请求 laydate/layer/code.css 时返回占位，避免 404
+@app.route('/<path:path>')
+def _placeholder_css_subpath(path):
+    if path.endswith('laydate.css') or path == 'laydate.css':
+        return send_from_directory(_STATIC, 'laydate.css', mimetype='text/css')
+    if path.endswith('layer.css') or path == 'layer.css':
+        return send_from_directory(_STATIC, 'layer.css', mimetype='text/css')
+    if path.endswith('code.css') or path == 'code.css':
+        return send_from_directory(_STATIC, 'code.css', mimetype='text/css')
+    abort(404)
 
 if __name__ == '__main__':
     app.run(debug=True)

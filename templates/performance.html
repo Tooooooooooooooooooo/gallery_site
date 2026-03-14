@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" id="faviconLink" href="data:,">
+  <title>绩效图表 · GALLERY</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{--bg:#0f0f13;--s1:#1a1a22;--s2:#22222e;--s3:#2a2a38;--bd:#2e2e3e;--ac:#c8a97e;--ac2:#7c6af5;--tx:#e8e6f0;--mu:#6b6880;--err:#e05c5c;--ok:#5cb85c;--warn:#f0a030}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx)}
+    .wrap{max-width:1200px;margin:0 auto;padding:28px 20px 40px}
+    .head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .title{font-size:22px;font-weight:600}
+    .sub{font-size:12px;color:var(--mu)}
+    .btn{padding:7px 14px;border-radius:8px;font-size:12px;cursor:pointer;border:none;font-family:inherit;transition:.2s;font-weight:500}
+    .btn-p{background:var(--ac);color:#1a0f00}
+    .btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+    .card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px}
+    .ct{font-size:12px;font-weight:600;color:var(--ac);margin-bottom:12px}
+    .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    .fg{display:flex;flex-direction:column;gap:4px}
+    .fg label{font-size:11px;color:var(--mu)}
+    .inp{padding:8px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--tx);font-size:12px;outline:none}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+    .stat{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:12px}
+    .sv{font-size:22px;font-weight:600;color:var(--ac)}
+    .sl{font-size:11px;color:var(--mu);margin-top:4px}
+    .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+    .chart-card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:14px}
+    .chart-title{font-size:12px;color:var(--ac);margin-bottom:8px}
+    .chart-wrap{width:100%;height:200px}
+    table{width:100%;border-collapse:collapse}
+    th{padding:8px 10px;text-align:left;font-size:10px;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;background:var(--s2);border-bottom:1px solid var(--bd)}
+    td{padding:9px 10px;font-size:12px;border-bottom:1px solid var(--bd)}
+    tr:last-child td{border-bottom:none}
+    .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;background:rgba(124,106,245,.15);color:var(--ac2)}
+    .row-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .muted{color:var(--mu);font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="title">绩效图表展示</div>
+        <div class="sub">按人员/时间/任务类型多维分析 KPI</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-s" onclick="location.href='/'">返回首页</button>
+        <button class="btn btn-p" onclick="exportPerf()">导出 Excel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">🔍 筛选条件</div>
+      <div class="filters">
+        <div class="fg">
+          <label>人员</label>
+          <select id="fPerson" class="inp"></select>
+        </div>
+        <div class="fg">
+          <label>任务类型</label>
+          <select id="fTask" class="inp"></select>
+        </div>
+        <div class="fg">
+          <label>开始日期</label>
+          <input id="fFrom" type="date" class="inp">
+        </div>
+        <div class="fg">
+          <label>结束日期</label>
+          <input id="fTo" type="date" class="inp">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-p" onclick="loadPerf()">应用筛选</button>
+        <button class="btn btn-s" onclick="resetFilter()">重置</button>
+        <span class="muted" id="filterHint"></span>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-bottom:14px">
+      <div class="stat"><div class="sv" id="sTotalQty">-</div><div class="sl">总任务量</div></div>
+      <div class="stat"><div class="sv" id="sTotalKpi">-</div><div class="sl">总 KPI</div></div>
+      <div class="stat"><div class="sv" id="sPeople">-</div><div class="sl">涉及人员</div></div>
+      <div class="stat"><div class="sv" id="sDays">-</div><div class="sl">涉及天数</div></div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-card">
+        <div class="chart-title">每日任务量</div>
+        <canvas class="chart-wrap" id="chartDay"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">月度任务量</div>
+        <canvas class="chart-wrap" id="chartMonth"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">任务类型占比</div>
+        <canvas class="chart-wrap" id="chartTask"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">人员任务量</div>
+        <canvas class="chart-wrap" id="chartPerson"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ct">📋 明细表</div>
+      <div style="overflow:auto;max-height:360px">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>人员</th>
+              <th>甲方</th>
+              <th>任务类型</th>
+              <th>任务描述</th>
+              <th>数量</th>
+              <th>KPI系数</th>
+              <th>KPI值</th>
+            </tr>
+          </thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let perfData = null;
+    let chartDay = null;
+    let chartMonth = null;
+    let chartTask = null;
+    let chartPerson = null;
+
+    function setSelectOptions(select, list, placeholder) {
+      select.innerHTML = `<option value="">${placeholder}</option>` + list.map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+
+    async function loadPerf() {
+      const params = new URLSearchParams();
+      const person = document.getElementById('fPerson').value;
+      const task = document.getElementById('fTask').value;
+      const from = document.getElementById('fFrom').value;
+      const to = document.getElementById('fTo').value;
+      if (person) params.append('person', person);
+      if (task) params.append('task_type', task);
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      const res = await fetch(`/api/performance/summary?${params.toString()}`);
+      perfData = await res.json();
+      renderStats();
+      renderCharts();
+      renderTable();
+      renderHint();
+    }
+
+    function renderHint() {
+      const hint = document.getElementById('filterHint');
+      if (!perfData || !perfData.records) { hint.textContent = ''; return; }
+      hint.textContent = `当前记录 ${perfData.records.length} 条`;
+    }
+
+    function renderStats() {
+      const t = perfData.totals || {};
+      document.getElementById('sTotalQty').textContent = t.total_quantity ?? 0;
+      document.getElementById('sTotalKpi').textContent = t.total_kpi ?? 0;
+      document.getElementById('sPeople').textContent = t.total_people ?? 0;
+      document.getElementById('sDays').textContent = t.total_days ?? 0;
+    }
+
+    function chartConfig(labels, values, label, color) {
+      return {
+        type: 'bar',
+        data: { labels, datasets: [{ label, data: values, backgroundColor: color }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      };
+    }
+
+    function renderCharts() {
+      const byDay = perfData.by_day || [];
+      const byMonth = perfData.by_month || [];
+      const byTask = perfData.by_task || [];
+      const byPerson = perfData.by_person || [];
+
+      chartDay && chartDay.destroy();
+      chartMonth && chartMonth.destroy();
+      chartTask && chartTask.destroy();
+      chartPerson && chartPerson.destroy();
+
+      chartDay = new Chart(document.getElementById('chartDay'), chartConfig(byDay.map(i=>i.label), byDay.map(i=>i.value), '数量', 'rgba(200,169,126,.6)'));
+      chartMonth = new Chart(document.getElementById('chartMonth'), chartConfig(byMonth.map(i=>i.label), byMonth.map(i=>i.value), '数量', 'rgba(124,106,245,.55)'));
+
+      chartTask = new Chart(document.getElementById('chartTask'), {
+        type: 'pie',
+        data: { labels: byTask.map(i=>i.label), datasets: [{ data: byTask.map(i=>i.value), backgroundColor: ['#c8a97e','#7c6af5','#5cb85c','#f0a030','#e05c5c','#5bc0de','#a78bfa','#e8c99a'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cfcbe0', font: { size: 11 } } } } }
+      });
+
+      chartPerson = new Chart(document.getElementById('chartPerson'), chartConfig(byPerson.map(i=>i.label), byPerson.map(i=>i.value), '数量', 'rgba(92,184,92,.55)'));
+    }
+
+    function renderTable() {
+      const body = document.getElementById('detailBody');
+      const rows = (perfData.records || []).map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td>${r.person}</td>
+          <td>${r.client || '-'}</td>
+          <td><span class="pill">${r.task_type}</span></td>
+          <td>${r.task_desc}</td>
+          <td>${r.quantity}${r.unit || ''}</td>
+          <td>${r.kpi_factor}</td>
+          <td>${r.kpi_value}</td>
+        </tr>
+      `).join('');
+      body.innerHTML = rows || `<tr><td colspan="8" class="muted">暂无数据</td></tr>`;
+    }
+
+    function resetFilter() {
+      document.getElementById('fPerson').value = '';
+      document.getElementById('fTask').value = '';
+      document.getElementById('fFrom').value = '';
+      document.getElementById('fTo').value = '';
+      loadPerf();
+    }
+
+    async function exportPerf() {
+      const body = {
+        person: document.getElementById('fPerson').value,
+        task_type: document.getElementById('fTask').value,
+        from: document.getElementById('fFrom').value,
+        to: document.getElementById('fTo').value
+      };
+      const res = await fetch('/api/performance/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'performance_export.xlsx';
+      a.click();
+    }
+
+    async function init() {
+      const cfgRes = await fetch('/api/performance/summary');
+      perfData = await cfgRes.json();
+      const cfg = perfData.config || {};
+      const people = cfg.people_enabled && cfg.people_enabled.length ? cfg.people_enabled : (cfg.people || []);
+      setSelectOptions(document.getElementById('fPerson'), people, '全部人员');
+      setSelectOptions(document.getElementById('fTask'), cfg.task_types || [], '全部任务');
+      const site = await fetch('/api/site').then(r=>r.json()).catch(()=>({}));
+      const fav = site.site && site.site.favicon;
+      if (fav) document.getElementById('faviconLink').href = '/static/uploads/' + fav;
+      renderStats();
+      renderCharts();
+      renderTable();
+      renderHint();
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -54,6 +54,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .social-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
 .social-link{position:relative;padding:10px 22px;border-radius:24px;border:1px solid var(--bd);font-size:13px;color:var(--mu);text-decoration:none;transition:all .2s;display:flex;align-items:center;gap:8px}
 .social-link:hover{border-color:var(--ac);color:var(--ac);background:rgba(200,169,126,.06)}
+.social-link--disabled{cursor:default;opacity:.9}
+.social-link--disabled:hover{border-color:var(--ac);color:var(--ac);background:rgba(200,169,126,.06)}
 .social-link-icon{width:20px;height:20px;border-radius:4px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .social-link-icon img{width:100%;height:100%;object-fit:cover}
 .social-hover-card{position:absolute;left:50%;top:calc(100% + 10px);transform:translateX(-50%) translateY(6px);opacity:0;pointer-events:none;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.18);background:rgba(10,10,12,.92);box-shadow:0 10px 28px rgba(0,0,0,.35);transition:opacity .2s,transform .2s;z-index:12}
@@ -224,7 +226,7 @@ async function init(){
     setTimeout(()=>document.querySelectorAll('.skill-fill').forEach(el=>el.style.width=el.dataset.val),200);
   }
 
-  // Socials with icon support (需求6)
+  // Socials with icon support (需求6)：无链接时不可点击
   document.getElementById('socialLinks').innerHTML=(ab.socials||[]).map(s=>{
     const iconHtml=s.icon
       ?`<div class="social-link-icon"><img src="${fileSrc(s.icon)}" alt="" onerror="this.parentElement.style.display='none'"></div>`
@@ -235,7 +237,12 @@ async function init(){
     const hoverHtml = hoverImg
       ? `<div class="social-hover-card" style="width:${hoverW}px;height:${hoverH}px"><img src="${hoverImg}" referrerpolicy="no-referrer" onerror="this.parentElement.style.display='none'"></div>`
       : '';
-    return `<a href="${s.href}" class="social-link">${iconHtml}${esc(s.label)}${hoverHtml}</a>`;
+    const hasHref = (s.href && s.href.trim() && s.href.trim() !== '#');
+    const label = esc(s.label || '');
+    if (hasHref) {
+      return `<a href="${esc(s.href)}" class="social-link" target="_blank" rel="noopener">${iconHtml}${label}${hoverHtml}</a>`;
+    }
+    return `<span class="social-link social-link--disabled" title="未填写链接">${iconHtml}${label}${hoverHtml}</span>`;
   }).join('');
 
   const gp=document.getElementById('galleryPreview');
@@ -270,9 +277,10 @@ function renderFooter(ft){
     </div>`;
 
   const navHtml = colData.map(c=>{
-    const links=(c.links||[]).map(l=>
-      `<li><a href="${l.href}">${l.label}</a></li>`
-    ).join('');
+    const links=(c.links||[]).map(l=>{
+      const href=(l.label==='订阅RSS'&&!l.href)?'/feed.xml':(l.href||'#');
+      return `<li><a href="${href}"${(l.target==='_blank')?' target="_blank"':''}>${l.label}</a></li>`;
+    }).join('');
     return `<div style="flex:1;min-width:120px">
       <p class="footer-col-title">${c.title}</p>
       <ul>${links}</ul>
