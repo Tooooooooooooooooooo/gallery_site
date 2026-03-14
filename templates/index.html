@@ -25,6 +25,11 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .nav-links{display:flex;gap:4px}
 .nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:7px 13px;border-radius:20px;transition:all .2s}
 .nav-links a:hover{color:var(--tx);background:var(--bd)}
+.nav-toggle{display:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--tx);cursor:pointer;align-items:center;justify-content:center;padding:0;font-size:18px;flex-shrink:0}
+.nav-toggle span{display:block;width:16px;height:2px;background:var(--tx);position:relative;border-radius:999px}
+.nav-toggle span::before,.nav-toggle span::after{content:'';position:absolute;left:0;width:16px;height:2px;background:var(--tx);border-radius:999px}
+.nav-toggle span::before{top:-5px}
+.nav-toggle span::after{top:5px}
 /* Theme switcher */
 .theme-trigger{width:30px;height:30px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;transition:all .2s;flex-shrink:0}
 .theme-trigger:hover{transform:scale(1.1);border-color:var(--ac)}
@@ -37,6 +42,14 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .swatch.active::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.4)}
 .swatch-label{font-size:10px;text-align:center;color:var(--mu);margin-top:4px}
 .theme-swatch-wrap{display:flex;flex-direction:column;align-items:center}
+
+@media(max-width:768px){
+  nav{padding:0 16px;}
+  .nav-links{position:fixed;top:64px;left:0;right:0;background:var(--nav-bg);padding:8px 16px;border-bottom:1px solid var(--bd);flex-direction:column;gap:4px;max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .nav-links.open{max-height:220px;}
+  .nav-links a{padding:9px 10px;}
+  .nav-toggle{display:flex;}
+}
 
 /* HERO */
 .hero{position:relative;width:100%;overflow:hidden;background:#111}
@@ -237,6 +250,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 <body>
 <nav>
   <a class="nav-logo" href="/" id="navLogo">GAL·LERY</a>
+  <button class="nav-toggle" type="button" onclick="toggleNavMenu()" aria-label="切换导航"><span></span></button>
   <div class="nav-links" id="navLinks"></div>
   <div style="position:relative">
     <div class="theme-trigger" id="themeBtn" onclick="togglePicker()" title="切换配色"></div>
@@ -432,6 +446,12 @@ function openModalFromHash(){
 function renderNav(nav){
   document.getElementById('navLogo').textContent=nav.logo||'GAL·LERY';
   document.getElementById('navLinks').innerHTML=(nav.links||[]).map(l=>`<a href="${l.href}" target="${l.target||'_self'}">${l.label}</a>`).join('');
+}
+
+function toggleNavMenu(){
+  const links=document.getElementById('navLinks');
+  if(!links)return;
+  links.classList.toggle('open');
 }
 
 function renderHero(hero){

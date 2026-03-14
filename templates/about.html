@@ -21,6 +21,11 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .nav-links{display:flex;gap:4px}
 .nav-links a{font-size:13px;color:var(--mu);text-decoration:none;padding:7px 13px;border-radius:20px;transition:all .2s}
 .nav-links a:hover{color:var(--tx);background:var(--bd)}
+.nav-toggle{display:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--tx);cursor:pointer;align-items:center;justify-content:center;padding:0;font-size:18px;flex-shrink:0}
+.nav-toggle span{display:block;width:16px;height:2px;background:var(--tx);position:relative;border-radius:999px}
+.nav-toggle span::before,.nav-toggle span::after{content:'';position:absolute;left:0;width:16px;height:2px;background:var(--tx);border-radius:999px}
+.nav-toggle span::before{top:-5px}
+.nav-toggle span::after{top:5px}
 .about-hero{position:relative;min-height:280px;display:flex;align-items:flex-end;overflow:hidden;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
 .about-hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.45)}
 .about-hero-content{position:relative;z-index:2;max-width:900px;margin:0 auto;width:100%;padding:60px 40px 48px;display:flex;align-items:flex-end;gap:36px}
@@ -68,6 +73,14 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .gallery-preview-more{aspect-ratio:1;border-radius:12px;background:var(--tx);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--bg);font-size:14px;font-weight:500;transition:background .2s}
 .gallery-preview-more:hover{background:var(--ac)}
 
+@media(max-width:768px){
+  nav{padding:0 16px;}
+  .nav-links{position:fixed;top:64px;left:0;right:0;background:var(--nav-bg);padding:8px 16px;border-bottom:1px solid var(--bd);flex-direction:column;gap:4px;max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .nav-links.open{max-height:220px;}
+  .nav-links a{padding:9px 10px;}
+  .nav-toggle{display:flex;}
+}
+
 @media(max-width:640px){}
 
 @media(max-width:768px){nav{padding:0 16px;gap:6px}.about-hero-content{flex-direction:column;align-items:center;text-align:center;padding:40px 20px 36px}.about-main{padding:36px 20px 60px}.skills-grid{grid-template-columns:1fr}.gallery-preview{grid-template-columns:repeat(2,1fr)}}
@@ -95,6 +108,13 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
 .modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
 
+@media(max-width:768px){
+  .modal{align-items:flex-start;}
+  .modal-inner{width:100vw;max-width:none;height:100vh;max-height:none;border-radius:0;}
+  .modal-inner img,.modal-inner video,.modal-inner model-viewer{max-width:100vw;max-height:calc(100vh - 140px);border-radius:0;}
+  .modal-info{border-radius:0;}
+}
+
 /* Theme switcher */
 .theme-trigger{width:30px;height:30px;border-radius:50%;border:2px solid var(--bd);cursor:pointer;transition:all .2s;flex-shrink:0}
 .theme-trigger:hover{transform:scale(1.1);border-color:var(--ac)}
@@ -112,6 +132,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 <body>
 <nav>
   <a class="nav-logo" href="/" id="navLogo">GAL·LERY</a>
+  <button class="nav-toggle" type="button" onclick="toggleNavMenu()" aria-label="切换导航"><span></span></button>
   <div class="nav-links" id="navLinks"></div>
   <div style="position:relative">
     <div class="theme-trigger" id="themeBtn" onclick="togglePicker()" title="切换配色"></div>
@@ -191,7 +212,7 @@ async function init(){
   if(basic.favicon)document.getElementById('faviconLink').href='/static/uploads/'+basic.favicon;
   if(basic.title)document.title='关于我 · '+basic.title;
   document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
-  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}">${l.label}</a>`).join('');
+  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}" target="${l.target||'_self'}">${l.label}</a>`).join('');
   const ab=site.about||{};
   const heroEl=document.getElementById('aboutHero');
   if(ab.heroHeight) heroEl.style.minHeight=ab.heroHeight+'px';
@@ -256,11 +277,11 @@ async function init(){
     const isModel=itemIsModel(item);
     const src=item.cover||item.filename;
     return src
-      ?`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer">
+      ?`<div class="gallery-preview-item" onclick="location.href='/#gallery/${item.id}'" style="cursor:pointer">
           <img src="${fileSrc(src)}" alt="${esc(item.title||'')}">
           ${(isVid||isModel)?'<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;pointer-events:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>':''} 
         </div>`
-      :`<div class="gallery-preview-item" onclick="openAboutModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">📦</div>`;
+      :`<div class="gallery-preview-item" onclick="location.href='/#gallery/${item.id}'" style="cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:30px">📦</div>`;
   }).join('')+`<a class="gallery-preview-more" href="/">查看全部 →</a>`;
   renderFooter(site.footer||{});
 }
@@ -292,6 +313,12 @@ function renderFooter(ft){
     `<div class="footer-copy"><p>${copy}</p></div>`;
 }
 
+function toggleNavMenu(){
+  const links=document.getElementById('navLinks');
+  if(!links)return;
+  links.classList.toggle('open');
+}
+
 let _aboutModalHistoryPushed=false;
 let _aboutPreviewOrder=[];
 let _aboutCurrentId='';
@@ -311,11 +338,18 @@ function openAboutModal(id){
   const src=fileSrc(item.filename);
   const isVid=itemIsVideo(item);
   const isModel=itemIsModel(item);
-  document.getElementById('aboutModalBody').innerHTML=isVid
-    ?`<video src="${src}" controls autoplay style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain"></video>`
-    :(isModel
-      ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);max-width:92vw;background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
-      :`<img src="${src}" style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
+  const imgs = !isVid && !isModel && Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+  if(!isVid && !isModel && imgs.length>1){
+    const gapPx=Math.max(0,Math.min(100,parseInt(item.images_gap_px,10)||10));
+    const html = imgs.map(fn=>`<img src="${fileSrc(fn)}" style="width:min(92vw,900px);max-width:92vw;display:block;border-radius:14px;margin:0 auto ${item.images_gap?gapPx:0}px;object-fit:contain">`).join('');
+    document.getElementById('aboutModalBody').innerHTML=`<div style="max-height:82vh;overflow-y:auto;padding-right:4px">${html}</div>`;
+  }else{
+    document.getElementById('aboutModalBody').innerHTML=isVid
+      ?`<video src="${src}" controls autoplay style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain"></video>`
+      :(isModel
+        ?`<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);max-width:92vw;background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
+        :`<img src="${src}" style="width:min(92vw,900px);max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
+  }
   document.getElementById('aboutModalTitle').textContent=item.title||'';
   document.getElementById('aboutModalDesc').innerHTML=item.description||'';
   const bigBtn=document.getElementById('aboutModalBigBtn');
