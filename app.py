@@ -85,6 +85,13 @@ def is_model(f):
     if not f or '.' not in f: return False
     ext = f.rsplit('.', 1)[1].lower().split('?')[0]
     return ext in {'glb', 'gltf'}
+
+def _valid_content_id(s):
+    """允许字母、数字、下划线、连字符，长度 1~128，用于橱窗/详情精选深链接 ID"""
+    if not s or len(s) > 128:
+        return False
+    return all(c.isalnum() or c in '_-' for c in s)
+
 def hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
 
 def load_json(path, default):
@@ -358,12 +365,15 @@ def _is_private_ip(ip):
     except Exception:
         return True
 
-def _lookup_ip_region(ip):
+def _lookup_ip_region(ip, force_refresh=False):
     ip = _normalize_ip(ip)
     if _is_private_ip(ip):
         return ""
-    if ip in _ip_region_cache:
+    if not force_refresh and ip in _ip_region_cache:
         return _ip_region_cache[ip]
+    if force_refresh:
+        _ip_region_cache.pop(ip, None)
+        _ip_region_fail_cache.pop(ip, None)
     try:
         import urllib.request as _ur, json as _js
 
@@ -372,13 +382,14 @@ def _lookup_ip_region(ip):
             with _ur.urlopen(req, timeout=timeout) as resp:
                 return _js.loads(resp.read())
 
+        # 优先使用返回中文的接口，失败再 fallback 到英文接口（国家会经 _cn_country 转中文）
         providers = [
-            # 1) ipapi.co
-            lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
-            # 2) ipwho.is
-            lambda: _get_json("https://ipwho.is/" + ip, 4),
-            # 3) ip-api.com（部分环境会限制 https 免费访问；保留 http 兜底）
+            # 1) ip-api.com 中文（国家/省/市均为中文）
             lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 4),
+            # 2) ipapi.co
+            lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
+            # 3) ipwho.is
+            lambda: _get_json("https://ipwho.is/" + ip, 4),
             # 4) ipinfo.io（无需 token 的基础字段）
             lambda: _get_json("https://ipinfo.io/" + ip + "/json", 4),
             # 5) ip.sb（国内网络下有时更稳）
@@ -434,10 +445,10 @@ def _lookup_ip_region(ip):
 
 def record_visitor():
     import threading
-    from datetime import timedelta
     ip = _get_real_ip()
+    # 使用服务器本地时间，与系统时区一致；部署时请设置 TZ（如中国：TZ=Asia/Shanghai）
     v = {"id": str(uuid.uuid4()),
-         "time": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
+         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
          "ip": ip, "region": "",
          "ua": request.headers.get("User-Agent", "")[:200],
          "path": request.path, "referer": request.referrer or ""}
@@ -988,12 +999,26 @@ def admin_item_comments_pending_count():
                 n += 1
     return jsonify({'count': n})
 
+def _item_comments_id_to_title():
+    """作品评论 + 详情精选评论 的 item_id -> 显示标题（详情精选用 fv_<id> 键）"""
+    data = load_data()
+    id_to_title = {i['id']: (i.get('title') or '无标题') for i in data.get('items', [])}
+    try:
+        featured = load_featured()
+        for i in featured.get('items', []) or []:
+            fid = i.get('id')
+            if fid:
+                id_to_title['fv_' + fid] = (i.get('title') or '无标题')
+    except Exception:
+        pass
+    return id_to_title
+
+
 @app.route('/admin/api/item-comments/pending')
 @login_required
 def admin_item_comments_pending():
-    """待审核评论列表：按作品分组"""
-    data = load_data()
-    id_to_title = {i['id']: (i.get('title') or '无标题') for i in data['items']}
+    """待审核评论列表：按作品/详情精选分组"""
+    id_to_title = _item_comments_id_to_title()
     comments = load_item_comments()
     out = []
     for item_id, list_ in comments.items():
@@ -1011,12 +1036,9 @@ def admin_item_comments_pending():
 @app.route('/admin/api/item-comments/all')
 @login_required
 def admin_item_comments_all():
-    """全部作品评论列表：按作品分组，含已通过/待审核"""
+    """全部评论列表：作品 + 详情精选，按条目分组，含已通过/待审核"""
     try:
-        data = load_data()
-        if not isinstance(data, dict):
-            data = {'items': []}
-        id_to_title = {i['id']: (i.get('title') or '无标题') for i in data.get('items', [])}
+        id_to_title = _item_comments_id_to_title()
         comments = load_item_comments()
         out = []
         for item_id, list_ in comments.items():
@@ -1029,7 +1051,7 @@ def admin_item_comments_all():
                 'item_title': id_to_title.get(item_id, item_id),
                 'comments': sorted_comments,
             })
-        # 作品级：有待审核评论的作品置顶
+        # 条目级：有待审核的置顶
         out.sort(key=lambda x: not any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']))
         return jsonify({'items': out})
     except Exception as e:
@@ -1333,62 +1355,47 @@ def admin_clear_visitors():
 @app.route('/admin/visitors/backfill-region', methods=['POST'])
 @login_required
 def admin_backfill_visitor_regions():
-    """手动一键回填访客地区（全量）"""
+    """手动一键回填访客地区（全量）；强制重新请求接口以得到中文，并覆盖已有英文地区"""
     visitors = load_visitors()
     if not visitors:
         return jsonify({'success': True, 'updated': 0, 'total': 0, 'checked': 0, 'skipped_private': 0, 'looked_up': 0, 'lookup_failed': 0})
 
-    ip_region_map = {}
-    for it in visitors:
-        ip0 = _normalize_ip(it.get('ip') or '')
-        rg0 = (it.get('region') or '').strip()
-        if ip0 and rg0 and ip0 not in ip_region_map:
-            ip_region_map[ip0] = rg0
-
-    updated = 0
-    checked = 0
-    skipped_private = 0
-    looked_up = 0
-    lookup_failed = 0
-
+    # 归一化 IP 并收集需查询的公网 IP（不跳过已有地区的记录，以便把英文改成中文）
+    unique_ips = set()
     for item in visitors:
-        if (item.get('region') or '').strip():
-            continue
-
         raw_ip = item.get('ip') or ''
         ip = _normalize_ip(raw_ip)
-        # 同步修正存量脏 IP（带空格/端口等）
         if raw_ip != ip:
             item['ip'] = ip
+        if ip and not _is_private_ip(ip):
+            unique_ips.add(ip)
 
-        if not ip:
-            continue
+    updated = 0
+    looked_up = len(unique_ips)
+    lookup_failed = 0
+    ip_to_region = {}
 
-        checked += 1
-        if _is_private_ip(ip):
-            skipped_private += 1
-            continue
-
-        # 优先复用同 IP 已有地区
-        region = ip_region_map.get(ip, '')
-        if not region:
-            looked_up += 1
-            region = _lookup_ip_region(ip)
-            if not region:
-                lookup_failed += 1
-
+    for ip in unique_ips:
+        region = _lookup_ip_region(ip, force_refresh=True)
         if region:
-            item['region'] = region
-            ip_region_map[ip] = region
+            ip_to_region[ip] = region
+        else:
+            lookup_failed += 1
+
+    for item in visitors:
+        ip = _normalize_ip(item.get('ip') or '')
+        if ip in ip_to_region:
+            item['region'] = ip_to_region[ip]
             updated += 1
 
     save_visitors(visitors)
 
+    skipped_private = sum(1 for v in visitors if _normalize_ip(v.get('ip') or '') and _is_private_ip(_normalize_ip(v.get('ip') or '')))
     return jsonify({
         'success': True,
         'updated': updated,
         'total': len(visitors),
-        'checked': checked,
+        'checked': len(unique_ips),
         'skipped_private': skipped_private,
         'looked_up': looked_up,
         'lookup_failed': lookup_failed
@@ -2085,6 +2092,39 @@ def api_featured():
     data = load_featured()
     return jsonify({"items": data["items"], "config": data["config"]})
 
+
+@app.route('/api/featured/<item_id>/comments', methods=['GET', 'POST'])
+def api_featured_comments(item_id):
+    """详情精选评论：与作品评论同一套审核，存储键为 fv_<item_id>"""
+    data = load_featured()
+    if not any(i.get('id') == item_id for i in data.get('items', [])):
+        return jsonify({'error': 'not found'}), 404
+    key = 'fv_' + item_id
+    if request.method == 'GET':
+        comments = load_item_comments()
+        list_ = comments.get(key, [])
+        list_ = [c for c in list_ if c.get('approved', True)]
+        return jsonify({'comments': list(list_)})
+    body = request.json or {}
+    name = (body.get('name') or '').strip() or '匿名'
+    content = (body.get('content') or '').strip()
+    if not content:
+        return jsonify({'success': False, 'error': '评论内容不能为空'}), 400
+    comments = load_item_comments()
+    if key not in comments:
+        comments[key] = []
+    comment = {
+        'id': str(uuid.uuid4()),
+        'name': name[:50],
+        'content': content[:2000],
+        'time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+        'approved': False,
+    }
+    comments[key].insert(0, comment)
+    save_item_comments(comments)
+    return jsonify({'success': True, 'comment': comment})
+
+
 # ── 数据备份 / 恢复 ──
 
 DATA_TYPES = {
@@ -2301,8 +2341,14 @@ def admin_featured_upload():
     if not images:
         return jsonify({'success': False, 'error': '至少需要一张图片'}), 400
     cover = request.form.get('cover', '').strip()
+    raw_id = (request.form.get('id') or '').strip()
+    if raw_id and _valid_content_id(raw_id):
+        existing_ids = {i['id'] for i in data['items']}
+        item_id = raw_id if raw_id not in existing_ids else str(uuid.uuid4())
+    else:
+        item_id = str(uuid.uuid4())
     item = {
-        'id': str(uuid.uuid4()),
+        'id': item_id,
         'title': request.form.get('title', '').strip(),
         'content': request.form.get('content', '').strip(),
         'images': images,
@@ -2326,6 +2372,17 @@ def admin_featured_update(item_id):
         if 'content' in body: item['content'] = body['content']
         if 'images_order' in body: item['images'] = body['images_order']
         if 'cover' in body: item['cover'] = body['cover']
+        # 可编辑 ID（深链接）：评论随 ID 迁移到 fv_<new_id>
+        new_id = (body.get('id') or '').strip()
+        if new_id and _valid_content_id(new_id) and new_id != item_id:
+            existing_ids = {i['id'] for i in data['items'] if i['id'] != item_id}
+            if new_id not in existing_ids:
+                comments = load_item_comments()
+                old_key, new_key = 'fv_' + item_id, 'fv_' + new_id
+                if old_key in comments:
+                    comments[new_key] = comments.pop(old_key)
+                    save_item_comments(comments)
+                item['id'] = new_id
     else:
         for f in request.files.getlist('images'):
             if f and f.filename and allowed_img(f.filename):
@@ -2433,7 +2490,12 @@ def admin_showcase_upload():
     elif existing_cover:
         cover_filename = existing_cover
     likes = load_likes()
-    item_id = str(uuid.uuid4())
+    raw_id = (request.form.get('id') or '').strip()
+    if raw_id and _valid_content_id(raw_id):
+        existing_ids = {i['id'] for i in data['items']}
+        item_id = raw_id if raw_id not in existing_ids else str(uuid.uuid4())
+    else:
+        item_id = str(uuid.uuid4())
     item = {
         'id': item_id,
         'title': request.form.get('title', ''),
@@ -2466,6 +2528,18 @@ def admin_showcase_edit(item_id):
                 likes = load_likes()
                 likes['sc_' + item_id] = max(0, int(body['likes']))
                 save_likes(likes)
+            # 可编辑 ID（深链接）：更新后迁移点赞数
+            new_id = (body.get('id') or '').strip()
+            if new_id and _valid_content_id(new_id) and new_id != item_id:
+                existing_ids = {i['id'] for i in data['items'] if i['id'] != item_id}
+                if new_id not in existing_ids:
+                    likes = load_likes()
+                    old_key = 'sc_' + item_id
+                    likes['sc_' + new_id] = likes.get(old_key, 0)
+                    if old_key in likes:
+                        del likes[old_key]
+                    save_likes(likes)
+                    item['id'] = new_id
             break
     save_showcase(data)
     return jsonify({'success': True})

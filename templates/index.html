@@ -172,7 +172,11 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-info{flex-shrink:0}
 .modal-body-wrap .modal-zoom-wrap{flex:1;min-height:0;width:100%;max-height:100%;overflow:hidden;cursor:grab;touch-action:none;position:relative;display:flex;align-items:center;justify-content:center;background:#111}
 .modal-inner img,.modal-inner video,.modal-inner model-viewer{max-width:100%;max-height:100%;display:block;object-fit:contain}
-.modal-multi-wrap{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.modal-multi-wrap{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+.modal-multi-wrap::-webkit-scrollbar{width:6px}
+.modal-multi-wrap::-webkit-scrollbar-track{background:transparent}
+.modal-multi-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+.modal-multi-wrap::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
 .modal-multi-wrap.images-have-gap .modal-multi-slide{margin-bottom:var(--multi-gap,10px)}
 .modal-multi-wrap.images-have-gap .modal-multi-slide:last-child{margin-bottom:0}
 .modal-multi-slide{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:0}
@@ -185,7 +189,11 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-zoom-inner.no-transition{transition:none}
 .modal-comments-toggle{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:4px 10px;border-radius:8px;font-size:12px;cursor:pointer;transition:background .2s}
 .modal-comments-toggle:hover{background:rgba(255,255,255,.2)}
-.modal-comments{max-height:180px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15)}
+.modal-comments{max-height:180px;overflow-y:auto;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}
+.modal-comments::-webkit-scrollbar{width:6px}
+.modal-comments::-webkit-scrollbar-track{background:transparent}
+.modal-comments::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+.modal-comments::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
 .modal-comments h4{font-size:12px;color:rgba(255,255,255,.7);margin-bottom:8px}
 .modal-comment-item{font-size:11px;color:rgba(255,255,255,.85);margin-bottom:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}
 .modal-comment-item:last-child{border-bottom:none}
@@ -244,6 +252,15 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .fv-thumb.active{border-color:var(--ac,#c8a97e);opacity:1}
 .fv-content{padding:10px 2px 16px;color:rgba(255,255,255,.88);font-size:14px;line-height:1.75;border-top:1px solid rgba(255,255,255,.08)}
 .fv-content:empty{display:none}
+.fv-comments{margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
+.fv-comments h4{font-size:12px;color:rgba(255,255,255,.7);margin-bottom:8px}
+.fv-comment-item{font-size:11px;color:rgba(255,255,255,.85);margin-bottom:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.fv-comment-item:last-child{border-bottom:none}
+.fv-comment-meta{color:rgba(255,255,255,.5);margin-bottom:3px}
+.fv-comment-form{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.fv-comment-form input,.fv-comment-form textarea{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:8px 10px;color:#fff;font-size:12px;font-family:inherit}
+.fv-comment-form textarea{min-height:52px;resize:vertical}
+.fv-comment-form button{padding:8px 14px;border-radius:8px;background:var(--ac);color:#fff;border:none;cursor:pointer;font-size:12px;align-self:flex-start}
 
 </style>
 </head>
@@ -424,23 +441,28 @@ async function init(){
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
   renderFooter(site.footer||{});
   loadCats();
-  loadShowcase();
-  loadFeatured();
+  await Promise.all([loadShowcase(), loadFeatured()]);
   await loadMore();
   openModalFromHash();
 }
 function openModalFromHash(){
   const hash=location.hash||'';
-  const m=hash.match(/^#?gallery\/([^/]+)$/);
-  if(!m) return;
-  const id=m[1];
-  if(itemMap[id]){ openModal(id); return; }
-  fetch('/api/items/'+encodeURIComponent(id)).then(r=>{if(!r.ok)return; return r.json();}).then(item=>{
-    if(!item) return;
-    itemMap[item.id]=item;
-    if(!modalOrder.includes(item.id)) modalOrder.push(item.id);
-    openModal(item.id);
-  }).catch(()=>{});
+  let m=hash.match(/^#?gallery\/([^/]+)$/);
+  if(m){
+    const id=m[1];
+    if(itemMap[id]){ openModal(id); return; }
+    fetch('/api/items/'+encodeURIComponent(id)).then(r=>{if(!r.ok)return; return r.json();}).then(item=>{
+      if(!item) return;
+      itemMap[item.id]=item;
+      if(!modalOrder.includes(item.id)) modalOrder.push(item.id);
+      openModal(item.id);
+    }).catch(()=>{});
+    return;
+  }
+  m=hash.match(/^#?showcase\/([^/]+)$/);
+  if(m&&scMap[m[1]]){ openScModal(m[1]); return; }
+  m=hash.match(/^#?featured\/([^/]+)$/);
+  if(m&&_featuredMap[m[1]]){ openFv(_featuredMap[m[1]]); return; }
 }
 
 function renderNav(nav){
@@ -637,16 +659,20 @@ function openScModal(id) {
   modalSource = 'showcase';
   lockPageScroll();
   if(!_modalHistoryPushed){
-    try{ history.pushState({modalOpen:true}, ''); _modalHistoryPushed = true; }catch(e){}
+    try{ history.pushState({modalOpen:true}, '', (location.pathname||'/')+'#showcase/'+id); _modalHistoryPushed = true; }catch(e){}
   }
   const src = fileSrc(item.filename);
   const isVid = itemIsVideo(item);
   const isModel = itemIsModel(item);
   document.getElementById('modalBody').innerHTML = isVid
-    ? `<video src="${src}" controls autoplay style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
+    ? `<video src="${src}" controls autoplay playsinline style="max-width:92vw;max-height:82vh;border-radius:14px;display:block"></video>`
     : (isModel
       ? `<model-viewer src="${src}" camera-controls auto-rotate exposure="1" shadow-intensity="1" style="width:min(92vw,900px);height:min(82vh,720px);background:rgba(0,0,0,.15);border-radius:14px"></model-viewer>`
       : `<img src="${src}" style="max-width:92vw;max-height:82vh;border-radius:14px;display:block;object-fit:contain">`);
+  if (isVid) {
+    const v = document.querySelector('#modalBody video');
+    if (v) v.play().catch(function(){});
+  }
   document.getElementById('modalTitle').textContent = item.title || '';
   document.getElementById('modalDesc').innerHTML = item.description || '';
   const hTop = document.getElementById('modalHintTop');
@@ -1375,7 +1401,7 @@ function openFv(item) {
   renderFvThumbs();
   lockPageScroll();
   if(!_fvHistoryPushed){
-    try{ history.pushState({fvOpen:true}, ''); _fvHistoryPushed = true; }catch(e){}
+    try{ history.pushState({fvOpen:true}, '', (location.pathname||'/')+'#featured/'+(_fvCurrentId||'')); _fvHistoryPushed = true; }catch(e){}
   }
   document.getElementById('fvOverlay').classList.add('open');
 }
@@ -1448,7 +1474,30 @@ function renderFvList() {
 
 function renderFvThumbs(){
   const aside = document.getElementById('fvAside');
-  aside.innerHTML = `<div class="fv-thumb-grid">${_fvImages.map((fn,i)=>`<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(fn)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join('')}</div><div class="fv-content" id="fvContent">${_fvContent||''}</div>`;
+  aside.innerHTML = `<div class="fv-thumb-grid">${_fvImages.map((fn,i)=>`<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(fn)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join('')}</div><div class="fv-content" id="fvContent">${_fvContent||''}</div><div class="fv-comments" id="fvComments"></div>`;
+  if(_fvCurrentId) loadFvComments(_fvCurrentId);
+}
+function loadFvComments(itemId){
+  const el = document.getElementById('fvComments');
+  if(!el) return;
+  el.innerHTML = '<div style="color:rgba(255,255,255,.5);font-size:12px">加载中...</div>';
+  fetch('/api/featured/'+encodeURIComponent(itemId)+'/comments').then(r=>r.json()).then(d=>{
+    const list = (d.comments||[]).map(c=>`<div class="fv-comment-item"><div class="fv-comment-meta">${esc(c.name)} · ${esc(c.time)}</div><div>${esc(c.content)}</div></div>`).join('');
+    el.innerHTML = '<h4>评论</h4>' + list + '<div class="fv-comment-form"><input type="text" id="fvCommentName" placeholder="昵称（可选）" maxlength="50"><textarea id="fvCommentContent" placeholder="写一条评论..."></textarea><button type="button" onclick="submitFvComment()">发送</button></div>';
+  }).catch(()=>{ el.innerHTML = '<h4>评论</h4><p style="color:rgba(255,255,255,.5);font-size:12px">加载失败</p>'; });
+}
+function submitFvComment(){
+  const itemId = _fvCurrentId;
+  if(!itemId) return;
+  const nameEl = document.getElementById('fvCommentName');
+  const contentEl = document.getElementById('fvCommentContent');
+  const name = (nameEl&&nameEl.value.trim())||'匿名';
+  const content = contentEl&&contentEl.value.trim();
+  if(!content){ showToast('请输入评论内容'); return; }
+  fetch('/api/featured/'+encodeURIComponent(itemId)+'/comments', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, content}) }).then(r=>r.json()).then(d=>{
+    if(d.success&&d.comment){ if(contentEl) contentEl.value=''; loadFvComments(itemId); showToast('评论已提交，管理员审核后将显示'); }
+    else showToast(d.error||'发送失败', 3000);
+  }).catch(()=>showToast('发送失败', 3000));
 }
 
 function fvScrollTo(idx){

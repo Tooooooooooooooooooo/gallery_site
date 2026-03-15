@@ -706,6 +706,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="card">
     <div class="ct">➕ 新增内容</div>
     <div class="fg" style="margin-bottom:10px">
+      <label>内容 ID（可选，留空自动生成，用于深链接 /#featured/ID）</label>
+      <input class="inp" type="text" id="ftNewId" placeholder="字母数字下划线连字符">
+    </div>
+    <div class="fg" style="margin-bottom:10px">
       <label>标题</label>
       <input class="inp" type="text" id="ftNewTitle" placeholder="标题（可选）">
     </div>
@@ -837,6 +841,10 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <!-- 上传区 -->
   <div class="card">
     <div class="ct">➕ 添加橱窗内容</div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>内容 ID（可选，留空自动生成，用于深链接 /#showcase/ID）</label>
+      <input class="inp" id="scUpId" placeholder="字母数字下划线连字符">
+    </div>
     <div class="fr" style="margin-bottom:10px">
       <div class="fg">
         <label>标题</label>
@@ -890,6 +898,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
   <div class="mbox" style="max-width:480px">
     <h3>编辑橱窗项目</h3>
     <input type="hidden" id="scEditId">
+    <div class="fg" style="margin-bottom:10px">
+      <label>内容 ID（深链接用，可编辑）</label>
+      <input class="inp" id="scEditIdInput" placeholder="留空则保持原ID" oninput="var s=document.getElementById('scEditDeepLink');if(s)s.textContent=this.value||document.getElementById('scEditId').value">
+      <div style="font-size:11px;color:var(--mu);margin-top:4px">深链接: <code>/#showcase/<span id="scEditDeepLink"></span></code></div>
+    </div>
     <div id="scEditThumbRow" style="display:none;align-items:center;gap:10px;margin-bottom:12px;padding:8px 10px;background:var(--s3);border-radius:8px;border:1px solid var(--bd)">
       <div id="scEditThumbImg" style="flex-shrink:0"></div>
       <div style="flex:1;min-width:0">
@@ -4705,8 +4718,9 @@ async function loadItemCommentsPage(){
         <div style="display:flex;gap:8px">${actions}</div>
       </div>`;
       }).join('');
+      const label=(String(block.item_id||'').indexOf('fv_')===0)?'详情精选':'作品';
       return `<div style="margin-bottom:20px;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--s2)">
-        <div style="font-weight:600;color:var(--tx);margin-bottom:10px">作品：${title} <span style="font-size:11px;color:var(--mu);font-weight:400">(${block.item_id})</span></div>
+        <div style="font-weight:600;color:var(--tx);margin-bottom:10px">${label}：${title} <span style="font-size:11px;color:var(--mu);font-weight:400">(${block.item_id})</span></div>
         ${comments}
       </div>`;
     }).join('');
@@ -4988,6 +5002,8 @@ async function scUpload() {
   const fd = new FormData();
   if (file) fd.append('file', file);
   else fd.append('existing_file', mpFile);
+  const scUpId = document.getElementById('scUpId');
+  if (scUpId && scUpId.value.trim()) fd.append('id', scUpId.value.trim());
   fd.append('title', document.getElementById('scUpTitle').value);
   fd.append('description', document.getElementById('scUpDesc').value);
   fd.append('link', document.getElementById('scUpLink').value);
@@ -5006,6 +5022,7 @@ async function scUpload() {
     document.getElementById('scUpTitle').value = '';
     document.getElementById('scUpDesc').value = '';
     document.getElementById('scUpLink').value = '';
+    if (document.getElementById('scUpId')) document.getElementById('scUpId').value = '';
     document.getElementById('scDzIcon').textContent = '📁';
     document.getElementById('scDzText').textContent = '点击选择图片或视频';
     document.getElementById('scCoverIcon').textContent = '🖼️';
@@ -5031,6 +5048,10 @@ function openScEdit(id) {
   const item = scItems.find(i => i.id === id);
   if (!item) return;
   document.getElementById('scEditId').value = id;
+  const idInp = document.getElementById('scEditIdInput');
+  const deepSpan = document.getElementById('scEditDeepLink');
+  if (idInp) idInp.value = id;
+  if (deepSpan) deepSpan.textContent = id;
   document.getElementById('scEditTitle').value = item.title || '';
   document.getElementById('scEditDesc').value = item.description || '';
   document.getElementById('scEditLink').value = item.link || '';
@@ -5090,17 +5111,19 @@ function closeScEdit() {
 
 async function scSaveEdit() {
   const id = document.getElementById('scEditId').value;
-  // Save text fields
+  const idInp = document.getElementById('scEditIdInput');
+  const newId = (idInp && idInp.value.trim()) || id;
   const body = {
     title: document.getElementById('scEditTitle').value,
     description: document.getElementById('scEditDesc').value,
     link: document.getElementById('scEditLink').value,
     likes: parseInt(document.getElementById('scEditLikes').value) || 0
   };
+  if (idInp && idInp.value.trim()) body.id = idInp.value.trim();
   const r1 = await fetch('/admin/showcase/' + id, {
     method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
   });
-  // Replace files if provided
+  // Replace files if provided（PUT 后项 id 可能已变更，用 newId 调用 replace）
   const fileInp = document.getElementById('scEditFile');
   const coverInp = document.getElementById('scEditCover');
   const hasFile = fileInp.files[0] || fileInp._mpFile;
@@ -5111,7 +5134,7 @@ async function scSaveEdit() {
     else if (fileInp._mpFile) fd.append('existing_file', fileInp._mpFile);
     if (coverInp.files[0]) fd.append('cover', coverInp.files[0]);
     else if (coverInp._mpFile) fd.append('existing_cover', coverInp._mpFile);
-    await fetch('/admin/showcase/' + id + '/replace', {method:'POST', body:fd});
+    await fetch('/admin/showcase/' + newId + '/replace', {method:'POST', body:fd});
   }
   if (r1.ok) { closeScEdit(); await loadShowcaseAdmin(); toast('保存成功'); }
   else toast('保存失败','err');
@@ -5981,6 +6004,8 @@ function ftRemoveNewImg(idx) {
 async function ftSubmitNew() {
   if (!_ftNewImgs.length) { toast('请至少添加一张图片', 'err'); return; }
   const fd = new FormData();
+  const ftNewIdEl = document.getElementById('ftNewId');
+  if (ftNewIdEl && ftNewIdEl.value.trim()) fd.append('id', ftNewIdEl.value.trim());
   fd.append('title', document.getElementById('ftNewTitle').value.trim());
   fd.append('content', document.getElementById('ftNewContent')._quillInstance ? document.getElementById('ftNewContent')._quillInstance.root.innerHTML : '');
   if (_ftNewCover) fd.append('cover', _ftNewCover);
@@ -5995,6 +6020,7 @@ async function ftSubmitNew() {
     _ftNewImgs = [];
     _ftNewCover = '';
     document.getElementById('ftNewTitle').value = '';
+    const fnid = document.getElementById('ftNewId'); if (fnid) fnid.value = '';
     if(document.getElementById('ftNewContent')._quillInstance) document.getElementById('ftNewContent')._quillInstance.root.innerHTML = '';
     document.getElementById('ftNewPreviews').innerHTML = '';
     const cp = document.getElementById('ftNewCoverPrev');
@@ -6035,12 +6061,18 @@ function renderFtList() {
       ondragend="ftItemDragEnd()"
       style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;display:grid;grid-template-columns:minmax(360px,1.3fr) minmax(260px,1fr);gap:12px;align-items:start">
       <div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <span class="drag-handle" title="拖动排序" style="cursor:grab;font-size:16px;color:var(--mu)">⠿</span>
           <input class="inp" id="ftItemTitle-${item.id}" value="${esc(item.title||'')}" placeholder="标题"
             onkeydown="if(event.key==='Enter')this.blur()"
-            style="margin-bottom:0;font-size:13px;flex:1">
+            style="margin-bottom:0;font-size:13px;flex:1;min-width:120px">
           <button class="btn btn-d btn-sm" onclick="ftDeleteItem('${item.id}')">删除</button>
+        </div>
+        <div class="fg" style="margin-bottom:8px">
+          <label style="font-size:11px;color:var(--mu)">内容 ID（深链接）</label>
+          <input class="inp" id="ftItemId-${item.id}" value="${esc(item.id||'')}" placeholder="ID"
+            style="font-size:12px;max-width:280px" oninput="var s=document.getElementById('ftItemDeepLink-${item.id}');if(s)s.textContent=this.value">
+          <div style="font-size:10px;color:var(--mu);margin-top:2px">深链接: <code>/#featured/<span id="ftItemDeepLink-${item.id}">${esc(item.id||'')}</span></code></div>
         </div>
         <div id="ftItemContent-${item.id}" style="background:rgb(34,34,46);border-radius:8px;min-height:120px;font-size:13px"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px;gap:6px">
@@ -6139,15 +6171,22 @@ async function ftSaveItem(id) {
   if (!item) return;
   const titleEl = document.getElementById(`ftItemTitle-${id}`);
   const contentEl = document.getElementById(`ftItemContent-${id}`);
+  const idEl = document.getElementById(`ftItemId-${id}`);
   const title = titleEl ? titleEl.value : (item.title || '');
   const content = (contentEl && contentEl._quillInstance) ? contentEl._quillInstance.root.innerHTML : (item.content || '');
+  const payload = { title, content };
+  if (idEl && idEl.value.trim()) payload.id = idEl.value.trim();
   const res = await fetch(`/admin/featured/${id}`, {
     method: 'PUT', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({title, content})
+    body: JSON.stringify(payload)
   });
   if (res.ok) {
     item.title = title;
     item.content = content;
+    if (payload.id && payload.id !== id) {
+      item.id = payload.id;
+      await loadFeaturedAdmin();
+    }
     toast('已保存修改');
   } else {
     toast('保存失败', 'err');
