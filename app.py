@@ -357,7 +357,8 @@ def _get_real_ip():
         return xr
 
     # 3) X-Forwarded-For：可能是 "client, proxy1, proxy2"
-    #    不同平台可能会把代理 IP 放前面/后面；我们选择「第一个公网 IP」
+    #    不同平台可能会把代理 IP 放前面/后面；为了兼容“代理在前、真实IP在后”的情况，
+    #    若存在多个公网 IP，优先取最后一个公网 IP。
     xff = request.headers.get("X-Forwarded-For", "") or ""
     if xff:
         parts = [p.strip() for p in xff.split(",") if p.strip()]
@@ -368,14 +369,9 @@ def _get_real_ip():
                 publics.append(ip)
 
         if publics:
-            # 常见规范是 client 在最前，但有些反代会把出口/代理 IP 放前面，把真实 client 放后面。
-            # 经验策略：如果存在多个公网 IP，且第一个与 remote_addr / X-Real-IP 相同，则取最后一个公网 IP。
-            ra = _normalize_ip(request.remote_addr or "")
-            if xr and publics[0] == xr:
+            # 兼容你当前链路：真实访客 IP 在后
+            if len(publics) >= 2:
                 return publics[-1]
-            if ra and publics[0] == ra:
-                return publics[-1]
-            # 否则仍按「第一个公网 IP」处理
             return publics[0]
 
         # 若全是私网（如内网链路），退回第一个可解析值
