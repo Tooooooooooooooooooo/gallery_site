@@ -503,6 +503,11 @@ def _lookup_ip_region(ip, force_refresh=False):
                 if p and p not in seen:
                     seen.add(p)
                     out.append(p)
+            # 若国家已是中文且为中国，但省市仍是英文（通常来自 fallback），则只保留国家避免“North West”等英文显示
+            if out and out[0] in ("中国", "中国香港", "中国澳门", "中国台湾"):
+                tail = out[1:]
+                if tail and not any(_has_cjk(x) for x in tail):
+                    out = out[:1]
             region = " ".join(out)
             if region:
                 break
@@ -691,6 +696,38 @@ def api_record_view(item_id):
     views[item_id] = views.get(item_id, 0) + 1
     save_views(views)
     return jsonify({'success': True, 'views': views[item_id]})
+
+@app.route('/api/track', methods=['POST'])
+def api_track():
+    """前台埋点：记录深链接/作品打开等虚拟页面访问。
+    body: {"path": "/#gallery/<id>"} or {"path": "/gallery/<id>"}"""
+    body = request.json or {}
+    path = (body.get('path') or '').strip()
+    if not path:
+        return jsonify({'success': False, 'error': 'invalid path'}), 400
+    # 轻量防刷：每 IP 每分钟最多 120 次
+    ip = _get_real_ip()
+    if not _rate_limit('track:' + ip, 120, 60):
+        return jsonify({'success': False, 'error': 'rate_limited'}), 429
+    from datetime import timedelta
+    v = {"id": str(uuid.uuid4()),
+         "time": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
+         "ip": ip, "region": "",
+         "ua": request.headers.get("User-Agent", "")[:200],
+         "path": path, "referer": request.referrer or ""}
+    # 同 record_visitor：写入证据链
+    v["ip_debug"] = {
+        "remote_addr": _normalize_ip(request.remote_addr or ""),
+        "cf_connecting_ip": _normalize_ip(request.headers.get("CF-Connecting-IP", "")),
+        "x_real_ip": _normalize_ip(request.headers.get("X-Real-IP", "")),
+        "x_forwarded_for": (request.headers.get("X-Forwarded-For", "") or "")[:200],
+    }
+    visitors = load_visitors()
+    visitors.insert(0, v)
+    if len(visitors) > 5000:
+        visitors = visitors[:5000]
+    save_visitors(visitors)
+    return jsonify({'success': True})
 
 @app.route('/api/items/<item_id>')
 def api_item_by_id(item_id):

@@ -1048,9 +1048,15 @@ function unlockPageScroll(){
 }
 
 function recordView(id){fetch('/api/view/'+id,{method:'POST'}).then(r=>r.json()).then(d=>{if(d.success&&itemMap[id])itemMap[id].views=(itemMap[id].views||0)+1;}).catch(()=>{});}
+function trackVirtualPath(p){
+  try{
+    fetch('/api/track', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({path: p})}).catch(()=>{});
+  }catch(e){}
+}
 function openModal(id){
   const item=itemMap[id];if(!item)return;
   recordView(id);
+  trackVirtualPath('/#gallery/'+id);
   modalCurrentId = id;
   modalSource = 'masonry';
   lockPageScroll();
