@@ -361,10 +361,23 @@ def _get_real_ip():
     xff = request.headers.get("X-Forwarded-For", "") or ""
     if xff:
         parts = [p.strip() for p in xff.split(",") if p.strip()]
+        publics = []
         for p in parts:
             ip = _normalize_ip(p)
             if ip and not _is_private_ip(ip):
-                return ip
+                publics.append(ip)
+
+        if publics:
+            # 常见规范是 client 在最前，但有些反代会把出口/代理 IP 放前面，把真实 client 放后面。
+            # 经验策略：如果存在多个公网 IP，且第一个与 remote_addr / X-Real-IP 相同，则取最后一个公网 IP。
+            ra = _normalize_ip(request.remote_addr or "")
+            if xr and publics[0] == xr:
+                return publics[-1]
+            if ra and publics[0] == ra:
+                return publics[-1]
+            # 否则仍按「第一个公网 IP」处理
+            return publics[0]
+
         # 若全是私网（如内网链路），退回第一个可解析值
         ip0 = _normalize_ip(parts[0]) if parts else ""
         if ip0:
@@ -449,11 +462,11 @@ def _lookup_ip_region(ip, force_refresh=False):
         # 优先使用返回中文的接口，失败再 fallback 到英文接口（国家会经 _cn_country 转中文）
         providers = [
             # 1) ip-api.com 中文（国家/省/市均为中文）
-            lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 4),
+            lambda: _get_json("https://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 6),
             # 2) ipapi.co
             lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
             # 3) ipwho.is
-            lambda: _get_json("https://ipwho.is/" + ip, 4),
+            lambda: _get_json("https://ipwho.is/" + ip + "?lang=zh", 4),
             # 4) ipinfo.io（无需 token 的基础字段）
             lambda: _get_json("https://ipinfo.io/" + ip + "/json", 4),
             # 5) ip.sb（国内网络下有时更稳）
