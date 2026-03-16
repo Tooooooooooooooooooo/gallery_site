@@ -457,7 +457,8 @@ def _lookup_ip_region(ip, force_refresh=False):
         # 优先使用返回中文的接口，失败再 fallback 到英文接口（国家会经 _cn_country 转中文）
         providers = [
             # 1) ip-api.com 中文（国家/省/市均为中文）
-            lambda: _get_json("https://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,regionName,city", 6),
+            # 注意：ip-api 免费接口不支持 HTTPS（SSL 需要 Pro），因此优先用 HTTP
+            lambda: _get_json("http://ip-api.com/json/" + ip + "?lang=zh-CN&fields=status,country,countryCode,regionName,city", 6),
             # 2) ipapi.co
             lambda: _get_json("https://ipapi.co/" + ip + "/json/", 4),
             # 3) ipwho.is
@@ -481,13 +482,16 @@ def _lookup_ip_region(ip, force_refresh=False):
             parts = []
             # ip-api
             if d.get("status") == "success":
-                parts = [d.get("country", ""), d.get("regionName", ""), d.get("city", "")]
+                country = d.get("country", "") or d.get("countryCode", "")
+                parts = [country, d.get("regionName", ""), d.get("city", "")]
             # ipapi.co
             elif d.get("country_name") or d.get("region") or d.get("city"):
-                parts = [d.get("country_name", ""), d.get("region", ""), d.get("city", "")]
+                country = d.get("country_name", "") or d.get("country", "") or d.get("country_code", "")
+                parts = [country, d.get("region", ""), d.get("city", "")]
             # ipwho.is
             elif ("success" in d and d.get("success") is True) or d.get("country") or d.get("region"):
-                parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
+                country = d.get("country", "") or d.get("country_code", "") or d.get("countryCode", "")
+                parts = [country, d.get("region", ""), d.get("city", "")]
             # ipinfo.io / ip.sb
             elif d.get("country") or d.get("region") or d.get("city"):
                 parts = [d.get("country", ""), d.get("region", ""), d.get("city", "")]
