@@ -4977,8 +4977,7 @@ async function loadVisitors(){
   if(!d || typeof d.total==='undefined') d = { total:0, visitors:[], has_more:false, daily:[], today_key:'' };
   window._visChartData = d;
   var todayKey = d.today_key || new Date().toISOString().slice(5,10);
-  var visTb = document.getElementById('visTb');
-  if(visTb) visTb.innerHTML = (Array.isArray(d.visitors)?d.visitors:[]).map(function(v){ return '<tr><td style="color:var(--mu);font-size:11px;white-space:nowrap">'+(v.time||'')+'</td><td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">'+esc(v.ip||'')+'</code>'+(v.region?'<span style="font-size:10px;color:var(--mu);margin-left:5px">'+esc(toCnRegion(v.region))+'</span>':'')+'</td><td style="font-size:11px">'+esc(v.path||'')+'</td><td style="font-size:11px;color:var(--mu);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(v.referer||'')+'">'+esc(v.referer||'-')+'</td><td style="font-size:10px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(v.ua||'')+'">'+(v.ua||'').slice(0,60)+'</td></tr>'; }).join('');
+  renderVisitorTable(Array.isArray(d.visitors)?d.visitors:[]);
   var visLoadMore = document.getElementById('visLoadMore');
   if(visLoadMore) visLoadMore.style.display = d.has_more ? 'block' : 'none';
   var elTotal = document.getElementById('visTotal'); if(elTotal) elTotal.textContent = d.total!=null ? d.total : '-';
@@ -5043,7 +5042,11 @@ function toCnRegion(region){
 function renderVisitorTable(visitors){
   document.getElementById('visTb').innerHTML=visitors.map(v=>`<tr>
     <td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td>
-    <td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(toCnRegion(v.region))}</span>`:''}</td>
+    <td style="white-space:nowrap">
+      <code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>
+      ${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(toCnRegion(v.region))}</span>`:''}
+      ${v.ip_debug?`<span style="display:inline-block;margin-left:6px;font-size:10px;color:var(--mu)" title="${esc('remote_addr: '+(v.ip_debug.remote_addr||'')+'\nCF-Connecting-IP: '+(v.ip_debug.cf_connecting_ip||'')+'\nX-Real-IP: '+(v.ip_debug.x_real_ip||'')+'\nX-Forwarded-For: '+(v.ip_debug.x_forwarded_for||''))}">ⓘ</span>`:''}
+    </td>
     <td style="font-size:11px">${esc(v.path||'')}</td>
     <td style="font-size:11px;color:var(--mu);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.referer||'')}">${esc(v.referer||'-')}</td>
     <td style="font-size:10px;color:var(--mu);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(v.ua||'')}">${esc(v.ua||'').slice(0,60)}</td>
@@ -5058,7 +5061,21 @@ async function loadMoreVisitors(){
   const r = await fetch(`/admin/visitors?page=${visPage}${q}`, { credentials: 'same-origin' });
   const d = await r.json();
   const tbody=document.getElementById('visTb');
-  (d.visitors||[]).forEach(v=>{const tr=document.createElement('tr');tr.innerHTML=`<td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td><td style="white-space:nowrap"><code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(v.region)}</span>`:''}</td><td style="font-size:11px">${esc(v.path||'')}</td><td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td><td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;tbody.appendChild(tr);});
+  (d.visitors||[]).forEach(v=>{
+    const tr=document.createElement('tr');
+    const tip = v.ip_debug ? esc('remote_addr: '+(v.ip_debug.remote_addr||'')+'\nCF-Connecting-IP: '+(v.ip_debug.cf_connecting_ip||'')+'\nX-Real-IP: '+(v.ip_debug.x_real_ip||'')+'\nX-Forwarded-For: '+(v.ip_debug.x_forwarded_for||'')) : '';
+    tr.innerHTML = `
+      <td style="color:var(--mu);font-size:11px;white-space:nowrap">${v.time||''}</td>
+      <td style="white-space:nowrap">
+        <code style="font-size:11px;color:var(--ac2)">${esc(v.ip||'')}</code>
+        ${v.region?`<span style="font-size:10px;color:var(--mu);margin-left:5px">${esc(toCnRegion(v.region))}</span>`:''}
+        ${v.ip_debug?`<span style="display:inline-block;margin-left:6px;font-size:10px;color:var(--mu)" title="${tip}">ⓘ</span>`:''}
+      </td>
+      <td style="font-size:11px">${esc(v.path||'')}</td>
+      <td style="font-size:11px;color:var(--mu)">${esc(v.referer||'-')}</td>
+      <td style="font-size:10px;color:var(--mu)">${esc(v.ua||'').slice(0,60)}</td>`;
+    tbody.appendChild(tr);
+  });
   if(!d.has_more)document.getElementById('visLoadMore').style.display='none';
 }
 async function clearVisitors(){if(!confirm('清空所有访客记录？'))return;await fetch('/admin/visitors/clear',{method:'DELETE'});toast('记录已清空');loadVisitors();}

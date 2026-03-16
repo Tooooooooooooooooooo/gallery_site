@@ -529,6 +529,13 @@ def record_visitor():
          "ip": ip, "region": "",
          "ua": request.headers.get("User-Agent", "")[:200],
          "path": request.path, "referer": request.referrer or ""}
+    # 记录 IP 证据链，便于排查“真实访客 IP 未透传”的问题
+    v["ip_debug"] = {
+        "remote_addr": _normalize_ip(request.remote_addr or ""),
+        "cf_connecting_ip": _normalize_ip(request.headers.get("CF-Connecting-IP", "")),
+        "x_real_ip": _normalize_ip(request.headers.get("X-Real-IP", "")),
+        "x_forwarded_for": (request.headers.get("X-Forwarded-For", "") or "")[:200],
+    }
     visitors = load_visitors()
     visitors.insert(0, v)
     # 只保留近期明细，避免 JSON 过大（最多 5000 条）
