@@ -346,12 +346,30 @@ def _normalize_ip(ip):
 
 def _get_real_ip():
     """从代理头取真实 IP，兼容 Cloudflare/Nginx/Railway"""
-    for hk in ("CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"):
-        hv = request.headers.get(hk, "")
-        if hv:
-            ip = _normalize_ip(hv.split(",")[0].strip())
-            if ip:
+    # 1) Cloudflare：最可信，通常就是真实访客 IP
+    cf = _normalize_ip(request.headers.get("CF-Connecting-IP", ""))
+    if cf:
+        return cf
+
+    # 2) 常见反代：X-Real-IP（单值）
+    xr = _normalize_ip(request.headers.get("X-Real-IP", ""))
+    if xr:
+        return xr
+
+    # 3) X-Forwarded-For：可能是 "client, proxy1, proxy2"
+    #    不同平台可能会把代理 IP 放前面/后面；我们选择「第一个公网 IP」
+    xff = request.headers.get("X-Forwarded-For", "") or ""
+    if xff:
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        for p in parts:
+            ip = _normalize_ip(p)
+            if ip and not _is_private_ip(ip):
                 return ip
+        # 若全是私网（如内网链路），退回第一个可解析值
+        ip0 = _normalize_ip(parts[0]) if parts else ""
+        if ip0:
+            return ip0
+
     return _normalize_ip(request.remote_addr or "unknown")
 
 def _is_private_ip(ip):
