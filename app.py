@@ -32,6 +32,7 @@ VIEWS_FILE    = os.path.join(_BASE, 'data', 'views.json')
 AUTH_FILE     = os.path.join(_BASE, 'data', 'auth.json')
 SMTP_FILE     = os.path.join(_BASE, 'data', 'smtp.json')
 ITEM_COMMENTS_FILE = os.path.join(_BASE, 'data', 'item_comments.json')
+SHOWCASE_FILE    = os.path.join(_BASE, 'data', 'showcase.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -365,6 +366,51 @@ def _is_private_ip(ip):
     except Exception:
         return True
 
+# ── 登录失败限制与频率限制（内存，进程内有效）──
+_login_failures = {}   # ip -> (count, lock_until_timestamp)
+_rate_limit_store = {}  # key -> [timestamp, ...]，需定期清理
+
+def _rate_limit(key, max_per_window=10, window_sec=60):
+    """按 key 限流，返回 True 通过，False 拒绝。"""
+    now = time.time()
+    cutoff = now - window_sec
+    if key not in _rate_limit_store:
+        _rate_limit_store[key] = []
+    lst = _rate_limit_store[key]
+    lst[:] = [t for t in lst if t > cutoff]
+    if len(lst) >= max_per_window:
+        return False
+    lst.append(now)
+    return True
+
+def _login_fail_check(ip):
+    """检查该 IP 是否被锁定。返回 (allowed: bool, retry_after_sec: int)。"""
+    now = time.time()
+    if ip not in _login_failures:
+        return True, 0
+    count, lock_until = _login_failures[ip]
+    if lock_until and now < lock_until:
+        return False, int(lock_until - now)
+    if lock_until and now >= lock_until:
+        _login_failures[ip] = (0, None)  # 解锁
+    return True, 0
+
+def _login_fail_record(ip, max_attempts=5, lock_minutes=15):
+    """记录一次登录失败；若达到次数则锁定。"""
+    now = time.time()
+    count, lock_until = _login_failures.get(ip, (0, None))
+    if lock_until and now < lock_until:
+        return
+    count += 1
+    if count >= max_attempts:
+        _login_failures[ip] = (count, now + lock_minutes * 60)
+    else:
+        _login_failures[ip] = (count, None)
+
+def _login_fail_clear(ip):
+    """登录成功时清除该 IP 的失败记录。"""
+    _login_failures.pop(ip, None)
+
 def _lookup_ip_region(ip, force_refresh=False):
     ip = _normalize_ip(ip)
     if _is_private_ip(ip):
@@ -445,17 +491,22 @@ def _lookup_ip_region(ip, force_refresh=False):
 
 def record_visitor():
     import threading
+    from datetime import timedelta
     ip = _get_real_ip()
-    # 使用服务器本地时间，与系统时区一致；部署时请设置 TZ（如中国：TZ=Asia/Shanghai）
+    # 访客记录按 IP 限流，防止单 IP 刷量（每分钟最多 120 次）
+    if not _rate_limit('visit:' + ip, 120, 60):
+        return
+    # 统一使用北京时间（UTC+8），便于后台「今日」与列表展示一致
     v = {"id": str(uuid.uuid4()),
-         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+         "time": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
          "ip": ip, "region": "",
          "ua": request.headers.get("User-Agent", "")[:200],
          "path": request.path, "referer": request.referrer or ""}
     visitors = load_visitors()
     visitors.insert(0, v)
-    if len(visitors) > 2000:
-        visitors = visitors[:2000]
+    # 只保留近期明细，避免 JSON 过大（最多 5000 条）
+    if len(visitors) > 5000:
+        visitors = visitors[:5000]
     save_visitors(visitors)
 
     def _fill_region(vid, vip):
@@ -473,15 +524,40 @@ def record_visitor():
 # ── Auth Routes ──
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
+    ip = _get_real_ip()
     if request.method == 'POST':
         body = request.json or {}
+        # 登录接口按 IP 限流，每分钟最多 15 次
+        if not _rate_limit('login:' + ip, 15, 60):
+            return jsonify({'success': False, 'error': '请求过于频繁，请稍后再试', 'retry_after': 60}), 429
+        allowed, retry_after = _login_fail_check(ip)
+        if not allowed:
+            return jsonify({'success': False, 'error': '登录尝试过多，请稍后再试', 'retry_after': retry_after}), 429
+        # 失败次数≥2 时要求验证码（算术验证）
+        if session.get('captcha_answer') is not None:
+            ans = str((body.get('captcha_answer') or '').strip())
+            if ans != str(session.get('captcha_answer', '')):
+                return jsonify({'success': False, 'error': '验证码错误'}), 400
         auth = load_auth()
         if body.get('username') == auth['username'] and hash_pw(body.get('password', '')) == auth['password']:
+            _login_fail_clear(ip)
+            session.pop('captcha_answer', None)
             session['logged_in'] = True
             return jsonify({'success': True})
+        _login_fail_record(ip)
+        session.pop('captcha_answer', None)  # 失败后下次 GET 会重新生成验证码
         return jsonify({'success': False, 'error': '用户名或密码错误'}), 401
-    if session.get('logged_in'): return redirect('/admin')
-    return render_template('login.html')
+    if session.get('logged_in'):
+        return redirect('/admin')
+    # GET：若该 IP 失败次数≥2，显示验证码并写入 session
+    fail_count = _login_failures.get(ip, (0, None))[0]
+    captcha_a = captcha_b = None
+    if fail_count >= 2:
+        import random
+        captcha_a = random.randint(1, 12)
+        captcha_b = random.randint(1, 12)
+        session['captcha_answer'] = str(captcha_a + captcha_b)
+    return render_template('login.html', captcha_a=captcha_a, captcha_b=captcha_b)
 
 @app.route('/admin/logout', methods=['POST'])
 def admin_logout():
@@ -547,8 +623,8 @@ def api_items():
             items = []
     else:
         items = list(data['items'])
-    # 前台公开接口：不显示已隐藏的内容
-    items = [i for i in items if not i.get('hidden')]
+    # 前台公开接口：不显示已隐藏的内容 & 草稿
+    items = [i for i in items if not i.get('hidden') and i.get('status') != 'draft']
     # 定时发布：未到发布时间的不显示
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     items = [i for i in items if not i.get('scheduled_publish') or (i.get('scheduled_publish', '') <= now_str)]
@@ -591,7 +667,8 @@ def api_item_by_id(item_id):
     if not items:
         return jsonify({'error': 'not found'}), 404
     item = dict(items[0])
-    if item.get('hidden'):
+    # 草稿或隐藏内容在前台均视为不存在
+    if item.get('status') == 'draft' or item.get('hidden'):
         return jsonify({'error': 'not found'}), 404
     now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     if item.get('scheduled_publish') and item.get('scheduled_publish', '') > now_str:
@@ -619,6 +696,9 @@ def api_item_comments(item_id):
     content = (body.get('content') or '').strip()
     if not content:
         return jsonify({'success': False, 'error': '评论内容不能为空'}), 400
+    ip = _get_real_ip()
+    if not _rate_limit('comment:' + ip, 10, 60):
+        return jsonify({'success': False, 'error': '提交过于频繁，请稍后再试'}), 429
     comments = load_item_comments()
     if item_id not in comments:
         comments[item_id] = []
@@ -776,6 +856,33 @@ def api_like(item_id):
     save_likes(likes)
     return jsonify({'success': True, 'liked': is_liked, 'likes': likes[item_id]})
 
+
+def _normalize_image_key(key: str) -> str:
+    """从 URL 或带路径的字符串中提取文件名，用于匹配 images/cover."""
+    if not key:
+        return ''
+    key = str(key).strip()
+    # 去掉查询参数
+    try:
+        parsed = urllib.parse.urlparse(key)
+        if parsed.path:
+            key = parsed.path
+    except Exception:
+        pass
+    # 去掉前缀路径，如 /static/uploads/xxx.jpg
+    return os.path.basename(key)
+
+
+def _match_image_in_list(key: str, images):
+    """在 images 列表中根据文件名匹配 key（可为 URL 或文件名），返回原始元素或 None."""
+    if not key or not images:
+        return None
+    target = _normalize_image_key(key)
+    for v in images:
+        if _normalize_image_key(v) == target:
+            return v
+    return None
+
 @app.route('/api/liked-status')
 def api_liked_status():
     """返回当前 IP 对指定 item 列表的点赞状态"""
@@ -894,6 +1001,9 @@ def admin_upload():
     if not cats:
         c = request.form.get('category', '其他')
         cats = [c] if c else ['其他']
+    status = (request.form.get('status') or '').strip().lower() or 'published'
+    if status not in ('draft', 'published'):
+        status = 'published'
     item = {
         'id': item_id, 'title': request.form.get('title', ''),
         'categories': cats, 'category': cats[0] if cats else '其他',
@@ -905,11 +1015,31 @@ def admin_upload():
         'width': int(request.form.get('width', 800)),
         'height': int(request.form.get('height', 600)),
         'sort_order': int(request.form.get('sort_order', 0)),
+        'status': status,
     }
     if multi_images:
         item['images'] = multi_images
         item['images_gap'] = request.form.get('images_gap') in ('1', 'true', 'yes')
         item['images_gap_px'] = max(0, min(100, int(request.form.get('images_gap_px', 10) or 10)))
+        # 优先使用上传页传来的封面索引，其次按文件名匹配 cover_from_images
+        cover_index_raw = (request.form.get('cover_index') or '').strip()
+        cov_from_index = None
+        try:
+            if cover_index_raw != '':
+                idx = int(cover_index_raw)
+                if 0 <= idx < len(multi_images):
+                    cov_from_index = multi_images[idx]
+        except Exception:
+            cov_from_index = None
+        if cov_from_index:
+            cover_filename = cov_from_index
+            item['cover'] = cov_from_index
+        else:
+            cov_raw = (request.form.get('cover_from_images') or '').strip()
+            cov_match = _match_image_in_list(cov_raw, multi_images)
+            if cov_match:
+                cover_filename = cov_match
+                item['cover'] = cov_match
     sp = (request.form.get('scheduled_publish') or '').strip()
     if sp:
         item['scheduled_publish'] = sp
@@ -938,6 +1068,12 @@ def admin_edit_item(item_id):
             return jsonify({'success': False, 'error': '该 ID 已被使用'}), 400
     for item in data['items']:
         if item['id'] == item_id:
+            # 若带有 cover_from_images，则优先按现有 images 列表按文件名匹配更新封面
+            cov_raw = (body.get('cover_from_images') or '').strip()
+            if cov_raw and item.get('images'):
+                cov_match = _match_image_in_list(cov_raw, item.get('images') or [])
+                if cov_match:
+                    item['cover'] = cov_match
             item['title'] = body.get('title', item.get('title', ''))
             cats = body.get('categories', None)
             if cats is not None:
@@ -947,6 +1083,10 @@ def admin_edit_item(item_id):
             item['width'] = int(body.get('width', item.get('width', 800)))
             item['height'] = int(body.get('height', item.get('height', 600)))
             item['sort_order'] = int(body.get('sort_order', item.get('sort_order', 0)))
+            if 'status' in body:
+                st = (body.get('status') or '').strip().lower()
+                if st in ('draft', 'published'):
+                    item['status'] = st
             if 'likes' in body:
                 likes = load_likes()
                 likes[item_id] = max(0, int(body['likes']))
@@ -960,7 +1100,14 @@ def admin_edit_item(item_id):
                 item['images'] = [str(x).strip() for x in body['images'] if x]
                 if item['images']:
                     item['filename'] = item['images'][0]
-                    item['cover'] = item['images'][0]
+                    # 封面：优先使用前端指定的 cover_from_images（允许 URL/路径），其次首张
+                    cov_raw = body.get('cover_from_images') or ''
+                    cov_raw = str(cov_raw).strip()
+                    cov_match = _match_image_in_list(cov_raw, item['images']) if cov_raw else None
+                    if cov_match:
+                        item['cover'] = cov_match
+                    elif item.get('cover') not in item['images']:
+                        item['cover'] = item['images'][0]
             if 'images_gap' in body:
                 item['images_gap'] = bool(body['images_gap'])
             if 'images_gap_px' in body:
@@ -1014,10 +1161,17 @@ def _item_comments_id_to_title():
     return id_to_title
 
 
+def _comment_group_latest_time(comments_list):
+    """取一组评论中最新一条的时间用于排序"""
+    if not comments_list:
+        return ''
+    return max((c.get('time') or '' for c in comments_list), default='')
+
+
 @app.route('/admin/api/item-comments/pending')
 @login_required
 def admin_item_comments_pending():
-    """待审核评论列表：按作品/详情精选分组"""
+    """待审核评论列表：按作品/详情精选分组，支持按时间排序"""
     id_to_title = _item_comments_id_to_title()
     comments = load_item_comments()
     out = []
@@ -1030,13 +1184,16 @@ def admin_item_comments_pending():
             'item_title': id_to_title.get(item_id, item_id),
             'comments': pending,
         })
+    sort_order = (request.args.get('sort') or 'time_desc').lower()
+    rev = sort_order != 'time_asc'
+    out.sort(key=lambda x: _comment_group_latest_time(x['comments']), reverse=rev)
     return jsonify({'items': out})
 
 
 @app.route('/admin/api/item-comments/all')
 @login_required
 def admin_item_comments_all():
-    """全部评论列表：作品 + 详情精选，按条目分组，含已通过/待审核"""
+    """全部评论列表：作品 + 详情精选，按条目分组，支持按时间排序"""
     try:
         id_to_title = _item_comments_id_to_title()
         comments = load_item_comments()
@@ -1044,15 +1201,19 @@ def admin_item_comments_all():
         for item_id, list_ in comments.items():
             if not list_ or not isinstance(list_, list):
                 continue
-            # 评论内：未审核(approved is False)置顶
-            sorted_comments = sorted(list_, key=lambda c: (c.get('approved') is not False,))
+            sorted_comments = sorted(list_, key=lambda c: (c.get('approved') is not False, c.get('time') or ''), reverse=True)
             out.append({
                 'item_id': item_id,
                 'item_title': id_to_title.get(item_id, item_id),
                 'comments': sorted_comments,
             })
-        # 条目级：有待审核的置顶
-        out.sort(key=lambda x: not any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']))
+        # 条目级：有待审核的置顶，再按最新评论时间排序
+        sort_order = (request.args.get('sort') or 'time_desc').lower()
+        rev = sort_order != 'time_asc'
+        out.sort(key=lambda x: (
+            not any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']),
+            _comment_group_latest_time(x['comments']),
+        ), reverse=rev)
         return jsonify({'items': out})
     except Exception as e:
         return jsonify({'error': str(e), 'items': []}), 500
@@ -1095,6 +1256,29 @@ def admin_item_comment_reject():
             return jsonify({'success': True})
     return jsonify({'success': False, 'error': '未找到评论'}), 404
 
+
+@app.route('/admin/api/item-comments/delete', methods=['POST'])
+@login_required
+def admin_item_comment_delete():
+    """删除一条评论（从数据中移除，不可恢复）"""
+    body = request.json or {}
+    item_id = body.get('item_id')
+    comment_id = body.get('comment_id')
+    if not item_id or not comment_id:
+        return jsonify({'success': False, 'error': '缺少参数'}), 400
+    comments = load_item_comments()
+    if item_id not in comments:
+        return jsonify({'success': False, 'error': '未找到'}), 404
+    before = len(comments[item_id])
+    comments[item_id] = [c for c in comments[item_id] if c.get('id') != comment_id]
+    if len(comments[item_id]) == before:
+        return jsonify({'success': False, 'error': '未找到评论'}), 404
+    if not comments[item_id]:
+        del comments[item_id]
+    save_item_comments(comments)
+    return jsonify({'success': True})
+
+
 @app.route('/admin/items/reorder', methods=['PUT'])
 @login_required
 def admin_reorder_items():
@@ -1113,10 +1297,42 @@ def admin_reorder_items():
 @login_required
 def admin_bulk_delete():
     data = load_data()
-    ids = set(request.json.get('ids', []))
+    body = request.json or {}
+    ids = set(body.get('ids') or [])
+    if not ids:
+        return jsonify({'success': False, 'error': '请选择要删除的条目'}), 400
     data['items'] = [i for i in data['items'] if i['id'] not in ids]
     save_data(data)
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'deleted': len(ids)})
+
+
+@app.route('/admin/items/bulk-update', methods=['POST'])
+@login_required
+def admin_bulk_update():
+    """批量修改分类等。body: { ids: [], categories: ['分类名'] }"""
+    data = load_data()
+    body = request.json or {}
+    ids = set(body.get('ids') or [])
+    categories = body.get('categories')
+    if not ids:
+        return jsonify({'success': False, 'error': '请选择条目'}), 400
+    if not isinstance(categories, list) or not categories:
+        return jsonify({'success': False, 'error': '请指定分类'}), 400
+    cats = [str(c).strip() for c in categories if str(c).strip()]
+    if not cats:
+        return jsonify({'success': False, 'error': '分类不能为空'}), 400
+    # 确保分类存在于站点分类列表
+    for c in cats:
+        if c not in data.get('categories', []):
+            data.setdefault('categories', []).append(c)
+    updated = 0
+    for item in data['items']:
+        if item['id'] in ids:
+            item['categories'] = cats
+            item['category'] = cats[0]
+            updated += 1
+    save_data(data)
+    return jsonify({'success': True, 'updated': updated})
 
 @app.route('/admin/item/<item_id>/replace-file', methods=['POST'])
 @login_required
@@ -1236,6 +1452,19 @@ def admin_recent_likes():
                            'cover': item.get('cover') or (item.get('filename') if item.get('type') != 'video' else None)})
     return jsonify(result)
 
+@app.route('/admin/api/dashboard-stats')
+@login_required
+def admin_dashboard_stats():
+    """仪表盘用：总访客数、总评论数（作品+详情精选）"""
+    visitors = load_visitors()
+    comments_data = load_item_comments()
+    total_comments = sum(len(lst) for lst in comments_data.values() if isinstance(lst, list))
+    return jsonify({
+        'visitors': len(visitors),
+        'comments': total_comments,
+    })
+
+
 @app.route('/admin/visitors')
 @login_required
 def admin_visitors():
@@ -1243,19 +1472,27 @@ def admin_visitors():
     page = int(request.args.get('page', 1))
     per_page = 50
     path_filter = (request.args.get('path', '') or '').strip()
+    sort_by = (request.args.get('sort') or 'time').lower()
+    order = (request.args.get('order') or 'desc').lower()
     from collections import Counter
     from datetime import timedelta
 
-    filtered = visitors
+    filtered = list(visitors)
     if path_filter:
-        filtered = [v for v in visitors if (v.get('path') or '') == path_filter]
+        filtered = [v for v in filtered if (v.get('path') or '') == path_filter]
+    rev = order == 'desc'
+    if sort_by == 'ip':
+        filtered.sort(key=lambda v: (v.get('ip') or ''), reverse=rev)
+    else:
+        filtered.sort(key=lambda v: (v.get('time') or ''), reverse=rev)
 
     start = (page - 1) * per_page
     end = start + per_page
 
     paths = Counter(v.get('path', '') for v in filtered)
     ips = Counter(v.get('ip', '') for v in filtered)
-    today = datetime.now().date()
+    # 与 record_visitor 一致：按北京时间（UTC+8）算「今日」，保证当天数据正确归类
+    today = (datetime.utcnow() + timedelta(hours=8)).date()
     daily = {}
     daily_ip_sets = {}
     today_key = today.strftime('%m-%d')
@@ -1336,6 +1573,7 @@ def admin_visitors():
     threading.Thread(target=_backfill, daemon=True).start()
     return jsonify({'total': len(filtered), 'visitors': filtered[start:end],
                     'has_more': end < len(filtered), 'page': page,
+                    'today_key': today_key,
                     'top_pages': paths.most_common(10), 'top_ips': ips.most_common(10),
                     'unique_ips': len(ips),
                     'today_unique_ips': today_unique_ips,
@@ -1351,6 +1589,23 @@ def admin_visitors():
 def admin_clear_visitors():
     save_visitors([])
     return jsonify({'success': True})
+
+
+@app.route('/admin/visitors/trim-days', methods=['POST'])
+@login_required
+def admin_trim_visitors_days():
+    """只保留最近 N 天的访客明细，避免 JSON 过大。body: {"days": 90}"""
+    from datetime import timedelta
+    body = request.json or {}
+    days = int(body.get('days', 90))
+    days = max(1, min(365, days))
+    cutoff = (datetime.utcnow() + timedelta(hours=8)) - timedelta(days=days)
+    cutoff_str = cutoff.strftime('%Y-%m-%d') + ' 00:00:00'
+    visitors = load_visitors()
+    before = len(visitors)
+    visitors = [v for v in visitors if (v.get('time') or '') >= cutoff_str]
+    save_visitors(visitors)
+    return jsonify({'success': True, 'before': before, 'after': len(visitors), 'days': days})
 
 @app.route('/admin/visitors/backfill-region', methods=['POST'])
 @login_required
@@ -1426,6 +1681,14 @@ def admin_site_basic():
         site['site']['model_hint_radius'] = max(0, min(40, int(body.get('model_hint_radius', site['site'].get('model_hint_radius', 10)))))
     except Exception:
         site['site']['model_hint_radius'] = site['site'].get('model_hint_radius', 10)
+    # 炫酷鼠标/视觉效果开关（默认关闭，避免打扰）
+    fx_keys = [
+        'fx_particles',      # 粒子尾巴
+        'fx_nodes',          # 几何节点连线网格
+    ]
+    for k in fx_keys:
+        if k in body:
+            site['site'][k] = bool(body.get(k))
     site['theme'] = body.get('theme', site.get('theme', 'warm'))
     if 'thumb_scale' in body:
         site['thumb_scale'] = max(10, min(100, int(body.get('thumb_scale', 50))))
@@ -2110,6 +2373,9 @@ def api_featured_comments(item_id):
     content = (body.get('content') or '').strip()
     if not content:
         return jsonify({'success': False, 'error': '评论内容不能为空'}), 400
+    ip = _get_real_ip()
+    if not _rate_limit('comment:' + ip, 10, 60):
+        return jsonify({'success': False, 'error': '提交过于频繁，请稍后再试'}), 429
     comments = load_item_comments()
     if key not in comments:
         comments[key] = []
@@ -2126,7 +2392,7 @@ def api_featured_comments(item_id):
 
 
 # ── 数据备份 / 恢复 ──
-
+# 以下动态数据均需纳入备份；export 时还会用 _all_data_json_files() 扫 data/*.json 全量，避免遗漏
 DATA_TYPES = {
     'content':   DATA_FILE,
     'site':      SITE_FILE,
@@ -2139,7 +2405,7 @@ DATA_TYPES = {
     'featured':  FEATURED_FILE,
     'emoji':     EMOJI_FILE,
     'muyu':      MUYU_FILE,
-    'showcase':  SHOWCASE_FILE if 'SHOWCASE_FILE' in globals() else 'data/showcase.json',
+    'showcase':  SHOWCASE_FILE,
     'item_comments': ITEM_COMMENTS_FILE,
 }
 
@@ -2401,8 +2667,6 @@ def admin_featured_delete(item_id):
     data['items'] = [i for i in data['items'] if i['id'] != item_id]
     save_featured(data)
     return jsonify({'success': True})
-
-SHOWCASE_FILE = 'data/showcase.json'
 
 def load_showcase():
     d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
@@ -2985,21 +3249,3 @@ def _placeholder_css_subpath(path):
 if __name__ == '__main__':
     app.run(debug=True)
 
-SHOWCASE_FILE = 'data/showcase.json'
-
-def load_showcase():
-    d = load_json(SHOWCASE_FILE, {"items": [], "config": {}})
-    if "config" not in d:
-        d["config"] = {}
-    cfg = d["config"]
-    cfg.setdefault("enabled", True)
-    cfg.setdefault("title", "橱窗精选")
-    cfg.setdefault("subtitle", "SHOWCASE")
-    cfg.setdefault("columns", 4)
-    cfg.setdefault("cardHeight", 200)
-    return d
-
-def save_showcase(d):
-    save_json(SHOWCASE_FILE, d)
-if __name__ == '__main__':
-    app.run(debug=True)

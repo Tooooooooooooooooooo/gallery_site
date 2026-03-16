@@ -51,11 +51,11 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
   .nav-toggle{display:flex;}
 }
 
-/* HERO */
-.hero{position:relative;width:100%;overflow:hidden;background:#111}
+/* HERO：避免首屏黑屏，用页面背景 + 深灰占位，图片加载前不显示纯黑 */
+.hero{position:relative;width:100%;overflow:hidden;background:var(--bg)}
 .slides{display:flex;height:100%;transition:transform .7s cubic-bezier(.4,0,.2,1)}
 .slide{min-width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
-.slide-bg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.52)}
+.slide-bg{position:absolute;inset:0;background:#2a2a2a;background-size:cover;background-position:center;filter:brightness(.52)}
 .slide-content{position:relative;z-index:2;text-align:center;color:#fff;padding:0 40px}
 .slide-tag{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ac);margin-bottom:14px}
 .slide-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,58px);font-weight:700;line-height:1.1;margin-bottom:14px}
@@ -108,6 +108,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 /* MASONRY */
 .masonry-wrap{padding:20px 16px 60px}
 .masonry{position:relative;width:100%}
+.masonry-loading .loader{display:block}
+@keyframes skeleton-pulse{0%,100%{opacity:.85}50%{opacity:.5}}
 .m-item{position:absolute;border-radius:14px;overflow:hidden;background:var(--s);cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.06);transition:transform .3s,box-shadow .3s;animation:fadeIn .35s ease both}
 @keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
 .m-item:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.13)}
@@ -208,10 +210,17 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .modal-big-btn{height:32px;padding:0 14px;border-radius:16px;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.25);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px);transition:background .2s;white-space:nowrap}
 .modal-big-btn:hover{background:rgba(200,169,126,.7)}
 .modal-close{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:2}
+.img-fail{min-height:100px;background:var(--s2);display:flex;align-items:center;justify-content:center;border-radius:10px}
+.img-fail::after{content:'图片加载失败';font-size:11px;color:var(--mu)}
 .modal-info{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,.8),transparent);padding:36px 20px 20px;color:#fff;border-radius:0 0 18px 18px}
 .modal-info h2{font-family:'Playfair Display',serif;font-size:20px}
 .modal-info p,.modal-info>div{font-size:12px;color:rgba(255,255,255,.7);margin-top:3px}.modal-info div p{margin:2px 0;font-size:12px}
 .modal-hint-out{max-width:min(92vw,900px);padding:8px 12px;border-radius:10px;background:rgba(0,0,0,.52);border:1px solid rgba(255,255,255,.2);font-size:12px;color:rgba(255,255,255,.92);backdrop-filter:blur(8px);line-height:1.5}
+
+/* FX：画布和鼠标镜片通用样式 */
+#fxCanvasLayer{position:fixed;inset:0;pointer-events:none;z-index:0}
+.fx-glass-lens{position:fixed;width:140px;height:140px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.4),rgba(255,255,255,.02));backdrop-filter:blur(14px);box-shadow:0 12px 40px rgba(0,0,0,.25);pointer-events:none;mix-blend-mode:screen;opacity:0;transform:translate(-9999px,-9999px);transition:opacity .25s ease;}
+[data-theme=dark] .fx-glass-lens{border-color:rgba(255,255,255,.26);background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.32),rgba(0,0,0,.1));mix-blend-mode:screen;}
 
 @media(max-width:768px){nav{padding:0 14px}.toolbar{padding:10px 12px}}
 
@@ -356,8 +365,8 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div class="modal-inner">
     <button class="modal-close" onclick="closeModal()" aria-label="关闭">&#215;</button>
     <div class="modal-top-actions">
-      <button id="modalFavBtn" class="modal-fav-btn" onclick="toggleModalFav(event)" title="收藏" style="display:none">☆</button>
-      <button id="modalBigBtn" class="modal-big-btn" onclick="void 0" style="display:none"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>查看大图</button>
+      <button id="modalFavBtn" class="modal-fav-btn" onclick="toggleModalFav(event)" title="收藏" aria-label="收藏或取消收藏" style="display:none">☆</button>
+      <button id="modalBigBtn" class="modal-big-btn" onclick="void 0" style="display:none" aria-label="在新窗口查看大图"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>查看大图</button>
     </div>
     <div class="modal-body-wrap"><div id="modalBody"></div></div>
     <div class="modal-info"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap"><h2 id="modalTitle" style="margin:0"></h2><button type="button" id="modalCommentsToggle" class="modal-comments-toggle" onclick="toggleModalComments()" title="显示/隐藏评论" style="display:none">💬 评论</button></div><div id="modalDesc" style="font-size:12px;color:rgba(255,255,255,.7);margin-top:3px"></div><div id="modalComments" class="modal-comments" style="display:none"></div></div>
@@ -437,6 +446,15 @@ async function init(){
   modelHintFontSize = Number(b.model_hint_font_size) || 12;
   modelHintMaxWidth = Number(b.model_hint_max_width) || 900;
   modelHintRadius = Number(b.model_hint_radius) || 10;
+  // 读取炫酷效果开关，并在主题和 DOM 就绪后初始化
+  const fxFlags = {
+    particles: !!b.fx_particles,
+    nodes: !!b.fx_nodes,
+    glass: !!b.fx_glass,
+    fluid: !!b.fx_fluid,
+    card3d: !!b.fx_card3d,
+    trail: !!b.fx_trail
+  };
   renderNav(site.nav||{});
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
   renderFooter(site.footer||{});
@@ -444,6 +462,7 @@ async function init(){
   await Promise.all([loadShowcase(), loadFeatured()]);
   await loadMore();
   openModalFromHash();
+  setupFx(fxFlags);
 }
 function openModalFromHash(){
   const hash=location.hash||'';
@@ -824,26 +843,25 @@ function mkCard(item,idx){
   const isVid=itemIsVideo(item);
   const isModel=itemIsModel(item);
   const multiImages=item.images&&Array.isArray(item.images)&&item.images.length>1;
+  // 封面：优先使用后端提供的 cover，没有则退回 filename
   const cover=item.cover||((!isVid&&!isModel)?item.filename:(item.cover||item.filename));
-  const isExternalUrl = cover && (cover.startsWith('http://') || cover.startsWith('https://'));
-  const cardSrc = isExternalUrl ? cover : (((!isVid&&!isModel)&&item.thumb)?item.thumb:cover);
-  const cardBase = isExternalUrl ? '' : (((!isVid&&!isModel)&&item.thumb)?'/static/thumbs/':'/static/uploads/');
   const ratio=item.height&&item.width?(item.height/item.width*100).toFixed(1):75;
 
   let thumbHtml='';
   if(multiImages){
-    const imgs=item.images;
-    const src0=item.thumb?('/static/thumbs/'+item.thumb):fileSrc(imgs[0]);
-    const src1=fileSrc(imgs[1]||imgs[0]);
-    const src2=fileSrc(imgs[2]||imgs[0]);
+    const imgs=item.images||[];
+    const coverImg = cover || imgs[0];
+    // 前两层使用前两张图，最上面一层使用封面图，这样视觉上看到的一定是封面
+    const srcA=fileSrc(imgs[0] || coverImg);
+    const srcB=fileSrc(imgs[1] || imgs[0] || coverImg);
     thumbHtml=`<div class="thumb-stack">
-      <div class="stack-layer"><img src="${src0}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none'"></div>
-      <div class="stack-layer"><img src="${src1}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none'"></div>
-      <div class="stack-layer"><img src="${src2}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none'"></div>
+      <div class="stack-layer"><img src="${srcA}" loading="lazy" decoding="async" alt="${esc(item.title||'')}" onerror="this.style.display='none';this.onerror=null;this.alt='';this.src='';this.parentElement.classList.add('img-fail')"></div>
+      <div class="stack-layer"><img src="${srcB}" loading="lazy" decoding="async" alt="${esc(item.title||'')}" onerror="this.style.display='none';this.onerror=null;this.alt='';this.src='';this.parentElement.classList.add('img-fail')"></div>
+      <div class="stack-layer"><img src="${fileSrc(coverImg)}" loading="lazy" decoding="async" alt="${esc(item.title||'')}" onerror="this.style.display='none';this.onerror=null;this.alt='';this.src='';this.parentElement.classList.add('img-fail')"></div>
       <span class="stack-count">${imgs.length} 张</span>
     </div>`;
-  }else if(cardSrc){
-    thumbHtml=`<img src="${cardBase}${cardSrc}" loading="lazy" decoding="async" alt="${esc(item.title||'')}" onerror="this.style.display='none'">`;
+  }else if(cover){
+    thumbHtml=`<img src="${fileSrc(cover)}" loading="lazy" decoding="async" alt="${esc(item.title||'')}" onerror="this.style.display='none';this.onerror=null;this.alt='';this.src='';this.parentElement.classList.add('img-fail')">`;
   }
   const hasTitle=item.title?.trim();
   const cats=((item.categories?.length?item.categories:[item.category])||[]).filter(Boolean);
@@ -924,11 +942,15 @@ window.addEventListener('resize',()=>{ autoPageSize=calcPageSize(); });
 async function loadMoreWithSize(size){
   if(loading||!hasMore)return;
   loading=true;
+  const wrap=document.getElementById('masonry');
+  const mwrap=document.querySelector('.masonry-wrap');
+  if(mwrap){ mwrap.classList.add('masonry-loading'); mwrap.setAttribute('aria-busy','true'); }
   document.getElementById('loader').style.display='block';
   let p;
   if(curFavOnly){
     const ids=getFavIds();
     if(!ids.length){
+      if(mwrap){ mwrap.classList.remove('masonry-loading'); mwrap.removeAttribute('aria-busy'); }
       document.getElementById('loader').style.display='none';
       const endEl=document.getElementById('endMsg');
       if(endEl){ endEl.textContent='暂无收藏，在作品上点击 ★ 即可收藏'; endEl.style.display='block'; }
@@ -940,7 +962,9 @@ async function loadMoreWithSize(size){
     p=new URLSearchParams({page:curPage,per_page:size,sort:curSort});
     curCats.forEach(c=>p.append('category',c));
   }
-  const data=await fetch('/api/items?'+p).then(r=>r.json());
+  let data;
+  try{ data=await fetch('/api/items?'+p).then(r=>r.json()); }finally{ if(mwrap){ mwrap.classList.remove('masonry-loading'); mwrap.removeAttribute('aria-busy'); } }
+  if(!data||!Array.isArray(data.items)){ loading=false; document.getElementById('loader').style.display='none'; return; }
   let idx=_msnTotalCount;
   const newIds=data.items.map(i=>i.id);
   if (!_msnReady) _msnSetup();
@@ -1329,6 +1353,133 @@ window.addEventListener('DOMContentLoaded', ()=>{
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.setAttribute('role','status');t.setAttribute('aria-live','polite');t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
 function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+// ── 炫酷鼠标/视觉效果 ──
+function setupFx(flags){
+  // 粒子 & 轨迹共用一个 canvas 层
+  if(flags.particles){
+    initFxParticles(flags);
+  }
+  if(flags.nodes){
+    initFxNodes();
+  }
+  // 已删除玻璃放大镜、卡片 3D 和轨迹线条，仅保留粒子/节点
+}
+
+function createFullscreenCanvas(id,z){
+  let c=document.getElementById(id);
+  if(c) return c;
+  c=document.createElement('canvas');
+  c.id=id;
+  c.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:'+z+';';
+  document.body.appendChild(c);
+  const resize=()=>{c.width=window.innerWidth;c.height=window.innerHeight;};
+  window.addEventListener('resize',resize);
+  resize();
+  return c;
+}
+
+// 粒子尾巴
+function initFxParticles(flags){
+  const canvas=createFullscreenCanvas('fxParticles',1);
+  const ctx=canvas.getContext('2d');
+  const particles=[];
+  let lastX=null,lastY=null;
+  document.addEventListener('pointermove',e=>{
+    const x=e.clientX;
+    const y=e.clientY;
+    const speed=lastX==null?0:Math.hypot(x-lastX,y-lastY);
+    lastX=x;lastY=y;
+    if(flags.particles){
+      particles.push({
+        x,y,
+        vx:(Math.random()-0.5)*80,
+        vy:(Math.random()-0.5)*80,
+        life:1,
+        size:2+Math.random()*2
+      });
+    }
+  });
+  function step(ts){
+    requestAnimationFrame(step);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.life-=0.02;
+      if(p.life<=0){particles.splice(i,1);continue;}
+      p.x+=p.vx*0.016;
+      p.y+=p.vy*0.016;
+      const alpha=p.life;
+      ctx.beginPath();
+      ctx.fillStyle='rgba(200,169,126,'+alpha+')';
+      ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+// 2: 背景几何连线网格
+function initFxNodes(){
+  const canvas=createFullscreenCanvas('fxNodes',0);
+  const ctx=canvas.getContext('2d');
+  const points=[];
+  const count=60;
+  for(let i=0;i<count;i++){
+    points.push({
+      x:Math.random()*canvas.width,
+      y:Math.random()*canvas.height,
+      vx:(Math.random()-0.5)*0.4,
+      vy:(Math.random()-0.5)*0.4
+    });
+  }
+  let mouse={x:null,y:null};
+  document.addEventListener('pointermove',e=>{
+    mouse.x=e.clientX;
+    mouse.y=e.clientY;
+  });
+  function step(){
+    requestAnimationFrame(step);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const maxDist=180;
+    for(const p of points){
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>canvas.width) p.vx*=-1;
+      if(p.y<0||p.y>canvas.height) p.vy*=-1;
+      // 鼠标引力
+      if(mouse.x!=null){
+        const dx=mouse.x-p.x,dy=mouse.y-p.y;
+        const d=Math.hypot(dx,dy);
+        if(d<maxDist){
+          p.x-=dx*0.002;
+          p.y-=dy*0.002;
+        }
+      }
+    }
+    ctx.fillStyle='rgba(200,169,126,0.7)';
+    for(let i=0;i<points.length;i++){
+      const p=points[i];
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,2,0,Math.PI*2);
+      ctx.fill();
+      for(let j=i+1;j<points.length;j++){
+        const q=points[j];
+        const dx=p.x-q.x,dy=p.y-q.y;
+        const d=Math.hypot(dx,dy);
+        if(d<maxDist){
+          const alpha=1-d/maxDist;
+          ctx.strokeStyle='rgba(200,169,126,'+(alpha*0.35)+')';
+          ctx.lineWidth=1;
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);
+          ctx.lineTo(q.x,q.y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+  requestAnimationFrame(step);
+}
+
 init();
 
 // ════════════════════════════════════════

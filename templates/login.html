@@ -43,6 +43,10 @@ button:disabled{opacity:.6;cursor:not-allowed}
     <input type="text" id="u" placeholder="admin" autocomplete="username">
     <label>密码</label>
     <input type="password" id="p" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    {% if captcha_a is not none and captcha_b is not none %}
+    <label>验证码（防暴力破解）</label>
+    <input type="text" id="captchaAnswer" placeholder="{{ captcha_a }} + {{ captcha_b }} = ?" inputmode="numeric" autocomplete="off" aria-label="算术验证码 {{ captcha_a }} 加 {{ captcha_b }} 等于">
+    {% endif %}
     <button id="loginBtn" onclick="login()">登 录</button>
     <div class="link"><a onclick="goReset()">忘记密码？</a></div>
   </div>
@@ -98,11 +102,15 @@ function goReset(){ goStep('send'); clearMsg('sendErr','sendOk'); document.getEl
 async function login(){
   const btn=document.getElementById('loginBtn');
   clearMsg('loginErr'); btn.disabled=true; btn.textContent='登录中...';
-  const res=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({username:document.getElementById('u').value,password:document.getElementById('p').value})});
+  const payload={username:document.getElementById('u').value,password:document.getElementById('p').value};
+  const capEl=document.getElementById('captchaAnswer');
+  if(capEl) payload.captcha_answer=capEl.value.trim();
+  const res=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   if(res.ok){ window.location='/admin'; return; }
-  const d=await res.json();
-  showMsg('loginErr', d.error||'登录失败');
+  const d=await res.json().catch(()=>({}));
+  let msg=d.error||'登录失败';
+  if(res.status===429&&d.retry_after) msg+='（约 '+Math.ceil(d.retry_after/60)+' 分钟后再试）';
+  showMsg('loginErr', msg);
   btn.disabled=false; btn.textContent='登 录';
 }
 
