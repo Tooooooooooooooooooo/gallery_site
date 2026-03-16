@@ -351,12 +351,7 @@ def _get_real_ip():
     if cf:
         return cf
 
-    # 2) 常见反代：X-Real-IP（单值）
-    xr = _normalize_ip(request.headers.get("X-Real-IP", ""))
-    if xr:
-        return xr
-
-    # 3) X-Forwarded-For：可能是 "client, proxy1, proxy2"
+    # 2) X-Forwarded-For：可能是 "client, proxy1, proxy2"
     #    不同平台可能会把代理 IP 放前面/后面；为了兼容“代理在前、真实IP在后”的情况，
     #    若存在多个公网 IP，优先取最后一个公网 IP。
     xff = request.headers.get("X-Forwarded-For", "") or ""
@@ -369,15 +364,19 @@ def _get_real_ip():
                 publics.append(ip)
 
         if publics:
-            # 兼容你当前链路：真实访客 IP 在后
-            if len(publics) >= 2:
-                return publics[-1]
+            # 你的链路里 XFF 形如 "真实访客IP, 代理出口IP"
+            # 一般情况下第一个公网 IP 就是访客
             return publics[0]
 
         # 若全是私网（如内网链路），退回第一个可解析值
         ip0 = _normalize_ip(parts[0]) if parts else ""
         if ip0:
             return ip0
+
+    # 3) 常见反代：X-Real-IP（单值，可能是出口/代理 IP）
+    xr = _normalize_ip(request.headers.get("X-Real-IP", ""))
+    if xr:
+        return xr
 
     return _normalize_ip(request.remote_addr or "unknown")
 
