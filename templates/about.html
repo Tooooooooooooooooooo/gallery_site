@@ -75,8 +75,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 
 @media(max-width:768px){
   nav{padding:0 16px;}
-  .nav-links{position:fixed;top:64px;left:0;right:0;background:var(--nav-bg);padding:8px 16px;border-bottom:1px solid var(--bd);flex-direction:column;gap:4px;max-height:0;overflow:hidden;transition:max-height .25s ease;}
-  .nav-links.open{max-height:220px;}
+  .nav-links{position:fixed;top:64px;left:0;right:0;background:var(--nav-bg);padding:0 16px;border-bottom:0;flex-direction:column;gap:4px;max-height:0;overflow:hidden;transition:max-height .25s ease, padding .25s ease, border-color .25s ease;}
+  .nav-links.open{max-height:220px;padding:8px 16px;border-bottom:1px solid var(--bd);}
   .nav-links a{padding:9px 10px;}
   .nav-toggle{display:flex;}
 }

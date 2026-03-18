@@ -249,6 +249,7 @@ function showPage(p, el){
     'drafts':'loadDrafts',
     'categories':'loadCats',
     'basic':'loadBasic',
+    'music':'loadMusicPage',
     'hero':'loadHero',
     'nav':'loadNav',
     'about':'loadAbout',
@@ -288,6 +289,7 @@ window.showPage = window.showPage || function(p,el){
     'drafts':'loadDrafts',
     'categories':'loadCats',
     'basic':'loadBasic',
+    'music':'loadMusicPage',
     'hero':'loadHero',
     'nav':'loadNav',
     'about':'loadAbout',
@@ -320,6 +322,7 @@ window.showPage = window.showPage || function(p,el){
   <div class="ni" onclick="showPage('backup',this)"><span class="ic">💾</span>数据备份</div>
   <div class="sg">外观</div>
   <div class="ni" onclick="showPage('basic',this)"><span class="ic">⚙️</span>网站基本设置</div>
+  <div class="ni" onclick="showPage('music',this)"><span class="ic">💿</span>背景音乐</div>
   <div class="ni" onclick="showPage('hero',this)"><span class="ic">🎠</span>轮播海报</div>
   <div class="ni" onclick="showPage('nav',this)"><span class="ic">🔗</span>导航菜单</div>
   <div class="ni" onclick="showPage('about',this)"><span class="ic">👤</span>关于我页面</div>
@@ -1273,6 +1276,34 @@ window.showPage = window.showPage || function(p,el){
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- MUSIC -->
+<div class="page" id="page-music">
+  <div class="pt">背景音乐</div><div class="ps">右下角唱片播放器的音乐列表与封面</div>
+  <div class="card">
+    <div class="ct">💿 播放器设置</div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <label class="bk-chk" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="bgmEnabled"> 启用背景音乐</label>
+      <label class="bk-chk" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="bgmAutoplay"> 允许自动播放（多数浏览器会拦截，仍需用户交互）</label>
+      <label class="bk-chk" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="bgmDefaultCollapsed" checked> 默认缩回（只露 1/3）</label>
+      <button class="btn btn-s btn-sm" onclick="loadMusicPage()">🔄 刷新</button>
+      <button class="btn btn-p btn-sm" onclick="saveMusicPage()" style="margin-left:auto">保存设置</button>
+    </div>
+  </div>
+
+  <div class="tw">
+    <div class="th">
+      <h3>音乐列表</h3>
+      <button class="btn btn-s btn-sm" onclick="addBgmTrack()">+ 添加一首</button>
+      <button class="btn btn-p btn-sm" onclick="saveMusicPage()" style="margin-left:auto">保存音乐列表</button>
+    </div>
+    <table>
+      <thead><tr><th style="width:180px">封面</th><th>标题</th><th style="width:320px">音频来源</th><th style="width:140px">音量</th><th style="width:90px">操作</th></tr></thead>
+      <tbody id="bgmTb"></tbody>
+    </table>
+    <div style="font-size:11px;color:var(--mu);margin-top:10px">支持音频：mp3 / wav / ogg / m4a。外链需可被浏览器直接访问。</div>
   </div>
 </div>
 
@@ -2763,7 +2794,7 @@ function showPage(p,el){
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   if(el)el.classList.add('active');
-  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,drafts:loadDrafts,categories:loadCats,basic:loadBasic,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,'item-comments':loadItemCommentsPage};
+  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,drafts:loadDrafts,categories:loadCats,basic:loadBasic,music:loadMusicPage,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,'item-comments':loadItemCommentsPage};
   if(a[p])a[p]();
 }
 
@@ -3989,6 +4020,126 @@ function loadBasic(){const b=siteData.site||{};document.getElementById('siteTitl
 }
 async function saveBasic(){const title=document.getElementById('siteTitle').value,subtitle=document.getElementById('siteSub').value,model_hint=document.getElementById('modelHint').value,model_hint_position=document.getElementById('modelHintPos').value||'bottom',model_hint_bg=document.getElementById('modelHintBg').value,model_hint_color=document.getElementById('modelHintColor').value,model_hint_font_size=parseInt(document.getElementById('modelHintFontSize').value)||12,model_hint_max_width=parseInt(document.getElementById('modelHintMaxWidth').value)||900,model_hint_radius=parseInt(document.getElementById('modelHintRadius').value)||10;const themeEl=document.querySelector('input[name=defaultTheme]:checked');const theme=themeEl?themeEl.value:'warm';const thumb_scale=parseInt(document.getElementById('thumbScale').value)||50;const fx_particles=document.getElementById('fxParticles')?.checked||false;const fx_nodes=document.getElementById('fxNodes')?.checked||false;const res=await fetch('/admin/site/basic',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,subtitle,model_hint,model_hint_position,model_hint_bg,model_hint_color,model_hint_font_size,model_hint_max_width,model_hint_radius,theme,thumb_scale,fx_particles,fx_nodes})});if(res.ok){if(!siteData.site)siteData.site={};siteData.site.title=title;siteData.site.subtitle=subtitle;siteData.site.model_hint=model_hint;siteData.site.model_hint_position=model_hint_position;siteData.site.model_hint_bg=model_hint_bg;siteData.site.model_hint_color=model_hint_color;siteData.site.model_hint_font_size=model_hint_font_size;siteData.site.model_hint_max_width=model_hint_max_width;siteData.site.model_hint_radius=model_hint_radius;siteData.theme=theme;siteData.thumb_scale=thumb_scale;siteData.site.fx_particles=fx_particles;siteData.site.fx_nodes=fx_nodes;toast('已保存');}else toast('失败','err');}
 async function uploadFavicon(){const inp=document.getElementById('faviconInp');if(!inp.files[0]){toast('请选择文件','err');return;}const fd=new FormData();fd.append('file',inp.files[0]);const res=await fetch('/admin/site/favicon',{method:'POST',body:fd});if(res.ok){const d=await res.json();if(!siteData.site)siteData.site={};siteData.site.favicon=d.favicon;_updateFaviconPreview(d.url, d.favicon || d.url.split('/').pop());toast('图标已上传');}else toast('失败','err');}
+
+// MUSIC
+let _bgmData = null;
+function _fileUrl(v){
+  if(!v) return '';
+  v=String(v).trim();
+  if(!v) return '';
+  return (v.startsWith('http://')||v.startsWith('https://')) ? v : ('/static/uploads/'+v);
+}
+function _renderBgmTable(){
+  const tb=document.getElementById('bgmTb');
+  if(!tb) return;
+  const tracks=((_bgmData&&_bgmData.tracks)||[]);
+  tb.innerHTML = tracks.map((t,i)=>{
+    const cover = _fileUrl(t.cover&&t.cover.value);
+    const audioVal = (t.audio&&t.audio.value)||'';
+    const audioShow = audioVal ? (audioVal.startsWith('http')?audioVal:audioVal) : '';
+    const vol = Math.max(0, Math.min(1, Number(t.volume!=null?t.volume:1) || 1));
+    return `<tr>
+      <td>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="width:56px;height:56px;border-radius:999px;border:1px solid var(--bd);background:var(--s3);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            ${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`:'<span style="font-size:18px;color:var(--mu)">♪</span>'}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <input class="inp" style="width:170px" placeholder="封面外链 URL（可选）" value="${esc((t.cover&&t.cover.value)||'')}" oninput="_bgmData.tracks[${i}].cover={value:this.value}">
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <input type="file" id="bgmCoverFile_${i}" accept="image/*" style="max-width:170px">
+              <button type="button" class="btn btn-s btn-xs" onclick="pickBgmCoverFromMedia(${i})">🗂 媒体库</button>
+              <button type="button" class="btn btn-s btn-xs" onclick="uploadBgmCover(${i})">上传封面</button>
+            </div>
+          </div>
+        </div>
+      </td>
+      <td><input class="inp" placeholder="歌名 / 标题" value="${esc(t.title||'')}" oninput="_bgmData.tracks[${i}].title=this.value"></td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input class="inp" placeholder="音频外链 URL（或文件名）" value="${esc(audioVal)}" oninput="_bgmData.tracks[${i}].audio={value:this.value}">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <input type="file" id="bgmAudioFile_${i}" accept="audio/*" style="max-width:220px">
+            <button type="button" class="btn btn-s btn-xs" onclick="pickBgmAudioFromMedia(${i})">🗂 媒体库</button>
+            <button type="button" class="btn btn-s btn-xs" onclick="uploadBgmAudio(${i})">上传音频</button>
+          </div>
+          <div style="font-size:11px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(audioShow)}">${esc(audioShow||'')}</div>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <input type="range" min="0" max="100" value="${Math.round(vol*100)}" oninput="_bgmData.tracks[${i}].volume=(parseInt(this.value,10)||0)/100;document.getElementById('bgmVolTxt_${i}').textContent=this.value+'%';" style="flex:1;min-width:90px">
+          <span id="bgmVolTxt_${i}" style="font-size:11px;color:var(--mu);min-width:40px;text-align:right">${Math.round(vol*100)}%</span>
+        </div>
+      </td>
+      <td>
+        <button class="btn btn-d btn-sm" onclick="removeBgmTrack(${i})">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+async function loadMusicPage(){
+  try{
+    const r = await fetch('/admin/site/music', {credentials:'same-origin'});
+    const d = await r.json();
+    _bgmData = d || {enabled:false,autoplay:false,default_collapsed:true,tracks:[]};
+    document.getElementById('bgmEnabled').checked=!!_bgmData.enabled;
+    document.getElementById('bgmAutoplay').checked=!!_bgmData.autoplay;
+    document.getElementById('bgmDefaultCollapsed').checked=_bgmData.default_collapsed!==false;
+    _renderBgmTable();
+  }catch(e){
+    toast('加载失败','err');
+  }
+}
+async function saveMusicPage(){
+  if(!_bgmData) _bgmData={enabled:false,autoplay:false,default_collapsed:true,tracks:[]};
+  _bgmData.enabled=!!document.getElementById('bgmEnabled').checked;
+  _bgmData.autoplay=!!document.getElementById('bgmAutoplay').checked;
+  _bgmData.default_collapsed=!!document.getElementById('bgmDefaultCollapsed').checked;
+  try{
+    const r = await fetch('/admin/site/music', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(_bgmData), credentials:'same-origin'});
+    const d = await r.json();
+    if(r.ok && d.success){
+      siteData.music = d.music;
+      toast('已保存');
+    }else toast(d.error||'保存失败','err');
+  }catch(e){ toast('保存失败','err'); }
+}
+function addBgmTrack(){
+  if(!_bgmData) _bgmData={enabled:false,autoplay:false,default_collapsed:true,tracks:[]};
+  _bgmData.tracks.push({id:'t'+Date.now(), title:'', audio:{value:''}, cover:{value:''}, volume:1});
+  _renderBgmTable();
+}
+function removeBgmTrack(i){
+  if(!_bgmData||!_bgmData.tracks) return;
+  if(!confirm('删除这首歌？')) return;
+  _bgmData.tracks.splice(i,1);
+  _renderBgmTable();
+}
+function pickBgmAudioFromMedia(i){
+  openMediaPicker((fn,url,type)=>{ _bgmData.tracks[i].audio={value:fn}; toast('已选择音频：'+fn); _renderBgmTable(); },'');
+}
+function pickBgmCoverFromMedia(i){
+  openMediaPicker((fn,url)=>{ _bgmData.tracks[i].cover={value:fn}; toast('已选择封面：'+fn); _renderBgmTable(); },'image');
+}
+async function uploadBgmAudio(i){
+  const inp=document.getElementById('bgmAudioFile_'+i);
+  if(!inp||!inp.files||!inp.files[0]){ toast('请选择音频文件','err'); return; }
+  const fd=new FormData(); fd.append('file', inp.files[0]);
+  const r=await fetch('/admin/site/music/upload-audio',{method:'POST',body:fd,credentials:'same-origin'});
+  const d=await r.json();
+  if(r.ok && d.success){ _bgmData.tracks[i].audio={value:d.filename}; toast('音频已上传'); _renderBgmTable(); }
+  else toast(d.error||'上传失败','err');
+}
+async function uploadBgmCover(i){
+  const inp=document.getElementById('bgmCoverFile_'+i);
+  if(!inp||!inp.files||!inp.files[0]){ toast('请选择封面图片','err'); return; }
+  const fd=new FormData(); fd.append('file', inp.files[0]);
+  const r=await fetch('/admin/site/music/upload-cover',{method:'POST',body:fd,credentials:'same-origin'});
+  const d=await r.json();
+  if(r.ok && d.success){ _bgmData.tracks[i].cover={value:d.filename}; toast('封面已上传'); _renderBgmTable(); }
+  else toast(d.error||'上传失败','err');
+}
 
 // HERO
 function loadHero(){

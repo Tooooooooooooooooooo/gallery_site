@@ -21,8 +21,9 @@ app.secret_key = os.environ.get('SECRET_KEY', 'gallery-secret-key-2024-x9z')
 _BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(_BASE, 'static', 'uploads')
 THUMBS_FOLDER = os.path.join(_BASE, 'static', 'thumbs')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm', 'glb', 'gltf'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'webm', 'glb', 'gltf', 'mp3', 'wav', 'ogg', 'm4a'}
 IMG_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+AUDIO_EXTENSIONS = {'mp3', 'wav', 'ogg', 'm4a'}
 DATA_FILE     = os.path.join(_BASE, 'data', 'content.json')
 MESSAGES_FILE = os.path.join(_BASE, 'data', 'messages.json')
 SITE_FILE     = os.path.join(_BASE, 'data', 'site.json')
@@ -77,6 +78,7 @@ def make_thumb(src_filename, scale_pct=50):
 
 def allowed_file(f): return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def allowed_img(f): return '.' in f and f.rsplit('.', 1)[1].lower() in IMG_EXTENSIONS
+def allowed_audio(f): return '.' in f and f.rsplit('.', 1)[1].lower() in AUDIO_EXTENSIONS
 def is_video(f):
     if not f or '.' not in f: return False
     ext = f.rsplit('.', 1)[1].lower().split('?')[0]
@@ -241,6 +243,13 @@ def get_default_site():
                 ]}
             ],
             "copyright": "© 2024 GALLERY · 视觉创作集. All Rights Reserved. · Made with ♥"
+        },
+        # 背景音乐（右下角唱片播放器）
+        "music": {
+            "enabled": False,
+            "autoplay": False,
+            "default_collapsed": True,
+            "tracks": []
         }
     }
 
@@ -257,6 +266,15 @@ def load_site():
     if 'about' in d:
         for k, v in default['about'].items():
             if k not in d['about']: d['about'][k] = v
+    if 'music' not in d:
+        d['music'] = default.get('music', {"enabled": False, "autoplay": False, "default_collapsed": True, "tracks": []})
+    else:
+        dm = d.get('music') or {}
+        dm.setdefault('enabled', default['music'].get('enabled', False))
+        dm.setdefault('autoplay', default['music'].get('autoplay', False))
+        dm.setdefault('default_collapsed', default['music'].get('default_collapsed', True))
+        dm.setdefault('tracks', default['music'].get('tracks', []))
+        d['music'] = dm
     if 'messages_page' not in d: d['messages_page'] = default['messages_page']
     if 'footer' not in d: d['footer'] = default['footer']
     else:
@@ -278,6 +296,50 @@ def save_upload(file, prefix=''):
     fn = prefix + str(uuid.uuid4()) + '.' + ext
     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fn))
     return fn
+
+def _file_or_url(v):
+    """将 filename/url 统一成前端可用的 src"""
+    if not v:
+        return ""
+    v = str(v).strip()
+    if not v:
+        return ""
+    if v.startswith('http://') or v.startswith('https://'):
+        return v
+    return v  # filename
+
+def _sanitize_music_payload(body):
+    """清洗后台传来的 music 配置，防止异常结构写入 site.json"""
+    body = body or {}
+    enabled = bool(body.get('enabled', False))
+    autoplay = bool(body.get('autoplay', False))
+    default_collapsed = bool(body.get('default_collapsed', True))
+    tracks_in = body.get('tracks') or []
+    tracks = []
+    if isinstance(tracks_in, list):
+        for t in tracks_in[:200]:
+            if not isinstance(t, dict):
+                continue
+            tid = str(t.get('id') or '').strip() or str(uuid.uuid4())
+            title = str(t.get('title') or '').strip()
+            audio = t.get('audio') or {}
+            cover = t.get('cover') or {}
+            # 音量：0~1（默认 1）
+            try:
+                vol = float(t.get('volume', 1) if isinstance(t, dict) else 1)
+            except Exception:
+                vol = 1.0
+            vol = max(0.0, min(1.0, vol))
+            audio_v = _file_or_url((audio.get('value') or '').strip() if isinstance(audio, dict) else '')
+            cover_v = _file_or_url((cover.get('value') or '').strip() if isinstance(cover, dict) else '')
+            tracks.append({
+                'id': tid,
+                'title': title,
+                'audio': {'value': audio_v},
+                'cover': {'value': cover_v},
+                'volume': vol
+            })
+    return {'enabled': enabled, 'autoplay': autoplay, 'default_collapsed': default_collapsed, 'tracks': tracks}
 
 # IP region memory cache
 _ip_region_cache = {}
@@ -1867,6 +1929,40 @@ def admin_about_upload_image():
     if not file or not allowed_img(file.filename): return jsonify({'success': False, 'error': '无效图片'}), 400
     filename = save_upload(file, 'about_')
     return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename})
+
+# ── 背景音乐（管理端） ─────────────────────────────
+@app.route('/admin/site/music', methods=['GET'])
+@login_required
+def admin_get_music():
+    site = load_site()
+    return jsonify(site.get('music') or {"enabled": False, "autoplay": False, "default_collapsed": True, "tracks": []})
+
+@app.route('/admin/site/music', methods=['PUT'])
+@login_required
+def admin_save_music():
+    site = load_site()
+    body = request.json or {}
+    site['music'] = _sanitize_music_payload(body)
+    save_site(site)
+    return jsonify({'success': True, 'music': site['music']})
+
+@app.route('/admin/site/music/upload-audio', methods=['POST'])
+@login_required
+def admin_music_upload_audio():
+    f = request.files.get('file')
+    if not f or not f.filename or not allowed_audio(f.filename):
+        return jsonify({'success': False, 'error': '无效音频文件'}), 400
+    fn = save_upload(f, 'bgm_')
+    return jsonify({'success': True, 'filename': fn, 'url': '/static/uploads/' + fn})
+
+@app.route('/admin/site/music/upload-cover', methods=['POST'])
+@login_required
+def admin_music_upload_cover():
+    f = request.files.get('file')
+    if not f or not f.filename or not allowed_img(f.filename):
+        return jsonify({'success': False, 'error': '无效图片'}), 400
+    fn = save_upload(f, 'bgm_cover_')
+    return jsonify({'success': True, 'filename': fn, 'url': '/static/uploads/' + fn})
 
 @app.route('/admin/messages-page/avatar-pool', methods=['PUT'])
 @login_required
