@@ -242,6 +242,20 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 @keyframes bgmSpin{to{transform:rotate(360deg)}}
 .bgm-hint{position:absolute;right:92px;bottom:20px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);opacity:0;transform:translateY(6px);transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap}
 .bgm-dock.ready:hover .bgm-hint{opacity:1;transform:translateY(0)}
+.bgm-ctrls{position:absolute;right:92px;bottom:54px;display:flex;gap:6px;pointer-events:auto;opacity:1;transition:opacity .2s}
+.bgm-dock:not(.open) .bgm-ctrls{opacity:0;pointer-events:none}
+.bgm-dock.controls-hidden .bgm-ctrls{opacity:0;pointer-events:none}
+.bgm-ctrl-btn{width:30px;height:30px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.5);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px);transition:transform .15s,background .15s}
+.bgm-ctrl-btn:hover{transform:translateY(-1px);background:rgba(200,169,126,.55)}
+.bgm-ctrl-btn:active{transform:translateY(0)}
+.bgm-ctrl-btn[disabled]{opacity:.5;cursor:not-allowed;transform:none}
+.bgm-list-panel{position:absolute;right:92px;bottom:92px;width:240px;max-height:260px;overflow:auto;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:8px;backdrop-filter:blur(8px);display:none;pointer-events:auto}
+.bgm-dock.collapsed .bgm-list-panel{display:none}
+.bgm-list-panel.open{display:block}
+.bgm-track{padding:8px 10px;border-radius:8px;color:#fff;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:8px;opacity:.85;transition:background .15s,opacity .15s}
+.bgm-track:hover{background:rgba(255,255,255,.08);opacity:1}
+.bgm-track.active{background:rgba(200,169,126,.35);opacity:1}
+.bgm-track-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── 详情精选 ── */
 .featured-section{padding:32px 0 8px}
@@ -396,6 +410,12 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 <!-- BGM -->
 <div class="bgm-dock collapsed" id="bgmDock" style="display:none">
   <div class="bgm-hint" id="bgmHint">点击播放</div>
+  <div class="bgm-ctrls">
+    <button class="bgm-ctrl-btn" id="bgmVolDown" aria-label="音量减">−</button>
+    <button class="bgm-ctrl-btn" id="bgmVolUp" aria-label="音量加">＋</button>
+    <button class="bgm-ctrl-btn" id="bgmListBtn" aria-label="音乐列表">≡</button>
+  </div>
+  <div class="bgm-list-panel" id="bgmListPanel"></div>
   <button class="bgm-disk-btn" id="bgmBtn" aria-label="背景音乐 播放/暂停">
     <div class="bgm-disk bgm-spin bgm-paused" id="bgmDisk">
       <div class="bgm-center"><img id="bgmCover" alt=""></div>
@@ -700,6 +720,7 @@ function openScModal(id) {
   const item = scMap[id]; if (!item) return;
   modalCurrentId = id;
   modalSource = 'showcase';
+  trackVirtualPath('/#showcase/'+id);
   lockPageScroll();
   if(!_modalHistoryPushed){
     try{ history.pushState({modalOpen:true}, '', (location.pathname||'/')+'#showcase/'+id); _modalHistoryPushed = true; }catch(e){}
@@ -1434,7 +1455,11 @@ function setupBgm(music){
   const audio=document.getElementById('bgmAudio');
   const cover=document.getElementById('bgmCover');
   const hint=document.getElementById('bgmHint');
-  if(!dock||!btn||!disk||!audio||!cover||!hint) return;
+  const volDown=document.getElementById('bgmVolDown');
+  const volUp=document.getElementById('bgmVolUp');
+  const listBtn=document.getElementById('bgmListBtn');
+  const listPanel=document.getElementById('bgmListPanel');
+  if(!dock||!btn||!disk||!audio||!cover||!hint||!volDown||!volUp||!listBtn||!listPanel) return;
 
   const enabled = !!music.enabled;
   const tracks = Array.isArray(music.tracks) ? music.tracks : [];
@@ -1462,14 +1487,51 @@ function setupBgm(music){
     audio.src = a;
     if(c){ cover.src=c; cover.style.display='block'; }
     else { cover.removeAttribute('src'); cover.style.display='none'; }
+    if(!isFinite(audio.volume) || audio.volume<=0) audio.volume = _bgmClamp(_bgm.baseVol,0,1);
     hint.textContent = (audio.paused ? '点击播放' : '点击暂停') + (tTitle?(' · '+tTitle):'');
+    renderList();
   }
 
+  let _ctrlHideT = 0;
+  function setOpen(open){
+    dock.classList.toggle('open', !!open);
+    dock.classList.toggle('collapsed', !open);
+  }
+  function showControls(temp){
+    dock.classList.remove('controls-hidden');
+    if(_ctrlHideT) clearTimeout(_ctrlHideT);
+    if(temp){
+      _ctrlHideT = setTimeout(()=>dock.classList.add('controls-hidden'), 1800);
+    }
+  }
+  function hideControls(){
+    if(_ctrlHideT) clearTimeout(_ctrlHideT);
+    dock.classList.add('controls-hidden');
+  }
   function setPlayingUI(playing){
     disk.classList.toggle('bgm-paused', !playing);
-    dock.classList.toggle('collapsed', !playing); // 暂停自动缩回（只露 1/3）
     hint.textContent = (playing ? '点击暂停' : '点击播放') + (((_bgm.tracks[_bgm.idx]||{}).title||'')?(' · '+((_bgm.tracks[_bgm.idx]||{}).title||'')):'');
   }
+
+  function renderList(){
+    if(!_bgm.tracks.length){ listPanel.innerHTML=''; return; }
+    listPanel.innerHTML = _bgm.tracks.map((t,i)=>{
+      const title = (t.title||'未命名').trim() || '未命名';
+      return `<div class="bgm-track ${i===_bgm.idx?'active':''}" data-idx="${i}">
+        <span class="bgm-track-title">${esc(title)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  listPanel.onclick=(e)=>{
+    const row = e.target.closest('.bgm-track');
+    if(!row) return;
+    const idx = parseInt(row.dataset.idx,10);
+    if(!isFinite(idx) || idx<0 || idx>=_bgm.tracks.length) return;
+    _bgm.idx = idx;
+    applyTrack();
+    if(audio.paused) play();
+  };
 
   async function play(){
     try{
@@ -1494,8 +1556,18 @@ function setupBgm(music){
   }
 
   btn.onclick=()=>{
-    if(audio.paused) play();
-    else pause();
+    const isOpen = dock.classList.contains('open');
+    if(!isOpen){
+      setOpen(true);
+      showControls(true);
+      play();
+      return;
+    }
+    if(!audio.paused){
+      pause();
+    }
+    setOpen(false);
+    hideControls();
   };
   audio.onended=()=>{
     if(!_bgm.tracks.length) return;
@@ -1504,7 +1576,39 @@ function setupBgm(music){
     play();
   };
 
+  const setVol=(v)=>{
+    const nv=_bgmClamp(v,0,1);
+    audio.volume = nv;
+    _bgm.baseVol = nv;
+  };
+  volDown.onclick=()=>{ setOpen(true); showControls(true); setVol((_bgmClamp(audio.volume,0,1))-0.1); };
+  volUp.onclick=()=>{ setOpen(true); showControls(true); setVol((_bgmClamp(audio.volume,0,1))+0.1); };
+  listBtn.onclick=()=>{
+    setOpen(true);
+    showControls(false);
+    listPanel.classList.toggle('open');
+    renderList();
+  };
+  document.addEventListener('click', (e)=>{
+    if(!listPanel.classList.contains('open')) return;
+    if(e.target.closest('#bgmListPanel') || e.target.closest('#bgmListBtn')) return;
+    listPanel.classList.remove('open');
+  });
+  dock.addEventListener('pointerenter', ()=>{
+    if(dock.classList.contains('open')) showControls(false);
+  });
+  dock.addEventListener('pointerleave', ()=>{
+    if(!dock.classList.contains('open')) return;
+    if(audio.paused){
+      hideControls();
+    }else{
+      showControls(true);
+    }
+  });
+
   applyTrack();
+  setOpen(false);
+  hideControls();
   setPlayingUI(false);
 
   // autoplay：等到用户首次交互再尝试（避免浏览器拦截）
@@ -1702,6 +1806,7 @@ function openFv(item) {
   document.getElementById('fvCounter').textContent = _fvImages.length ? `共 ${_fvImages.length} 张` : '';
   renderFvList();
   renderFvThumbs();
+  if(_fvCurrentId) trackVirtualPath('/#featured/'+_fvCurrentId);
   lockPageScroll();
   if(!_fvHistoryPushed){
     try{ history.pushState({fvOpen:true}, '', (location.pathname||'/')+'#featured/'+(_fvCurrentId||'')); _fvHistoryPushed = true; }catch(e){}

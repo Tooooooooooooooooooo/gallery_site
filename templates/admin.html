@@ -61,7 +61,11 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500}
 .bi{background:rgba(124,106,245,.15);color:var(--ac2)}.bv{background:rgba(200,169,126,.15);color:var(--ac)}
 .tags{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
-.tag{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--s2);border-radius:20px;font-size:12px;border:1px solid var(--bd)}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--s2);border-radius:20px;font-size:12px;border:1px solid var(--bd)}
+.tag-eye{color:var(--mu);cursor:pointer;font-size:13px;line-height:1}
+.tag-eye:hover{color:var(--ac)}
+.tag-edit{color:var(--mu);cursor:pointer;font-size:12px;line-height:1}
+.tag-edit:hover{color:var(--ac)}
 .tag-rm{color:var(--err);cursor:pointer;font-size:13px;line-height:1}.tag-add{display:flex;gap:7px}
 /* SLIDE EDITOR */
 .slide-list{display:flex;flex-direction:column;gap:11px;margin-bottom:14px}
@@ -125,6 +129,7 @@ tr:hover td{background:rgba(255,255,255,.012)}
 .stat.clickable{cursor:pointer;transition:transform .15s,box-shadow .15s}
 .stat.clickable:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.08)}
 .stat.active{border-color:var(--ac);box-shadow:0 0 0 2px rgba(200,169,126,.25) inset}
+.sl-sub{display:block;margin-top:2px;font-size:10px;color:var(--mu)}
 .chart-wrap{width:100%;height:180px;display:block;max-height:180px}
 .vis-table{max-height:400px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
 .vis-table::-webkit-scrollbar{width:0;height:0}
@@ -1464,8 +1469,8 @@ window.showPage = window.showPage || function(p,el){
   <div class="stats vis-stats" id="visStats" role="group" aria-label="访客统计指标">
     <div class="stat clickable active" id="visStatTotal" onclick="setVisChartMode('visits')" role="button" tabindex="0" aria-label="总访问次数，点击切换图表数据"><div class="sv" id="visTotal">-</div><div class="sl">总访问次数</div></div>
     <div class="stat clickable" id="visStatUnique" onclick="setVisChartMode('unique')" role="button" tabindex="0" aria-label="总独立 IP，点击切换图表数据"><div class="sv" id="visUniqueIp">-</div><div class="sl">总独立 IP</div></div>
-    <div class="stat clickable" id="visStatToday" onclick="setVisChartMode('today_visits')" role="button" tabindex="0" aria-label="今日访问，点击切换图表数据"><div class="sv" id="visToday">-</div><div class="sl">今日访问</div></div>
-    <div class="stat clickable" id="visStatTodayUnique" onclick="setVisChartMode('today_unique')" role="button" tabindex="0" aria-label="今日独立 IP，点击切换图表数据"><div class="sv" id="visTodayUniqueIp">-</div><div class="sl">今日独立 IP</div></div>
+    <div class="stat clickable" id="visStatToday" onclick="setVisChartMode('today_visits')" role="button" tabindex="0" aria-label="今日访问，点击切换图表数据"><div class="sv" id="visToday">-</div><div class="sl">今日访问<span class="sl-sub" id="visYesterday">昨日 -</span></div></div>
+    <div class="stat clickable" id="visStatTodayUnique" onclick="setVisChartMode('today_unique')" role="button" tabindex="0" aria-label="今日独立 IP，点击切换图表数据"><div class="sv" id="visTodayUniqueIp">-</div><div class="sl">今日独立 IP<span class="sl-sub" id="visYesterdayUniqueIp">昨日 -</span></div></div>
   </div>
   <div class="vis-chart-grid" role="group" aria-label="访客数据图表">
     <div class="card" role="region" aria-label="近14天访问量图表"><div class="ct">📈 近14天访问量</div><canvas class="chart-wrap" id="dailyChart" aria-hidden="true"></canvas></div>
@@ -1481,7 +1486,15 @@ window.showPage = window.showPage || function(p,el){
           <option value="/about">关于我</option>
           <option value="/messages">留言</option>
           <option value="/muyu">木鱼</option>
+          <option value="/#gallery/">首页瀑布流（深链）</option>
+          <option value="/#showcase/">橱窗深链</option>
+          <option value="/#featured/">详情精选深链</option>
         </select>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-s btn-sm" id="visQfShowcase" onclick="setVisQuickFilter('/#showcase/')">橱窗深链</button>
+          <button class="btn btn-s btn-sm" id="visQfFeatured" onclick="setVisQuickFilter('/#featured/')">详情精选深链</button>
+          <button class="btn btn-s btn-sm" id="visQfGallery" onclick="setVisQuickFilter('/#gallery/')">首页瀑布流</button>
+        </div>
         <select class="inp" id="visSort" style="max-width:100px;margin:0" onchange="loadVisitors()" aria-label="排序字段">
           <option value="time">时间</option>
           <option value="ip">IP</option>
@@ -2748,16 +2761,16 @@ async function clearSoundCode() {
   await saveSoundCode();
 }
 
-let allItems=[], categories=[], siteData={}, visPage=1, visPathFilter='';
+let allItems=[], categories=[], categoriesHidden=[], siteData={}, visPage=1, visPathFilter='';
 
 async function init(){
   const [ir,cr,mr,sr]=await Promise.all([
     fetch('/admin/api/items?per_page=1000').then(r=>r.json()),
-    fetch('/api/categories').then(r=>r.json()),
+    fetch('/admin/categories').then(r=>r.json()),
     fetch('/admin/messages').then(r=>r.json()),
     fetch('/api/site').then(r=>r.json())
   ]);
-  allItems=ir.items; categories=cr; siteData=sr;
+  allItems=ir.items; categories=cr.categories||[]; categoriesHidden=cr.categories_hidden||[]; siteData=sr;
   loadUserInfo();
   document.getElementById('sTotal').textContent=allItems.length;
   document.getElementById('sImg').textContent=allItems.filter(i=>i.type==='image').length;
@@ -2792,10 +2805,21 @@ function showPage(p,el){
 
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.ni').forEach(e=>e.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  if(el)el.classList.add('active');
+  const page = document.getElementById('page-'+p);
+  if(page) page.classList.add('active');
+  if(el) el.classList.add('active');
+  if(location.hash !== '#'+p) location.hash = '#'+p;
+  const main = document.querySelector('.main');
+  if(main) main.scrollTop = 0;
   const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,drafts:loadDrafts,categories:loadCats,basic:loadBasic,music:loadMusicPage,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,'item-comments':loadItemCommentsPage};
   if(a[p])a[p]();
+}
+
+function applyHashPage(){
+  const p = (location.hash || '').replace('#','').trim();
+  if(!p) return;
+  const nav = document.querySelector('.ni[onclick*="\''+p+'\'"]');
+  showPage(p, nav || undefined);
 }
 
 function toast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),3000);}
@@ -2830,6 +2854,13 @@ function thumbHtml(i){
 // UPLOAD
 function populateCatSelects(){
   renderUpCatBox([]);
+}
+
+function syncAdminCategories() {
+  return fetch('/admin/categories').then(function(r){return r.json();}).then(function(d){
+    categories = d.categories || [];
+    categoriesHidden = d.categories_hidden || [];
+  });
 }
 function renderUpCatBox(selected){
   const box=document.getElementById('upCatBox');
@@ -3936,7 +3967,11 @@ function loadCats() {
     span.draggable = true;
     span.dataset.cat = c;
     span.style.cssText = 'cursor:grab;user-select:none';
-    span.innerHTML = `${esc(c)}<span class="tag-rm" onclick="removeCat('${esc(c)}')">×</span>`;
+    const isHidden = (categoriesHidden || []).includes(c);
+    span.innerHTML = `${esc(c)}
+      <span class="tag-eye" onclick="toggleCat('${esc(c)}')" title="${isHidden ? '前台已隐藏' : '前台显示中'}">${isHidden ? '🙈' : '👁️'}</span>
+      <span class="tag-edit" onclick="editCat('${esc(c)}')" title="重命名">✎</span>
+      <span class="tag-rm" onclick="removeCat('${esc(c)}')">×</span>`;
     // 拖拽事件
     span.addEventListener('dragstart', e => {
       e.dataTransfer.effectAllowed = 'move';
@@ -3975,11 +4010,14 @@ function loadCats() {
 }
 
 async function saveCatOrder() {
-  await fetch('/admin/categories', {
+  const res = await fetch('/admin/categories', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({action: 'reorder', categories: categories})
   });
+  const d = await res.json();
+  categories = d.categories || categories;
+  categoriesHidden = d.categories_hidden || categoriesHidden;
   populateCatSelects();
   toast('排序已保存');
 }
@@ -3989,7 +4027,8 @@ async function addCat() {
   if (!v) return;
   const res = await fetch('/admin/categories', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'add', category:v})});
   const d = await res.json();
-  categories = d.categories;
+  categories = d.categories || categories;
+  categoriesHidden = d.categories_hidden || categoriesHidden;
   document.getElementById('newCatInp').value = '';
   loadCats(); populateCatSelects(); toast('已添加');
 }
@@ -3997,8 +4036,37 @@ async function addCat() {
 async function removeCat(cat) {
   const res = await fetch('/admin/categories', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'remove', category:cat})});
   const d = await res.json();
-  categories = d.categories;
+  categories = d.categories || categories;
+  categoriesHidden = d.categories_hidden || categoriesHidden;
   loadCats(); populateCatSelects(); toast('已删除');
+}
+
+async function toggleCat(cat) {
+  const res = await fetch('/admin/categories', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'toggle', category:cat})});
+  const d = await res.json();
+  categoriesHidden = d.categories_hidden || categoriesHidden;
+  loadCats();
+  toast((categoriesHidden || []).includes(cat) ? '已隐藏（前台）' : '已显示（前台）');
+}
+
+async function editCat(cat) {
+  const newName = prompt('重命名分类：', cat);
+  if (!newName) return;
+  const v = newName.trim();
+  if (!v || v === cat) return;
+  const res = await fetch('/admin/categories', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'rename', category:cat, new_name:v})});
+  const d = await res.json();
+  categories = d.categories || categories;
+  categoriesHidden = d.categories_hidden || categoriesHidden;
+  // 同步本地 items 分类文本
+  allItems.forEach(function(it){
+    if (Array.isArray(it.categories)) {
+      it.categories = it.categories.map(function(c){ return c === cat ? v : c; });
+    }
+    if (it.category === cat) it.category = v;
+  });
+  loadCats(); populateCatSelects();
+  toast('已重命名');
 }
 
 // BASIC
@@ -4994,6 +5062,31 @@ function setVisChartMode(mode){
     renderTopPagesChart(window._visChartData);
   }
 }
+function setVisQuickFilter(pathPrefix){
+  var sel = document.getElementById('visPathFilter');
+  if(!sel) return;
+  sel.value = pathPrefix || '';
+  loadVisitors();
+}
+function updateVisQuickFilterActive(){
+  var cur = (document.getElementById('visPathFilter')?.value || '').trim();
+  var map = {
+    '/#showcase/': 'visQfShowcase',
+    '/#featured/': 'visQfFeatured',
+    '/#gallery/': 'visQfGallery'
+  };
+  ['visQfShowcase','visQfFeatured','visQfGallery'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if(!btn) return;
+    if(map[cur] === id){
+      btn.style.borderColor = 'var(--ac)';
+      btn.style.color = 'var(--ac)';
+    }else{
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }
+  });
+}
 function renderTopPagesChart(d){
   if(!window.Chart) return;
   const rows=(d.top_pages||[]).slice(0,8);
@@ -5113,6 +5206,7 @@ function renderRegionChart(d){
 async function loadVisitors(){
   visPage=1;
   visPathFilter = (document.getElementById('visPathFilter')?.value || '').trim();
+  updateVisQuickFilterActive();
   var sortEl = document.getElementById('visSort');
   var orderEl = document.getElementById('visOrder');
   var sort = (sortEl && sortEl.value) || 'time';
@@ -5135,6 +5229,17 @@ async function loadVisitors(){
   var elToday = document.getElementById('visToday'); if(elToday) elToday.textContent = (d.daily&&d.daily.find(function(x){return x[0]===todayKey;})) ? d.daily.find(function(x){return x[0]===todayKey;})[1] : 0;
   var elUnique = document.getElementById('visUniqueIp'); if(elUnique) elUnique.textContent = d.unique_ips!=null ? d.unique_ips : '-';
   var elTodayU = document.getElementById('visTodayUniqueIp'); if(elTodayU) elTodayU.textContent = d.today_unique_ips!=null ? d.today_unique_ips : '-';
+  var yesterdayKey = (function(){
+    var dt = new Date();
+    dt.setDate(dt.getDate()-1);
+    var m = String(dt.getMonth()+1).padStart(2,'0');
+    var day = String(dt.getDate()).padStart(2,'0');
+    return m + '-' + day;
+  })();
+  var yd = (d.daily&&d.daily.find(function(x){return x[0]===yesterdayKey;})) ? d.daily.find(function(x){return x[0]===yesterdayKey;})[1] : 0;
+  var elYd = document.getElementById('visYesterday'); if(elYd) elYd.textContent = '昨日 ' + yd;
+  var ydU = (d.daily_unique&&d.daily_unique.find(function(x){return x[0]===yesterdayKey;})) ? d.daily_unique.find(function(x){return x[0]===yesterdayKey;})[1] : 0;
+  var elYdU = document.getElementById('visYesterdayUniqueIp'); if(elYdU) elYdU.textContent = '昨日 ' + ydU;
   var topPagesEl = document.getElementById('topPages'); if(topPagesEl) topPagesEl.innerHTML = (d.top_pages||[]).slice(0,8).map(([path,count])=>'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px"><span style="color:var(--tx)">'+esc(path)+'</span><span style="color:var(--ac);font-weight:600">'+count+'</span></div>').join('');
   // 延迟绘制图表：等 Chart 库与布局就绪（Chart 可能异步加载）
   function drawCharts(){
@@ -6467,6 +6572,8 @@ async function doChangePw(){
 }
 
 init();
+window.addEventListener('hashchange', applyHashPage);
+setTimeout(applyHashPage, 0);
 // ════════════════════════════════════════
 // 详情精选管理
 // ════════════════════════════════════════

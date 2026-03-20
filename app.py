@@ -110,7 +110,13 @@ def save_json(path, data):
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def load_data(): return load_json(DATA_FILE, {"items": [], "categories": ["摄影", "插画", "设计", "视频", "其他"]})
+def load_data():
+    d = load_json(DATA_FILE, {"items": [], "categories": ["摄影", "插画", "设计", "视频", "其他"], "categories_hidden": []})
+    if 'categories' not in d or not isinstance(d.get('categories'), list):
+        d['categories'] = ["摄影", "插画", "设计", "视频", "其他"]
+    if 'categories_hidden' not in d or not isinstance(d.get('categories_hidden'), list):
+        d['categories_hidden'] = []
+    return d
 def save_data(d): save_json(DATA_FILE, d)
 def load_messages(): return load_json(MESSAGES_FILE, [])
 def save_messages(d): save_json(MESSAGES_FILE, d)
@@ -904,7 +910,10 @@ def rss_feed():
 
 @app.route('/api/categories')
 def api_categories():
-    return jsonify(load_data().get('categories', []))
+    data = load_data()
+    cats = data.get('categories', [])
+    hidden = set(data.get('categories_hidden', []))
+    return jsonify([c for c in cats if c not in hidden])
 
 @app.route('/api/avatar-upload', methods=['POST'])
 def api_avatar_upload():
@@ -1519,17 +1528,28 @@ def admin_delete(item_id):
     save_data(data)
     return jsonify({'success': True})
 
+@app.route('/admin/categories', methods=['GET'])
+@login_required
+def admin_categories_get():
+    data = load_data()
+    return jsonify({'categories': data.get('categories', []), 'categories_hidden': data.get('categories_hidden', [])})
+
 @app.route('/admin/categories', methods=['POST'])
 @login_required
 def admin_categories():
     data = load_data()
-    body = request.json
+    body = request.json or {}
     action = body.get('action')
     cat = body.get('category', '').strip()
     if action == 'add' and cat and cat not in data['categories']:
         data['categories'].append(cat)
+        # 新建默认显示
+        if cat in data.get('categories_hidden', []):
+            data['categories_hidden'] = [c for c in data['categories_hidden'] if c != cat]
     elif action == 'remove' and cat in data['categories']:
         data['categories'].remove(cat)
+        if cat in data.get('categories_hidden', []):
+            data['categories_hidden'] = [c for c in data['categories_hidden'] if c != cat]
     elif action == 'reorder':
         new_order = body.get('categories', [])
         # 只接受已存在的分类，防止注入
@@ -1537,8 +1557,34 @@ def admin_categories():
         # 补上未出现的（容错）
         rest = [c for c in data['categories'] if c not in valid]
         data['categories'] = valid + rest
+    elif action == 'rename':
+        new_name = body.get('new_name', '').strip()
+        if cat and new_name and cat in data['categories'] and new_name not in data['categories']:
+            data['categories'] = [new_name if c == cat else c for c in data['categories']]
+            # 更新隐藏列表
+            if cat in data.get('categories_hidden', []):
+                data['categories_hidden'] = [new_name if c == cat else c for c in data['categories_hidden']]
+            # 同步更新 items 的分类字段
+            for item in data.get('items', []):
+                cats = item.get('categories') or []
+                if isinstance(cats, list):
+                    item['categories'] = [new_name if c == cat else c for c in cats]
+                    if item.get('category') == cat:
+                        item['category'] = new_name
+                else:
+                    if item.get('category') == cat:
+                        item['category'] = new_name
+    elif action == 'toggle':
+        # 前端仅隐藏分类按钮，不影响内容数据
+        if cat and cat in data['categories']:
+            hidden = set(data.get('categories_hidden', []))
+            if cat in hidden:
+                hidden.remove(cat)
+            else:
+                hidden.add(cat)
+            data['categories_hidden'] = list(hidden)
     save_data(data)
-    return jsonify({'success': True, 'categories': data['categories']})
+    return jsonify({'success': True, 'categories': data['categories'], 'categories_hidden': data.get('categories_hidden', [])})
 
 @app.route('/admin/messages')
 @login_required
@@ -1615,7 +1661,11 @@ def admin_visitors():
 
     filtered = list(visitors)
     if path_filter:
-        filtered = [v for v in filtered if (v.get('path') or '') == path_filter]
+        # 支持深链接快捷筛选：当筛选值为 '/#gallery/'、'/#showcase/'、'/#featured/' 时按前缀匹配
+        if path_filter in ('/#gallery/', '/#showcase/', '/#featured/'):
+            filtered = [v for v in filtered if (v.get('path') or '').startswith(path_filter)]
+        else:
+            filtered = [v for v in filtered if (v.get('path') or '') == path_filter]
     rev = order == 'desc'
     if sort_by == 'ip':
         filtered.sort(key=lambda v: (v.get('ip') or ''), reverse=rev)
