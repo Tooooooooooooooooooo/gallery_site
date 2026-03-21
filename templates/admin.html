@@ -181,8 +181,8 @@ tr:hover td{background:rgba(255,255,255,.012)}
 #editOverlay .mbox::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
 #editOverlay .mbox::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.28)}
 </style>
-<!-- Quill/Chart 使用多源回退（仅 CDN，避免 /static/js/ 404）；优先 jsDelivr 完整 UMD 避免 clipboard ESM 报错 -->
-<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" id="quillCss">
+<!-- Quill/Chart 使用多源回退：优先本地静态资源，失败再走 CDN -->
+<link href="/static/vendor/quill/quill.snow.css" rel="stylesheet" id="quillCss">
 <style>
 #bioEditor .ql-editor{background:rgb(34,34,46);color:#fff;border-radius:0 0 8px 8px;border:1px solid rgba(255,255,255,.1);border-top:none;min-height:180px}
 #bioEditor .ql-editor.ql-blank::before{color:rgba(255,255,255,.3)}
@@ -256,6 +256,7 @@ function showPage(p, el){
     'basic':'loadBasic',
     'music':'loadMusicPage',
     'hero':'loadHero',
+    'splash':'loadSplash',
     'nav':'loadNav',
     'about':'loadAbout',
     'footer':'loadFooter',
@@ -329,6 +330,7 @@ window.showPage = window.showPage || function(p,el){
   <div class="ni" onclick="showPage('basic',this)"><span class="ic">⚙️</span>网站基本设置</div>
   <div class="ni" onclick="showPage('music',this)"><span class="ic">💿</span>背景音乐</div>
   <div class="ni" onclick="showPage('hero',this)"><span class="ic">🎠</span>轮播海报</div>
+  <div class="ni" onclick="showPage('splash',this)"><span class="ic">🪟</span>首页开屏</div>
   <div class="ni" onclick="showPage('nav',this)"><span class="ic">🔗</span>导航菜单</div>
   <div class="ni" onclick="showPage('about',this)"><span class="ic">👤</span>关于我页面</div>
   <div class="ni" onclick="showPage('footer',this)"><span class="ic">📋</span>底部内容</div>
@@ -802,12 +804,16 @@ window.showPage = window.showPage || function(p,el){
         <input class="inp" type="text" id="ftSub" value="FEATURED" oninput="ftCfgChanged()">
       </div>
     </div>
-    <div class="fg" style="margin-bottom:14px">
+    <div class="fg" style="margin-bottom:10px">
       <label>显示位置</label>
       <select class="inp" id="ftPosition" onchange="ftCfgChanged()">
         <option value="after_showcase">橱窗精选下方</option>
         <option value="before_footer">瀑布流下方（底栏上方）</option>
       </select>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>内容区域宽度（px，420~2200）</label>
+      <input class="inp" type="number" id="ftContentWidth" min="420" max="2200" step="10" value="900" oninput="ftCfgChanged()">
     </div>
     <button class="btn btn-p btn-sm" onclick="saveFtConfig()">保存设置</button>
     <span id="ftCfgStatus" style="font-size:11px;color:var(--mu);margin-left:8px"></span>
@@ -828,17 +834,13 @@ window.showPage = window.showPage || function(p,el){
       <label>文本内容（富文本）</label>
       <div id="ftNewContent" style="background:rgb(34,34,46);border-radius:8px;min-height:140px;font-size:14px"></div>
     </div>
+
     <div class="fg" style="margin-bottom:10px">
-      <label>图片（可多选，支持多张）</label>
-      <div id="ftNewPreviews" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input class="inp" type="file" id="ftNewFileInp" accept="image/*" multiple style="flex:1;padding:5px" onchange="ftPreviewNew(this)">
-        <button class="btn btn-s btn-sm" onclick="ftPickMedia()">🗂 媒体库</button>
-        <button class="btn btn-s btn-sm" onclick="ftPickUrl()">🔗 URL</button>
-      </div>
+      <label>内容宽度（px，420~2200）</label>
+      <input class="inp" type="number" id="ftNewContentWidth" min="420" max="2200" step="10" value="900">
     </div>
     <div class="fg" style="margin-bottom:10px">
-      <label>封面缩图（留空则用第一张图）</label>
+      <label>封面缩图（留空则用正文第一张图）</label>
       <div style="display:flex;align-items:center;gap:10px">
         <div id="ftNewCoverPrev" style="width:72px;height:56px;border-radius:7px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🖼</div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -1336,6 +1338,138 @@ window.showPage = window.showPage || function(p,el){
   <div class="card"><div class="ct">🎠 海报列表 <button class="btn btn-s btn-sm" onclick="addSlide()" style="margin-left:auto">+ 新增</button></div>
     <div class="slide-list" id="slideList"></div>
     <button class="btn btn-p" onclick="saveHero()">保存所有海报</button>
+  </div>
+</div>
+
+<!-- SPLASH -->
+<div class="page" id="page-splash">
+  <div class="pt">首页开屏</div><div class="ps">管理首页开屏页，支持图文视频与滚动到底自动关闭</div>
+  <div class="card"><div class="ct">⚙️ 开关与标题</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;background:var(--s2);border-radius:9px;border:1px solid var(--bd)">
+      <label style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0">
+        <input type="checkbox" id="splashEnabled" style="opacity:0;width:0;height:0;position:absolute">
+        <span id="splashEnabledSlider" style="position:absolute;inset:0;background:var(--bd);border-radius:24px;transition:.3s;cursor:pointer">
+          <span id="splashEnabledThumb" style="position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;display:block"></span>
+        </span>
+      </label>
+      <div>
+        <div style="font-size:13px;font-weight:500">启用首页开屏</div>
+        <div style="font-size:11px;color:var(--mu);margin-top:2px">开启后用户先看到开屏，滚动到页面底部后自动进入首页</div>
+      </div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label>标题</label><input class="inp" id="splashTitle" placeholder="欢迎来到我的画廊"></div>
+      <div class="fg"><label>副标题</label><input class="inp" id="splashSubtitle" placeholder="向下滚动查看完整开屏内容"></div>
+    </div>
+    <div class="fr" style="margin-top:10px">
+      <div class="fg"><label>背景类型</label>
+        <select class="inp" id="splashBgType" onchange="toggleSplashBgType()">
+          <option value="gradient">渐变</option>
+          <option value="image">图片</option>
+          <option value="video">视频</option>
+        </select>
+      </div>
+      <div class="fg"><label>媒体展示模式</label>
+        <select class="inp" id="splashMediaFit">
+          <option value="contain">完整显示（contain）</option>
+          <option value="cover">铺满裁切（cover）</option>
+        </select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap">
+        <label class="bk-chk" style="margin:0"><input type="checkbox" id="splashAutoClose" checked> 滚动到底自动关闭</label>
+        <label class="bk-chk" style="margin:0"><input type="checkbox" id="splashAllowReopen" checked> 允许向上滚动回滚进入开屏</label>
+        <label class="bk-chk" style="margin:0"><input type="checkbox" id="splashSkipAfterEnter"> 进入首页后再次刷新不进入开屏</label>
+      </div>
+    </div>
+    <div class="fr" style="margin-top:10px">
+      <div class="fg"><label>滚动几次后进入首页（1~100）</label>
+        <input class="inp" id="splashCloseWheelCount" type="number" min="1" max="100" step="1" placeholder="8">
+        <div style="font-size:11px;color:var(--mu);margin-top:4px">值越小越快关闭开屏（按鼠标滚轮“次数”计算）</div>
+      </div>
+      <div class="fg"><label>滚动几次后回滚进入开屏（1~100）</label>
+        <input class="inp" id="splashReopenWheelCount" type="number" min="1" max="100" step="1" placeholder="3">
+        <div style="font-size:11px;color:var(--mu);margin-top:4px">值越小越容易从首页回滚进入开屏</div>
+      </div>
+      <div class="fg"><label>开屏标题字号（px，20~120）</label>
+        <input class="inp" id="splashTitleSize" type="number" min="20" max="120" step="1" placeholder="52">
+      </div>
+      <div class="fg"><label>开屏页宽度（px，420~2200）</label>
+        <input class="inp" id="splashCardWidth" type="number" min="420" max="2200" step="10" placeholder="980">
+        <div style="font-size:11px;color:var(--mu);margin-top:4px">控制开屏内容卡片最大宽度</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><div class="ct">🖼️ 开屏背景</div>
+    <div id="splashBgGradientWrap" class="fg" style="margin-bottom:10px">
+      <label>渐变 CSS（完整 linear-gradient 语法）</label>
+      <input class="inp" id="splashBgGradient" placeholder="linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)" oninput="updateSplashPreview()">
+    </div>
+    <div id="splashBgImageWrap" style="display:none">
+      <div class="img-upload-row">
+        <div id="splashBgPreview" class="img-thumb-ph">🌄</div>
+        <div style="flex:1">
+          <input class="inp" type="file" id="splashBgInp" accept="image/*,video/*" style="padding:6px;margin-bottom:6px">
+          <div style="display:flex;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+            <button class="btn btn-s btn-sm" onclick="uploadSplashBg()">上传背景媒体</button>
+            <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url,type)=>{setSplashBgFromMedia(fn,url,type);},'')">🗂 从媒体库选</button>
+            <button class="btn btn-s btn-sm" onclick="openUrlLoader((fn,url,type)=>{setSplashBgFromMedia(fn,url,type);},'')">🔗 从URL载入</button>
+          </div>
+          <div style="font-size:11px;color:var(--mu)" id="splashBgFilename"></div>
+        </div>
+      </div>
+    </div>
+    <div style="height:120px;border:1px solid var(--bd);border-radius:10px;overflow:hidden;position:relative;background:#111;margin-top:8px" id="splashBgLivePreview"></div>
+  </div>
+
+  <div class="card"><div class="ct">🎬 开屏媒体（图片/视频）</div>
+    <div class="fr">
+      <div class="fg"><label>媒体类型</label>
+        <select class="inp" id="splashMediaType" onchange="toggleSplashMediaType()">
+          <option value="none">不显示</option>
+          <option value="image">图片</option>
+          <option value="video">视频</option>
+        </select>
+      </div>
+      <div class="fg" style="display:flex;align-items:flex-end"><div style="font-size:11px;color:var(--mu)">支持上传或从媒体库选择</div></div>
+    </div>
+    <div class="img-upload-row" style="margin-top:8px">
+      <div id="splashMediaPreview" class="img-thumb-ph">🖼️</div>
+      <div style="flex:1">
+        <input class="inp" type="file" id="splashMediaInp" accept="image/*,video/*" style="padding:6px;margin-bottom:6px">
+        <div style="display:flex;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+          <button class="btn btn-s btn-sm" onclick="uploadSplashMedia()">上传媒体</button>
+          <button class="btn btn-s btn-sm" onclick="openMediaPicker((fn,url,type)=>{setSplashMediaFromMedia(fn,url,type);},'')">🗂 从媒体库选</button>
+          <button class="btn btn-s btn-sm" onclick="openUrlLoader((fn,url,type)=>{setSplashMediaFromMedia(fn,url,type);},'')">🔗 从URL载入</button>
+          <button class="btn btn-d btn-sm" onclick="clearSplashMedia()">清空媒体</button>
+        </div>
+        <div style="font-size:11px;color:var(--mu)" id="splashMediaFilename"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><div class="ct">📝 开屏正文（富文本）</div>
+    <div id="splashContent" style="min-height:180px"></div>
+    <div style="font-size:11px;color:var(--mu);margin-top:8px">支持加粗、列表、引用、链接等排版。</div>
+  </div>
+
+  <div class="card"><div class="ct">🎯 图片热点链接（拖拽框选）</div>
+    <div style="font-size:11px;color:var(--mu);margin-bottom:8px">选择一张图片作为热点底图，在预览区拖拽框选可点击区域。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-s btn-sm" onclick="pickSplashHotspotImageFromMedia()">🗂 从媒体库选底图</button>
+      <button class="btn btn-s btn-sm" onclick="pickSplashHotspotImageFromUrl()">🔗 从URL载入底图</button>
+      <button class="btn btn-d btn-sm" onclick="clearSplashHotspots()">清空热点</button>
+    </div>
+    <div id="splashHotspotImageName" style="font-size:11px;color:var(--mu);margin-bottom:8px"></div>
+    <div id="splashHotspotStage" style="position:relative;border:1px solid var(--bd);border-radius:10px;min-height:220px;max-width:100%;background:var(--s3);overflow:hidden;cursor:crosshair">
+      <img id="splashHotspotImg" style="display:block;max-width:100%;width:100%;height:auto;user-select:none;pointer-events:none">
+      <div id="splashHotspotLayer" style="position:absolute;inset:0"></div>
+    </div>
+    <div id="splashHotspotList" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+  </div>
+
+  <div class="card">
+    <button class="btn btn-p" onclick="saveSplash()">保存开屏设置</button>
   </div>
 </div>
 
@@ -1875,42 +2009,6 @@ function addEmojiFromUrl() {
   });
 }
 
-// ════════════════════════════════════════
-// 详情精选图片拖拽排序
-// ════════════════════════════════════════
-
-function ftImgDragStart(e, itemId, idx) {
-  _ftDragItemId = itemId; _ftDragFromIdx = idx;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.style.opacity = '0.4';
-}
-function ftImgDragOver(e) {
-  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  e.currentTarget.style.borderColor = 'var(--ac)';
-}
-function ftImgDragEnd(e) {
-  e.currentTarget.style.opacity = '';
-  // 清除所有高亮
-  document.querySelectorAll('[data-item]').forEach(el => el.style.borderColor = '');
-}
-async function ftImgDrop(e, itemId, toIdx) {
-  e.preventDefault();
-  e.currentTarget.style.borderColor = '';
-  if (_ftImgDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
-  const item = _ftItems.find(i => i.id === itemId);
-  if (!item) return;
-  // 重新排列
-  const imgs = [...item.images];
-  const [moved] = imgs.splice(_ftDragFromIdx, 1);
-  imgs.splice(toIdx, 0, moved);
-  item.images = imgs;
-  // 同步后端
-  const fd = new FormData();
-  imgs.forEach(fn => fd.append('images_order', fn));
-  await fetch(`/admin/featured/${itemId}`, {method:'PUT', body:fd});
-  renderFtList();
-  toast('顺序已更新');
-}
 
 // ════════════════════════════════════════
 // 数据备份
@@ -2762,13 +2860,16 @@ async function clearSoundCode() {
 }
 
 let allItems=[], categories=[], categoriesHidden=[], siteData={}, visPage=1, visPathFilter='';
+let _adminInited=false;
 
 async function init(){
+  if(_adminInited) return;
+  _adminInited=true;
   const [ir,cr,mr,sr]=await Promise.all([
     fetch('/admin/api/items?per_page=1000').then(r=>r.json()),
     fetch('/admin/categories').then(r=>r.json()),
     fetch('/admin/messages').then(r=>r.json()),
-    fetch('/api/site').then(r=>r.json())
+    fetch('/api/site?_t='+Date.now()).then(r=>r.json())
   ]);
   allItems=ir.items; categories=cr.categories||[]; categoriesHidden=cr.categories_hidden||[]; siteData=sr;
   loadUserInfo();
@@ -2811,13 +2912,14 @@ function showPage(p,el){
   if(location.hash !== '#'+p) location.hash = '#'+p;
   const main = document.querySelector('.main');
   if(main) main.scrollTop = 0;
-  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,drafts:loadDrafts,categories:loadCats,basic:loadBasic,music:loadMusicPage,hero:loadHero,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,'item-comments':loadItemCommentsPage};
+  const a={thumblib:loadThumbLib,account:loadAccountPage,msgpage:loadMsgPage,media:loadMedia,showcase:loadShowcaseAdmin,featured:loadFeaturedAdmin,emoji:loadEmojiAdmin,backup:loadBackupAdmin,muyu:loadMuyuAdmin,manage:loadManage,drafts:loadDrafts,categories:loadCats,basic:loadBasic,music:loadMusicPage,hero:loadHero,splash:loadSplash,nav:loadNav,about:loadAbout,footer:loadFooter,visitors:loadVisitors,messages:loadMessages,'item-comments':loadItemCommentsPage};
   if(a[p])a[p]();
 }
 
 function applyHashPage(){
   const p = (location.hash || '').replace('#','').trim();
   if(!p) return;
+  if(!_adminInited) return;
   const nav = document.querySelector('.ni[onclick*="\''+p+'\'"]');
   showPage(p, nav || undefined);
 }
@@ -4369,6 +4471,341 @@ async function saveHero(){
   if(res.ok)toast('已保存');else toast('失败','err');
 }
 
+// SPLASH
+function updateSplashToggleUI(on){
+  const slider=document.getElementById('splashEnabledSlider');
+  const thumb=document.getElementById('splashEnabledThumb');
+  if(slider) slider.style.background=on?'var(--ok)':'var(--bd)';
+  if(thumb) thumb.style.transform=on?'translateX(20px)':'translateX(0)';
+}
+function toggleSplashBgType(){
+  const t=(document.getElementById('splashBgType')?.value||'gradient');
+  const g=document.getElementById('splashBgGradientWrap');
+  const i=document.getElementById('splashBgImageWrap');
+  if(g) g.style.display=t==='gradient'?'':'none';
+  if(i) i.style.display=(t==='image'||t==='video')?'':'none';
+  updateSplashPreview();
+}
+function toggleSplashMediaType(){
+  const t=(document.getElementById('splashMediaType')?.value||'none');
+  const inp=document.getElementById('splashMediaInp');
+  if(inp){
+    inp.accept = t==='video' ? 'video/*' : (t==='image' ? 'image/*' : 'image/*,video/*');
+  }
+}
+function updateSplashPreview(){
+  const box=document.getElementById('splashBgLivePreview');
+  if(!box) return;
+  const bgType=(document.getElementById('splashBgType')?.value||'gradient');
+  if(bgType==='image'){
+    const fn=((siteData.splash||{}).bg_value||'').trim();
+    box.style.background = fn ? `url(${fileSrc(fn)}) center/cover no-repeat` : '#111';
+    box.innerHTML='';
+  }else if(bgType==='video'){
+    const fn=((siteData.splash||{}).bg_value||'').trim();
+    box.style.background='#111';
+    box.innerHTML = fn ? `<video src="${fileSrc(fn)}" muted autoplay loop playsinline style="width:100%;height:100%;object-fit:cover"></video>` : '';
+  }else{
+    const bg=(document.getElementById('splashBgGradient')?.value||'').trim() || 'linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)';
+    box.style.background = bg;
+    box.innerHTML='';
+  }
+}
+function setSplashBgFromMedia(fn,url,type){
+  if(!siteData.splash) siteData.splash={};
+  const t=(type==='video'||/\.(mp4|mov|webm|avi)(\?.*)?$/i.test(String(url||fn||'')))?'video':'image';
+  siteData.splash.bg_type=t;
+  siteData.splash.bg_value=fn;
+  const prev=document.getElementById('splashBgPreview');
+  if(prev){
+    if(t==='video') prev.innerHTML=`<video src="${url}" muted controls style="width:100%;height:100%;object-fit:cover"></video>`;
+    else prev.innerHTML=`<img class="img-thumb" src="${url}">`;
+  }
+  const nm=document.getElementById('splashBgFilename');
+  if(nm) nm.textContent=fn;
+  document.getElementById('splashBgType').value=t;
+  toggleSplashBgType();
+}
+function _setSplashMediaPreview(type, src){
+  const prev=document.getElementById('splashMediaPreview');
+  if(!prev) return;
+  if(type==='video') prev.innerHTML=`<video src="${src}" muted controls style="width:100%;height:100%;object-fit:cover"></video>`;
+  else if(type==='image') prev.innerHTML=`<img class="img-thumb" src="${src}">`;
+  else prev.innerHTML='🖼️';
+}
+function setSplashMediaFromMedia(fn,url,type){
+  const t = type==='video'?'video':'image';
+  if(!siteData.splash) siteData.splash={};
+  siteData.splash.media_type=t;
+  siteData.splash.media_value=fn;
+  document.getElementById('splashMediaType').value=t;
+  toggleSplashMediaType();
+  _setSplashMediaPreview(t, url);
+  const nm=document.getElementById('splashMediaFilename');
+  if(nm) nm.textContent=fn;
+}
+function clearSplashMedia(){
+  if(!siteData.splash) siteData.splash={};
+  siteData.splash.media_type='none';
+  siteData.splash.media_value='';
+  document.getElementById('splashMediaType').value='none';
+  _setSplashMediaPreview('none','');
+  const nm=document.getElementById('splashMediaFilename');
+  if(nm) nm.textContent='';
+}
+
+let _hsDrag=null;
+function _ensureSplashHotspotData(){
+  if(!siteData.splash) siteData.splash={};
+  if(!Array.isArray(siteData.splash.hotspots)) siteData.splash.hotspots=[];
+  if(!siteData.splash.hotspots_by_image || typeof siteData.splash.hotspots_by_image!=='object') siteData.splash.hotspots_by_image={};
+}
+function pickSplashHotspotImageFromMedia(){
+  _ensureSplashHotspotData();
+  openMediaPicker((fn,url)=>{
+    siteData.splash.hotspot_image=fn;
+    renderSplashHotspotEditor();
+  },'image');
+}
+function pickSplashHotspotImageFromUrl(){
+  _ensureSplashHotspotData();
+  openUrlLoader((fn,url,type)=>{
+    if(type!=='image'){ toast('请选择图片链接','err'); return; }
+    siteData.splash.hotspot_image=url;
+    renderSplashHotspotEditor();
+  },'image');
+}
+function clearSplashHotspots(){
+  _ensureSplashHotspotData();
+  siteData.splash.hotspots=[];
+  renderSplashHotspotEditor();
+}
+function _currentSplashHotspots(){
+  _ensureSplashHotspotData();
+  const key=(siteData.splash.hotspot_image||'').trim();
+  if(key){
+    if(!Array.isArray(siteData.splash.hotspots_by_image[key])) siteData.splash.hotspots_by_image[key]=[];
+    return siteData.splash.hotspots_by_image[key];
+  }
+  return siteData.splash.hotspots;
+}
+function renderSplashHotspotEditor(){
+  _ensureSplashHotspotData();
+  const imgEl=document.getElementById('splashHotspotImg');
+  const layer=document.getElementById('splashHotspotLayer');
+  const name=document.getElementById('splashHotspotImageName');
+  const list=document.getElementById('splashHotspotList');
+  if(!imgEl||!layer||!name||!list) return;
+  const src=(siteData.splash.hotspot_image||'').trim();
+  const hs=_currentSplashHotspots();
+  name.textContent=src?('底图：'+src):'未选择底图';
+  if(src){ imgEl.src=fileSrc(src); imgEl.style.display='block'; }
+  else { imgEl.removeAttribute('src'); imgEl.style.display='none'; }
+  layer.innerHTML='';
+  hs.forEach((h,i)=>{
+    const b=document.createElement('div');
+    b.style.cssText=`position:absolute;left:${h.x}%;top:${h.y}%;width:${h.w}%;height:${h.h}%;border:2px solid #ffd166;background:rgba(255,209,102,.18);box-sizing:border-box;`;
+    b.title=h.title||h.href||('热点'+(i+1));
+    const tag=document.createElement('span');
+    tag.textContent=String(i+1);
+    tag.style.cssText='position:absolute;left:0;top:0;transform:translate(-50%,-50%);background:#ffd166;color:#222;font-size:10px;padding:0 4px;border-radius:10px';
+    b.appendChild(tag);
+    layer.appendChild(b);
+  });
+  list.innerHTML=hs.map((h,i)=>`<div style="display:grid;grid-template-columns:1fr 120px 66px 56px;gap:6px;align-items:center"><input class="inp" placeholder="https://..." value="${esc(h.href||'')}" oninput="_currentSplashHotspots()[${i}].href=this.value"><input class="inp" placeholder="标题" value="${esc(h.title||'')}" oninput="_currentSplashHotspots()[${i}].title=this.value"><select class="inp" onchange="_currentSplashHotspots()[${i}].target=this.value"><option value="_self" ${h.target!=='_blank'?'selected':''}>当前</option><option value="_blank" ${h.target==='_blank'?'selected':''}>新窗</option></select><button class="btn btn-d btn-xs" onclick="_currentSplashHotspots().splice(${i},1);renderSplashHotspotEditor()">删除</button></div>`).join('');
+}
+function _normalizeSplashHotspotSrc(src){
+  src=(src||'').trim();
+  if(!src) return '';
+  try{
+    if(src.startsWith('/static/uploads/')) return src.replace('/static/uploads/','');
+    const u=new URL(src, location.origin);
+    if(u.origin===location.origin && u.pathname.startsWith('/static/uploads/')){
+      return u.pathname.replace('/static/uploads/','');
+    }
+    return src;
+  }catch(e){
+    return src;
+  }
+}
+function openSplashEditorImageChooser(imgs, onPick){
+  const list=Array.isArray(imgs)?imgs:[];
+  if(!list.length){ toast('正文中还没有图片','err'); return; }
+  const mask=document.createElement('div');
+  mask.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4200;display:flex;align-items:center;justify-content:center';
+  const cards=list.map((img,i)=>`<button data-idx="${i}" style="border:1px solid var(--bd);background:var(--s2);padding:4px;border-radius:8px;cursor:pointer"><img src="${img.getAttribute('src')||''}" style="width:140px;height:100px;object-fit:cover;border-radius:6px;display:block"><div style="font-size:11px;color:var(--mu);margin-top:4px">图片 ${i+1}</div></button>`).join('');
+  mask.innerHTML=`<div style="background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:14px;max-width:92vw;width:760px"><div style="font-size:14px;font-weight:600;margin-bottom:8px">选择要编辑热点的图片</div><div style="display:flex;gap:8px;flex-wrap:wrap;max-height:56vh;overflow:auto">${cards}</div><div style="margin-top:10px;text-align:right"><button class="btn btn-s btn-sm" id="hsPickCancel">取消</button></div></div>`;
+  document.body.appendChild(mask);
+  mask.querySelector('#hsPickCancel').onclick=()=>mask.remove();
+  mask.querySelectorAll('button[data-idx]').forEach(btn=>{
+    btn.onclick=()=>{ const idx=parseInt(btn.getAttribute('data-idx')||'0',10); const im=list[idx]; mask.remove(); if(im&&onPick) onPick(im); };
+  });
+}
+
+function openSplashHotspotEditorForImage(img, q){
+  _ensureSplashHotspotData();
+  const raw=(img&&img.getAttribute&&img.getAttribute('src'))||'';
+  const next=_normalizeSplashHotspotSrc(raw);
+  if(!next){ toast('未识别到图片地址','err'); return; }
+  siteData.splash.hotspot_image=next;
+  renderSplashHotspotEditor();
+  const stage=document.getElementById('splashHotspotStage');
+  if(stage){
+    stage.scrollIntoView({behavior:'smooth',block:'center'});
+    stage.style.boxShadow='0 0 0 2px rgba(125,211,252,.7)';
+    setTimeout(()=>{ stage.style.boxShadow=''; }, 1200);
+  }
+  toast('已进入图片热点编辑：请在预览图上拖拽框选区域');
+}
+function bindSplashHotspotStage(){
+  const stage=document.getElementById('splashHotspotStage');
+  const layer=document.getElementById('splashHotspotLayer');
+  if(!stage||!layer||stage._hsBound) return;
+  stage._hsBound=true;
+  stage.addEventListener('mousedown',(e)=>{
+    _ensureSplashHotspotData();
+    if(!(siteData.splash.hotspot_image||'').trim()) return;
+    const r=stage.getBoundingClientRect();
+    const sx=((e.clientX-r.left)/r.width)*100;
+    const sy=((e.clientY-r.top)/r.height)*100;
+    _hsDrag={sx,sy};
+    const ghost=document.createElement('div');
+    ghost.id='splashHotspotGhost';
+    ghost.style.cssText='position:absolute;border:1px dashed #7dd3fc;background:rgba(125,211,252,.2);pointer-events:none';
+    layer.appendChild(ghost);
+  });
+  window.addEventListener('mousemove',(e)=>{
+    if(!_hsDrag) return;
+    const r=stage.getBoundingClientRect();
+    const cx=((e.clientX-r.left)/r.width)*100;
+    const cy=((e.clientY-r.top)/r.height)*100;
+    const x=Math.max(0,Math.min(_hsDrag.sx,cx));
+    const y=Math.max(0,Math.min(_hsDrag.sy,cy));
+    const w=Math.min(100,Math.abs(cx-_hsDrag.sx));
+    const h=Math.min(100,Math.abs(cy-_hsDrag.sy));
+    const g=document.getElementById('splashHotspotGhost');
+    if(g) g.style.cssText=`position:absolute;left:${x}%;top:${y}%;width:${w}%;height:${h}%;border:1px dashed #7dd3fc;background:rgba(125,211,252,.2);pointer-events:none`;
+  });
+  window.addEventListener('mouseup',(e)=>{
+    if(!_hsDrag) return;
+    const r=stage.getBoundingClientRect();
+    const cx=((e.clientX-r.left)/r.width)*100;
+    const cy=((e.clientY-r.top)/r.height)*100;
+    const x=Math.max(0,Math.min(_hsDrag.sx,cx));
+    const y=Math.max(0,Math.min(_hsDrag.sy,cy));
+    const w=Math.abs(cx-_hsDrag.sx);
+    const h=Math.abs(cy-_hsDrag.sy);
+    _hsDrag=null;
+    const g=document.getElementById('splashHotspotGhost'); if(g) g.remove();
+    if(w<1 || h<1) return;
+    _currentSplashHotspots().push({x:+x.toFixed(2),y:+y.toFixed(2),w:+w.toFixed(2),h:+h.toFixed(2),href:'',title:'',target:'_self'});
+    renderSplashHotspotEditor();
+  });
+}
+async function uploadSplashBg(){
+  const inp=document.getElementById('splashBgInp');
+  if(!inp || !inp.files || !inp.files[0]){ toast('请选择背景媒体','err'); return; }
+  const fd=new FormData(); fd.append('file', inp.files[0]);
+  const r=await fetch('/admin/site/splash/upload-bg',{method:'POST',body:fd});
+  const d=await r.json().catch(()=>({}));
+  if(r.ok && d.success){ setSplashBgFromMedia(d.filename, d.url, d.media_type); toast('背景媒体已上传'); }
+  else toast(d.error||'上传失败','err');
+}
+async function uploadSplashMedia(){
+  const inp=document.getElementById('splashMediaInp');
+  if(!inp || !inp.files || !inp.files[0]){ toast('请选择媒体文件','err'); return; }
+  const fd=new FormData(); fd.append('file', inp.files[0]);
+  const r=await fetch('/admin/site/splash/upload-media',{method:'POST',body:fd});
+  const d=await r.json().catch(()=>({}));
+  if(r.ok && d.success){
+    setSplashMediaFromMedia(d.filename, d.url, d.media_type);
+    toast('媒体已上传');
+  }else toast(d.error||'上传失败','err');
+}
+function loadSplash(){
+  const sp=siteData.splash||{};
+  if(!siteData.splash) siteData.splash={};
+  const enabled=!!sp.enabled;
+  document.getElementById('splashEnabled').checked=enabled;
+  updateSplashToggleUI(enabled);
+  document.getElementById('splashEnabled').onchange=function(){ updateSplashToggleUI(this.checked); };
+  document.getElementById('splashTitle').value=sp.title||'';
+  document.getElementById('splashSubtitle').value=sp.subtitle||'';
+  document.getElementById('splashBgType').value=sp.bg_type||'gradient';
+  document.getElementById('splashBgGradient').value=sp.bg_value||'';
+  document.getElementById('splashMediaType').value=sp.media_type||'none';
+  document.getElementById('splashMediaFit').value=sp.media_fit||'contain';
+  document.getElementById('splashAutoClose').checked=sp.auto_close!==false;
+  document.getElementById('splashAllowReopen').checked=sp.allow_reopen!==false;
+  document.getElementById('splashSkipAfterEnter').checked=sp.skip_after_enter===true;
+  document.getElementById('splashCloseWheelCount').value=(parseInt(sp.close_wheel_count,10)||8);
+  document.getElementById('splashReopenWheelCount').value=(parseInt(sp.reopen_wheel_count,10)||3);
+  document.getElementById('splashCardWidth').value=(parseInt(sp.card_width,10)||980);
+  document.getElementById('splashTitleSize').value=(parseInt(sp.title_size,10)||52);
+  const bgFn=(sp.bg_value||'').trim();
+  const bgPrev=document.getElementById('splashBgPreview');
+  const bgNm=document.getElementById('splashBgFilename');
+  if((sp.bg_type==='image' || sp.bg_type==='video') && bgFn){
+    if(bgPrev){
+      if(sp.bg_type==='video') bgPrev.innerHTML=`<video src="${fileSrc(bgFn)}" muted controls style="width:100%;height:100%;object-fit:cover"></video>`;
+      else bgPrev.innerHTML=`<img class="img-thumb" src="${fileSrc(bgFn)}">`;
+    }
+    if(bgNm) bgNm.textContent=bgFn;
+  }else{
+    if(bgPrev) bgPrev.innerHTML='🌄';
+    if(bgNm) bgNm.textContent='';
+  }
+  const mt=sp.media_type||'none';
+  const mv=(sp.media_value||'').trim();
+  _setSplashMediaPreview(mt, mv?fileSrc(mv):'');
+  const mn=document.getElementById('splashMediaFilename'); if(mn) mn.textContent=mv;
+  toggleSplashBgType();
+  toggleSplashMediaType();
+  const editor=document.getElementById('splashContent');
+  if(editor && !editor._quillInstance) createQuillEditor('splashContent','输入开屏正文...');
+  if(editor && editor._quillInstance) editor._quillInstance.root.innerHTML = sp.content || '';
+  bindSplashHotspotStage();
+  renderSplashHotspotEditor();
+}
+async function saveSplash(){
+  if(!siteData.splash) siteData.splash={};
+  const editor=document.getElementById('splashContent');
+  const payload={
+    enabled: document.getElementById('splashEnabled').checked,
+    title: document.getElementById('splashTitle').value || '',
+    subtitle: document.getElementById('splashSubtitle').value || '',
+    content: (editor && editor._quillInstance) ? editor._quillInstance.root.innerHTML : (siteData.splash.content||''),
+    bg_type: document.getElementById('splashBgType').value || 'gradient',
+    bg_value: (document.getElementById('splashBgType').value==='gradient') ? (document.getElementById('splashBgGradient').value||'') : (siteData.splash.bg_value||''),
+    media_type: document.getElementById('splashMediaType').value || 'none',
+    media_value: siteData.splash.media_value || '',
+    media_fit: document.getElementById('splashMediaFit').value || 'contain',
+    auto_close: document.getElementById('splashAutoClose').checked,
+    allow_reopen: document.getElementById('splashAllowReopen').checked,
+    skip_after_enter: document.getElementById('splashSkipAfterEnter').checked,
+    close_wheel_count: parseInt(document.getElementById('splashCloseWheelCount').value || '8', 10),
+    reopen_wheel_count: parseInt(document.getElementById('splashReopenWheelCount').value || '3', 10),
+    card_width: parseInt(document.getElementById('splashCardWidth').value || '980', 10),
+    title_size: parseInt(document.getElementById('splashTitleSize').value || '52', 10),
+    hotspot_image: (siteData.splash.hotspot_image||''),
+    hotspots: Array.isArray(siteData.splash.hotspots)?siteData.splash.hotspots:[],
+    hotspots_by_image: (siteData.splash.hotspots_by_image&&typeof siteData.splash.hotspots_by_image==='object')?siteData.splash.hotspots_by_image:{}
+  };
+  const r=await fetch('/admin/site/splash',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const d=await r.json().catch(()=>({}));
+  if(r.ok && d.success){
+    siteData.splash = d.splash || payload;
+    const verify = await fetch('/api/site?_t='+Date.now()).then(x=>x.json()).catch(()=>null);
+    if(verify && verify.splash){
+      siteData.splash = verify.splash;
+      loadSplash();
+      toast('开屏设置已保存并回读成功');
+    }else{
+      toast('已保存（回读失败，请刷新后确认）','err');
+    }
+  } else toast(d.error||'保存失败','err');
+}
+
 // NAV
 function loadNav(){const nav=siteData.nav||{};document.getElementById('navLogo').value=nav.logo||'';renderNavLinks(nav.links||[]);}
 function renderNavLinks(links){
@@ -4381,8 +4818,9 @@ function renderNavLinks(links){
       ondragend="navDragEnd()">
       <span class="drag-handle">⠿</span>
       <input placeholder="文字" value="${esc(l.label||'')}" oninput="siteData.nav.links[${i}].label=this.value">
-      <input placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.nav.links[${i}].href=this.value">
-      <label class="bk-chk" style="margin-left:6px"><input type="checkbox" ${l.target==='_blank'?'checked':''} onchange="siteData.nav.links[${i}].target=this.checked?'_blank':'_self'"> 新窗口</label>
+      <input data-f="href" placeholder="链接" value="${esc(l.href||'')}" oninput="siteData.nav.links[${i}].href=this.value">
+      <label class="bk-chk" style="margin-left:6px"><input data-f="target" type="checkbox" ${l.target==='_blank'?'checked':''} onchange="siteData.nav.links[${i}].target=this.checked?'_blank':'_self'"> 新窗口</label>
+      <label class="bk-chk" style="margin-left:6px"><input data-f="visible" type="checkbox" ${l.visible!==false?'checked':''} onchange="siteData.nav.links[${i}].visible=this.checked"> 显示</label>
       <button class="btn btn-d btn-xs" onclick="removeNavLink(${i})">删除</button>
     </div>`).join('');
 }
@@ -4398,9 +4836,9 @@ function navDrop(e,toIdx){
   renderNavLinks(arr);
 }
 function navDragEnd(){document.querySelectorAll('.link-row').forEach(r=>{r.classList.remove('dragging','drag-over');});navDragIdx=-1;}
-function addNavLink(){if(!siteData.nav)siteData.nav={logo:'',links:[]};siteData.nav.links.push({label:'新链接',href:'#',target:'_self'});renderNavLinks(siteData.nav.links);}
+function addNavLink(){if(!siteData.nav)siteData.nav={logo:'',links:[]};siteData.nav.links.push({label:'新链接',href:'#',target:'_self',visible:true});renderNavLinks(siteData.nav.links);}
 function removeNavLink(i){siteData.nav.links.splice(i,1);renderNavLinks(siteData.nav.links);}
-async function saveNav(){const logo=document.getElementById('navLogo').value;siteData.nav.logo=logo;const links=Array.from(document.querySelectorAll('#navLinkList .link-row')).map(el=>{const ins=el.querySelectorAll('input');return{label:ins[0].value,href:ins[1].value,target:ins[2]?.checked?'_blank':'_self'};});siteData.nav.links=links;const res=await fetch('/admin/site/nav',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({logo,links})});if(res.ok)toast('已保存');else toast('失败','err');}
+async function saveNav(){const logo=document.getElementById('navLogo').value;siteData.nav.logo=logo;const links=Array.from(document.querySelectorAll('#navLinkList .link-row')).map(el=>{const ins=el.querySelectorAll('input');return{label:ins[0].value,href:ins[1].value,target:ins[2]?.checked?'_blank':'_self',visible:ins[3]?ins[3].checked:true};});siteData.nav.links=links;const res=await fetch('/admin/site/nav',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({logo,links})});if(res.ok)toast('已保存');else toast('失败','err');}
 
 // ABOUT
 function loadAbout(){
@@ -4511,6 +4949,32 @@ async function _confirmUrlLoad(btn) {
   mask.remove();
 }
 
+// ── 富文本媒体播放控制：禁止编辑区视频自动播放 ──
+function enforceNoAutoplayInRichEditor(root){
+  if(!root || !root.querySelectorAll) return;
+  // HTML5 video
+  root.querySelectorAll('video').forEach(function(v){
+    try{
+      v.autoplay = false;
+      v.removeAttribute('autoplay');
+      v.preload = 'metadata';
+      if(!v.paused) v.pause();
+    }catch(_e){}
+  });
+  // Quill video 常为 iframe（如 ql-video）
+  root.querySelectorAll('iframe').forEach(function(fr){
+    try{
+      const src = fr.getAttribute('src') || '';
+      if(!src) return;
+      const u = new URL(src, location.origin);
+      // 统一兜底：直接把 autoplay 置 0（有无该参数都处理）
+      u.searchParams.set('autoplay','0');
+      const ns = u.toString();
+      if(ns !== src) fr.setAttribute('src', ns);
+    }catch(_e){}
+  });
+}
+
 // ── 通用富文本编辑器工厂（Quill 可能异步加载，需等待）──
 function createQuillEditor(containerId, placeholder, opts) {
   opts = opts || {};
@@ -4526,12 +4990,56 @@ function createQuillEditor(containerId, placeholder, opts) {
     modules: {
       toolbar: {
         container: [
+          [{'size':['small', false, 'large', 'huge']}],
           ['bold','italic','underline'],
+          [{'color':[]},{'background':[]}],
           [{'align':[]},{'align':'center'},{'align':'right'}],
           ['blockquote'],
           [{'list':'ordered'},{'list':'bullet'}],
-          ['link', 'clean']
-        ]
+          ['link','image','video','hotspot','clean']
+        ],
+        handlers: {
+          image: function(){
+            const picker = document.createElement('div');
+            picker.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4200;display:flex;align-items:center;justify-content:center';
+            picker.innerHTML=`<div style="background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:16px;max-width:520px;width:92vw"><div style="font-size:14px;font-weight:600;margin-bottom:8px">插入图片</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-s btn-sm" id="qtiMedia">🗂 媒体库</button><button class="btn btn-s btn-sm" id="qtiUrl">🔗 外链 URL</button><label class="btn btn-s btn-sm" style="cursor:pointer">📎 本地上传<input type="file" id="qtiFile" accept="image/*" multiple style="display:none"></label><button class="btn btn-d btn-sm" id="qtiCancel" style="margin-left:auto">取消</button></div></div>`;
+            document.body.appendChild(picker);
+            picker.querySelector('#qtiCancel').onclick=()=>picker.remove();
+            picker.querySelector('#qtiMedia').onclick=()=>{ picker.remove(); openMediaPicker((result)=>{
+              let idx=(q.getSelection(true)||{index:q.getLength()}).index;
+              if(Array.isArray(result) && result.length){
+                result.forEach(it=>{
+                  const u=(it&&it.url)||((it&&it.filename)?fileSrc(it.filename):'');
+                  if(u){ q.insertEmbed(idx,'image',u,'user'); idx+=1; }
+                });
+              }else if(result){
+                const fn=(result.filename||result);
+                const url=result.url||fileSrc(fn);
+                q.insertEmbed(idx,'image',url,'user');
+                idx+=1;
+              }
+              q.setSelection(idx);
+            }, 'image', {multi:true}); };
+            picker.querySelector('#qtiUrl').onclick=()=>{ picker.remove(); openUrlLoader((fn,url,type)=>{ if(type!=='image'){toast('请输入图片链接','err');return;} const range=q.getSelection(true); q.insertEmbed(range?range.index:0,'image',url,'user'); q.setSelection((range?range.index:0)+1); }, 'image'); };
+            picker.querySelector('#qtiFile').onchange=async (ev)=>{ const files=Array.from((ev.target.files||[])); if(!files.length) return; let idx=(q.getSelection(true)||{index:q.getLength()}).index; for(const f of files){ const fd=new FormData(); fd.append('file',f); const r=await fetch('/admin/site/splash/upload-media',{method:'POST',body:fd}); const d=await r.json().catch(()=>({})); if(r.ok&&d.success&&d.media_type==='image'){ q.insertEmbed(idx,'image',d.url,'user'); idx+=1; } else { toast((d.error||'上传失败')+'：'+f.name,'err'); } } q.setSelection(idx); picker.remove(); };
+          },
+          hotspot: function(){
+            const editor = q.root;
+            const imgs = Array.from(editor.querySelectorAll('img'));
+            if(!imgs.length){ toast('正文中还没有图片', 'err'); return; }
+            openSplashEditorImageChooser(imgs, (picked)=>openSplashHotspotEditorForImage(picked, q));
+          },
+          video: function(){
+            const picker = document.createElement('div');
+            picker.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4200;display:flex;align-items:center;justify-content:center';
+            picker.innerHTML=`<div style="background:var(--bg);border:1px solid var(--bd);border-radius:12px;padding:16px;max-width:520px;width:92vw"><div style="font-size:14px;font-weight:600;margin-bottom:8px">插入视频</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-s btn-sm" id="qtvMedia">🗂 媒体库</button><button class="btn btn-s btn-sm" id="qtvUrl">🔗 外链 URL</button><label class="btn btn-s btn-sm" style="cursor:pointer">📎 本地上传<input type="file" id="qtvFile" accept="video/*" multiple style="display:none"></label><button class="btn btn-d btn-sm" id="qtvCancel" style="margin-left:auto">取消</button></div></div>`;
+            document.body.appendChild(picker);
+            picker.querySelector('#qtvCancel').onclick=()=>picker.remove();
+            picker.querySelector('#qtvMedia').onclick=()=>{ picker.remove(); openMediaPicker((fn,url,type)=>{ if(type!=='video'){toast('请选择视频','err');return;} const range=q.getSelection(true); q.insertEmbed(range?range.index:0,'video',url,'user'); q.setSelection((range?range.index:0)+1); }, 'video'); };
+            picker.querySelector('#qtvUrl').onclick=()=>{ picker.remove(); openUrlLoader((fn,url,type)=>{ if(type!=='video'){toast('请输入视频链接','err');return;} const range=q.getSelection(true); q.insertEmbed(range?range.index:0,'video',url,'user'); q.setSelection((range?range.index:0)+1); }, 'video'); };
+            picker.querySelector('#qtvFile').onchange=async (ev)=>{ const files=Array.from((ev.target.files||[])); if(!files.length) return; let idx=(q.getSelection(true)||{index:q.getLength()}).index; for(const f of files){ const fd=new FormData(); fd.append('file',f); const r=await fetch('/admin/site/splash/upload-media',{method:'POST',body:fd}); const d=await r.json().catch(()=>({})); if(r.ok&&d.success&&d.media_type==='video'){ q.insertEmbed(idx,'video',d.url,'user'); idx+=1; } else { toast((d.error||'上传失败')+'：'+f.name,'err'); } } q.setSelection(idx); picker.remove(); };
+          }
+        }
       }
     }
   });
@@ -4539,7 +5047,25 @@ function createQuillEditor(containerId, placeholder, opts) {
   // 深色样式（CSS 已全局定义 .ql-dark-editor 类）
   el.classList.add('ql-dark-editor');
 
-  if (opts.onChange) q.on('text-change', opts.onChange);
+  // 强制让“热点”按钮可见（部分主题/扩展会把默认按钮渲染为空白）
+  try{
+    const tb = el.previousElementSibling;
+    const hsBtn = tb && tb.querySelector ? tb.querySelector('button.ql-hotspot') : null;
+    if(hsBtn){
+      hsBtn.setAttribute('title','插入热点');
+      hsBtn.setAttribute('aria-label','插入热点');
+      hsBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 2a7 7 0 0 0-4.95 11.95L11 17.9V21a1 1 0 1 0 2 0v-3.1l3.95-3.95A7 7 0 0 0 12 2zm0 2a5 5 0 0 1 3.54 8.54L12 16.07l-3.54-3.53A5 5 0 0 1 12 4z" fill="currentColor"/></svg>';
+    }
+  }catch(_e){}
+
+  // 初始化后先执行一次，确保历史内容里的视频也不自动播放
+  enforceNoAutoplayInRichEditor(q.root);
+
+  q.on('text-change', function(){
+    enforceNoAutoplayInRichEditor(q.root);
+    if (opts.onChange) opts.onChange();
+  });
+
   el._quillInstance = q;
   return q;
   }
@@ -4570,9 +5096,16 @@ function createQuillEditor(containerId, placeholder, opts) {
     .ql-dark-editor .ql-toolbar button:hover .ql-stroke{stroke:#fff}
     .ql-dark-editor .ql-toolbar button.ql-active .ql-stroke{stroke:#a78bfa}
     .ql-dark-editor .ql-toolbar button.ql-active .ql-fill{fill:#a78bfa}
+    .ql-dark-editor .ql-toolbar .ql-picker-label{color:rgba(255,255,255,.8)}
     .ql-dark-editor .ql-toolbar .ql-picker-options{background:rgb(44,44,58);border:1px solid rgba(255,255,255,.15)}
     .ql-dark-editor .ql-toolbar .ql-picker-item{color:rgba(255,255,255,.7)}
     .ql-dark-editor .ql-toolbar .ql-picker-item:hover{color:#fff}
+    .ql-dark-editor .ql-toolbar .ql-color .ql-picker-label,
+    .ql-dark-editor .ql-toolbar .ql-background .ql-picker-label,
+    .ql-dark-editor .ql-toolbar .ql-size .ql-picker-label{border-color:rgba(255,255,255,.2)}
+    .ql-dark-editor .ql-toolbar .ql-hotspot{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid rgba(167,139,250,.45);border-radius:6px;background:rgba(167,139,250,.12);color:#c4b5fd}
+    .ql-dark-editor .ql-toolbar .ql-hotspot:hover{background:rgba(167,139,250,.22);color:#ddd6fe}
+    .ql-dark-editor .ql-toolbar .ql-hotspot svg{display:block;width:16px;height:16px;pointer-events:none}
   `;
   document.head.appendChild(s);
 })();
@@ -4585,7 +5118,9 @@ function initBioEditor(html) {
       modules: {
         toolbar: {
           container: [
+            [{'size':['small', false, 'large', 'huge']}],
             ['bold','italic','underline'],
+            [{'color':[]},{'background':[]}],
             [{'align':[]},{'align':'center'},{'align':'right'}],
             ['blockquote'],
             [{'list':'ordered'},{'list':'bullet'}],
@@ -4619,7 +5154,21 @@ function initBioEditor(html) {
               setTimeout(() => document.addEventListener('click', close), 100);
               menu.querySelector('#_bioImgLib').onclick = () => {
                 menu.remove(); document.removeEventListener('click', close);
-                openMediaPicker((fn, url) => _insertImg(fileSrc(fn)), 'image');
+                openMediaPicker((result) => {
+                  let idx = (_bioQuill.getSelection(true) || {index:_bioQuill.getLength()}).index;
+                  if (Array.isArray(result) && result.length) {
+                    result.forEach(it => {
+                      const u = (it && it.url) || ((it && it.filename) ? fileSrc(it.filename) : '');
+                      if (u) { _bioQuill.insertEmbed(idx, 'image', u, 'user'); idx += 1; }
+                    });
+                  } else if (result) {
+                    const fn = (result.filename || result);
+                    const url = result.url || fileSrc(fn);
+                    _bioQuill.insertEmbed(idx, 'image', url, 'user');
+                    idx += 1;
+                  }
+                  _bioQuill.setSelection(idx);
+                }, 'image', {multi:true});
               };
               menu.querySelector('#_bioImgUrl').onclick = () => {
                 menu.remove(); document.removeEventListener('click', close);
@@ -4651,7 +5200,11 @@ function initBioEditor(html) {
       });
     }
 
+    // bio 编辑器同样禁止视频自动播放
+    enforceNoAutoplayInRichEditor(_bioQuill.root);
+
     _bioQuill.on('text-change', () => {
+      enforceNoAutoplayInRichEditor(_bioQuill.root);
       if (!siteData.about) siteData.about = {};
       siteData.about.bio = _bioQuill.root.innerHTML;
       siteData.about.paragraphs = [];
@@ -6571,9 +7124,10 @@ async function doChangePw(){
   else{const d=await r.json();toast(d.error||'失败','err');}
 }
 
-init();
+init().then(()=>{
+  applyHashPage();
+});
 window.addEventListener('hashchange', applyHashPage);
-setTimeout(applyHashPage, 0);
 // ════════════════════════════════════════
 // 详情精选管理
 // ════════════════════════════════════════
@@ -6593,6 +7147,10 @@ async function loadFeaturedAdmin() {
   document.getElementById('ftTitle').value    = cfg.title    || '详情精选';
   document.getElementById('ftSub').value      = cfg.subtitle || 'FEATURED';
   document.getElementById('ftPosition').value = cfg.position || 'after_showcase';
+  document.getElementById('ftContentWidth').value = parseInt(cfg.content_width||900,10);
+  const nw=document.getElementById('ftNewContentWidth');
+  if(nw) nw.value = parseInt(cfg.content_width||900,10);
+  document.getElementById('ftContentWidth').value = parseInt(cfg.content_width,10) || 900;
   renderFtList();
 }
 
@@ -6615,6 +7173,7 @@ async function saveFtConfig() {
     title:    document.getElementById('ftTitle').value.trim(),
     subtitle: document.getElementById('ftSub').value.trim(),
     position: document.getElementById('ftPosition').value,
+    content_width: parseInt(document.getElementById('ftContentWidth').value||'900',10),
   };
   const res = await fetch('/admin/featured/config', {
     method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
@@ -6709,63 +7268,24 @@ function ftClearNewCover() {
   if (prev) prev.innerHTML = '🖼';
 }
 
-function ftPickMedia() {
-  openMediaPicker(function(fn) { ftAddImg(fn); }, 'image');
-}
-function ftPickUrl() {
-  openUrlLoader(function(fn, url) { ftAddImg(url); }, 'image');
-}
-function ftPickMediaForItem(id) {
-  openMediaPicker(function(fn) { ftAddImgToItem(id, fn); }, 'image');
-}
-function ftPickUrlForItem(id) {
-  openUrlLoader(function(fn, url) { ftAddImgToItem(id, url); }, 'image');
-}
 
-function ftAddImg(src) {
-  _ftNewImgs.push({type:'existing', src});
-  document.getElementById('ftNewPreviews').insertAdjacentHTML('beforeend',
-    ftThumbHtml(fileSrc(src), _ftNewImgs.length - 1));
-}
-
-function ftThumbHtml(url, idx) {
-  return `<div style="position:relative;flex-shrink:0">
-    <img src="${url}" style="width:80px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--bd)" onerror="this.style.display='none'">
-    <button onclick="ftRemoveNewImg(${idx})" style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:var(--err,#e55);color:#fff;border:none;font-size:10px;cursor:pointer;line-height:1;padding:0">×</button>
-  </div>`;
-}
-
-function ftRemoveNewImg(idx) {
-  _ftNewImgs.splice(idx, 1);
-  // 重新渲染预览
-  const previews = document.getElementById('ftNewPreviews');
-  previews.innerHTML = _ftNewImgs.map((img, i) =>
-    ftThumbHtml(img.url || fileSrc(img.src), i)
-  ).join('');
-}
 
 async function ftSubmitNew() {
-  if (!_ftNewImgs.length) { toast('请至少添加一张图片', 'err'); return; }
   const fd = new FormData();
   const ftNewIdEl = document.getElementById('ftNewId');
   if (ftNewIdEl && ftNewIdEl.value.trim()) fd.append('id', ftNewIdEl.value.trim());
   fd.append('title', document.getElementById('ftNewTitle').value.trim());
   fd.append('content', document.getElementById('ftNewContent')._quillInstance ? document.getElementById('ftNewContent')._quillInstance.root.innerHTML : '');
+  fd.append('content_width', String(parseInt((document.getElementById('ftNewContentWidth')||{}).value||document.getElementById('ftContentWidth').value||'900',10)));
   if (_ftNewCover) fd.append('cover', _ftNewCover);
-  _ftNewImgs.forEach(img => {
-    if (img.type === 'file') fd.append('images', img.file);
-    else fd.append('existing_images', img.src);
-  });
   const res = await fetch('/admin/featured/upload', {method: 'POST', body: fd});
   const d = await res.json();
   if (d.success) {
     _ftItems.unshift(d.item);
-    _ftNewImgs = [];
     _ftNewCover = '';
     document.getElementById('ftNewTitle').value = '';
     const fnid = document.getElementById('ftNewId'); if (fnid) fnid.value = '';
     if(document.getElementById('ftNewContent')._quillInstance) document.getElementById('ftNewContent')._quillInstance.root.innerHTML = '';
-    document.getElementById('ftNewPreviews').innerHTML = '';
     const cp = document.getElementById('ftNewCoverPrev');
     if(cp) cp.innerHTML = '🖼';
     renderFtList();
@@ -6781,28 +7301,13 @@ function renderFtList() {
     return;
   }
   el.innerHTML = _ftItems.map(item => {
-    const imgs = item.images || [];
-    const thumbsHtml = imgs.map((fn, i) =>
-      `<div draggable="true"
-          data-item="${item.id}" data-idx="${i}"
-          ondragstart="ftImgDragStart(event,'${item.id}',${i})"
-          ondragover="ftImgDragOver(event)"
-          ondrop="ftImgDrop(event,'${item.id}',${i})"
-          ondragend="ftImgDragEnd(event)"
-          style="position:relative;flex-shrink:0;cursor:grab;transition:opacity .15s">
-        <img src="${fileSrc(fn)}" style="width:64px;height:52px;object-fit:cover;border-radius:6px;border:2px solid var(--bd);pointer-events:none" referrerpolicy="no-referrer" onerror="this.style.display='none'">
-        <div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.5);color:#fff;font-size:9px;padding:0 3px;border-radius:3px;pointer-events:none">${i+1}</div>
-        <button onclick="ftDeleteImg('${item.id}',${i})" title="移除此图"
-          style="position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;background:rgba(220,50,50,.85);color:#fff;border:none;font-size:9px;cursor:pointer;line-height:1;padding:0">×</button>
-      </div>`
-    ).join('');
     return `<div class="ft-item-row" draggable="true"
       ondragstart="ftItemDragStart(event,'${item.id}')"
       ondragover="ftItemDragOver(event)"
       ondragleave="ftItemDragLeave(event)"
       ondrop="ftItemDrop(event,'${item.id}')"
       ondragend="ftItemDragEnd()"
-      style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;display:grid;grid-template-columns:minmax(360px,1.3fr) minmax(260px,1fr);gap:12px;align-items:start">
+      style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:14px;display:grid;grid-template-columns:minmax(420px,1.5fr) minmax(240px,1fr);gap:12px;align-items:start">
       <div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <span class="drag-handle" title="拖动排序" style="cursor:grab;font-size:16px;color:var(--mu)">⠿</span>
@@ -6817,6 +7322,10 @@ function renderFtList() {
             style="font-size:12px;max-width:280px" oninput="var s=document.getElementById('ftItemDeepLink-${item.id}');if(s)s.textContent=this.value">
           <div style="font-size:10px;color:var(--mu);margin-top:2px">深链接: <code>/#featured/<span id="ftItemDeepLink-${item.id}">${esc(item.id||'')}</span></code></div>
         </div>
+        <div class="fg" style="margin-bottom:8px;max-width:240px">
+          <label style="font-size:11px;color:var(--mu)">本条内容宽度（px）</label>
+          <input class="inp" id="ftItemWidth-${item.id}" type="number" min="420" max="2200" step="10" value="${parseInt(item.content_width||900,10)}" style="font-size:12px">
+        </div>
         <div id="ftItemContent-${item.id}" style="background:rgb(34,34,46);border-radius:8px;min-height:120px;font-size:13px"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:6px;gap:6px">
           <button class="btn btn-s btn-xs" onclick="ftSaveContentEditor('${item.id}')">保存文本内容</button>
@@ -6824,8 +7333,6 @@ function renderFtList() {
         </div>
       </div>
       <div>
-        <div style="font-size:11px;color:var(--mu);margin-bottom:8px">${imgs.length} 张图片（可拖动缩略图排序）</div>
-        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">${thumbsHtml}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:var(--s3);border-radius:7px">
           <span style="font-size:11px;color:var(--mu);flex-shrink:0">封面缩图：</span>
           <div id="ftCoverPrev-${item.id}" style="width:60px;height:46px;border-radius:5px;overflow:hidden;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">
@@ -6834,12 +7341,7 @@ function renderFtList() {
           <button class="btn btn-s btn-sm" onclick="ftSetCover('${item.id}')">选择</button>
           ${item.cover ? `<button class="btn btn-s btn-sm" onclick="ftClearCover('${item.id}')">清除</button>` : ''}
         </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <input type="file" id="ftAddImg-${item.id}" accept="image/*" multiple style="display:none" onchange="ftUploadMoreImgs('${item.id}',this)">
-          <button class="btn btn-s btn-sm" onclick="document.getElementById('ftAddImg-${item.id}').click()">📎 上传图片</button>
-          <button class="btn btn-s btn-sm" onclick="ftPickMediaForItem('${item.id}')">🗂 媒体库</button>
-          <button class="btn btn-s btn-sm" onclick="ftPickUrlForItem('${item.id}')">🔗 URL</button>
-        </div>
+        <div style="font-size:11px;color:var(--mu)">媒体内容请直接在左侧富文本中编辑（图/文/视频）。</div>
       </div>
     </div>`;
   }).join('');
@@ -6917,7 +7419,8 @@ async function ftSaveItem(id) {
   const idEl = document.getElementById(`ftItemId-${id}`);
   const title = titleEl ? titleEl.value : (item.title || '');
   const content = (contentEl && contentEl._quillInstance) ? contentEl._quillInstance.root.innerHTML : (item.content || '');
-  const payload = { title, content };
+  const widthEl = document.getElementById(`ftItemWidth-${id}`);
+  const payload = { title, content, content_width: parseInt((widthEl&&widthEl.value)||'900',10) };
   if (idEl && idEl.value.trim()) payload.id = idEl.value.trim();
   const res = await fetch(`/admin/featured/${id}`, {
     method: 'PUT', headers: {'Content-Type':'application/json'},
@@ -6986,46 +7489,6 @@ async function ftDeleteItem(id) {
   }
 }
 
-async function ftDeleteImg(itemId, imgIdx) {
-  const item = _ftItems.find(i => i.id === itemId);
-  if (!item) return;
-  if (item.images.length <= 1) { toast('至少保留一张图片', 'err'); return; }
-  item.images.splice(imgIdx, 1);
-  await fetch(`/admin/featured/${itemId}`, {
-    method: 'PUT', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({images_order: item.images})  // 传顺序告知后端
-  });
-  // 直接更新后端存储图片列表
-  const fd = new FormData();
-  item.images.forEach(fn => fd.append('images_order', fn));
-  await fetch(`/admin/featured/${itemId}`, {method: 'PUT', body: fd});
-  renderFtList();
-  toast('图片已移除');
-}
-
-async function ftUploadMoreImgs(itemId, inp) {
-  const item = _ftItems.find(i => i.id === itemId);
-  if (!item) return;
-  const fd = new FormData();
-  Array.from(inp.files).forEach(f => fd.append('images', f));
-  const res = await fetch(`/admin/featured/${itemId}`, {method: 'PUT', body: fd});
-  const d = await res.json();
-  if (d.success) { Object.assign(item, d.item); renderFtList(); toast('已上传'); }
-  else toast('上传失败', 'err');
-  inp.value = '';
-}
-
-async function ftAddImgToItem(itemId, src) {
-  const item = _ftItems.find(i => i.id === itemId);
-  if (!item) return;
-  item.images.push(src);
-  const fd = new FormData();
-  fd.append('existing_images', src);
-  const res = await fetch(`/admin/featured/${itemId}`, {method: 'PUT', body: fd});
-  const d = await res.json();
-  if (d.success) { Object.assign(item, d.item); renderFtList(); toast('已添加'); }
-  else toast('添加失败', 'err');
-}
 
 
 // ════════════════════════════════════════
@@ -7095,43 +7558,6 @@ function addEmojiFromUrl() {
   });
 }
 
-// ════════════════════════════════════════
-// 详情精选图片拖拽排序
-// ════════════════════════════════════════
-let _ftImgDragItemId = null, _ftDragFromIdx = null;
-
-function ftImgDragStart(e, itemId, idx) {
-  _ftImgDragItemId = itemId; _ftDragFromIdx = idx;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.style.opacity = '0.4';
-}
-function ftImgDragOver(e) {
-  e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-  e.currentTarget.style.borderColor = 'var(--ac)';
-}
-function ftImgDragEnd(e) {
-  e.currentTarget.style.opacity = '';
-  // 清除所有高亮
-  document.querySelectorAll('[data-item]').forEach(el => el.style.borderColor = '');
-}
-async function ftImgDrop(e, itemId, toIdx) {
-  e.preventDefault();
-  e.currentTarget.style.borderColor = '';
-  if (_ftDragItemId !== itemId || _ftDragFromIdx === toIdx) return;
-  const item = _ftItems.find(i => i.id === itemId);
-  if (!item) return;
-  // 重新排列
-  const imgs = [...item.images];
-  const [moved] = imgs.splice(_ftDragFromIdx, 1);
-  imgs.splice(toIdx, 0, moved);
-  item.images = imgs;
-  // 同步后端
-  const fd = new FormData();
-  imgs.forEach(fn => fd.append('images_order', fn));
-  await fetch(`/admin/featured/${itemId}`, {method:'PUT', body:fd});
-  renderFtList();
-  toast('顺序已更新');
-}
 
 // ════════════════════════════════════════
 // 数据备份

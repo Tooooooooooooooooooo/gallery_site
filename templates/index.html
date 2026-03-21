@@ -19,6 +19,27 @@ html{scroll-behavior:smooth}
 body{font-family:'Noto Sans SC',sans-serif;background:var(--bg);color:var(--tx);transition:background .3s,color .3s}
 @media(prefers-reduced-motion:reduce){.slide,.sc-card,.m-item,.featured-card,.modal,.theme-popup,.hero-dot,.hero-arr{transition:none!important}.sc-card:hover,.m-item:hover,.featured-card:hover{transform:none}}
 
+/* SPLASH */
+body.splash-active{overflow:hidden}
+.splash{position:fixed;inset:0;z-index:1200;background:#111;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.splash-bg{position:fixed;inset:0;z-index:0;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
+.splash-inner{position:relative;z-index:1;min-height:220vh;padding:5vh 14px 16vh;display:flex;justify-content:center}
+.splash-card{width:min(var(--splash-card-max-width,980px),94vw);margin:0 auto;background:rgba(0,0,0,.38);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:26px 22px;color:#fff;box-shadow:0 20px 80px rgba(0,0,0,.38)}
+.splash-badge{display:inline-flex;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.13);font-size:11px;letter-spacing:.12em;margin-bottom:10px}
+.splash-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4.5vw,var(--splash-title-size,52px));line-height:1.1;margin:6px 0 8px}
+.splash-sub{font-size:14px;color:rgba(255,255,255,.82);margin-bottom:14px}
+.splash-media{width:100%;border-radius:12px;overflow:hidden;background:rgba(0,0,0,.4);min-height:120px;margin-bottom:14px}
+.splash-media img,.splash-media video{width:100%;max-height:68vh;display:block}
+.splash-content{font-size:15px;line-height:1.85;color:rgba(255,255,255,.92)}
+.splash-content p{margin:0 0 12px}
+.splash-content a{color:#ffdca8}
+.splash-content blockquote{border-left:3px solid rgba(255,255,255,.55);padding-left:10px;color:rgba(255,255,255,.8)}
+.splash-content img,.splash-content video,.splash-content iframe{display:block;max-width:100%;width:100%;height:auto;border-radius:10px;margin:0;object-fit:contain;vertical-align:top}
+.splash-content .ql-video{width:100%;aspect-ratio:16/9;min-height:220px;border:0}
+.splash-hint{position:sticky;bottom:10px;margin-top:20px;display:inline-block;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.2);padding:8px 12px;border-radius:999px;font-size:12px;color:rgba(255,255,255,.9)}
+.splash-progress{position:sticky;bottom:0;height:4px;background:rgba(255,255,255,.18);border-radius:99px;overflow:hidden;margin-top:12px}
+.splash-progress span{display:block;height:100%;width:0%;background:#fff;transition:width .12s linear}
+
 /* NAV */
 nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 28px;gap:8px;transition:background .3s}
 .nav-logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:.15em;color:var(--tx);text-decoration:none;margin-right:auto}
@@ -283,8 +304,11 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 .fv-img-wrap{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;padding-right:8px}
 .fv-img-wrap::-webkit-scrollbar{width:4px}
 .fv-img-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
-.fv-list{width:100%;max-width:900px;margin:0 auto}
-.fv-list img{width:100%;display:block;object-fit:cover}
+.fv-list{width:100%;max-width:var(--fv-content-width,900px);margin:0 auto;color:rgba(255,255,255,.92);font-size:15px;line-height:1.85}
+.fv-list p,.fv-list li,.fv-list div,.fv-list span,.fv-list blockquote{color:rgba(255,255,255,.92)}
+.fv-list a{color:#ffdca8}
+.fv-list img,.fv-list video,.fv-list iframe{width:100%;max-width:100%;display:block;object-fit:contain}
+.fv-list .ql-video{width:100%;aspect-ratio:16/9;min-height:220px;border:0}
 .fv-aside{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:10px;background:rgba(255,255,255,.04);border-left:1px solid rgba(255,255,255,.08)}
 .fv-aside::-webkit-scrollbar{width:4px}
 .fv-aside::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
@@ -307,6 +331,25 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 </style>
 </head>
 <body>
+<!-- SPLASH OVERLAY -->
+<div class="splash" id="splashOverlay" style="display:none">
+  <div class="splash-bg" id="splashBg"></div>
+  <div class="splash-inner">
+    <div class="splash-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div class="splash-badge">WELCOME</div>
+        <button onclick="closeSplashByButton()" style="border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.25);color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer">跳过</button>
+      </div>
+      <h1 class="splash-title" id="splashTitle"></h1>
+      <p class="splash-sub" id="splashSubtitle"></p>
+      <div class="splash-media" id="splashMedia"></div>
+      <div class="splash-content" id="splashContent"></div>
+      <div class="splash-hint" id="splashHint">继续向下滚动查看完整开屏内容</div>
+      <div class="splash-progress"><span id="splashProgress"></span></div>
+    </div>
+  </div>
+</div>
+
 <nav>
   <a class="nav-logo" href="/" id="navLogo">GAL·LERY</a>
   <button class="nav-toggle" type="button" onclick="toggleNavMenu()" aria-label="切换导航"><span></span></button>
@@ -428,6 +471,12 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 const THEME_COLORS={warm:'#c8a97e',cool:'#4a90d9',dark:'#7c6af5',green:'#4a9460',rose:'#d4607a'};
 let curSlide=0,slideTotal=0,autoT;
 let curPage=1,loading=false,hasMore=true,curCats=[],curSort='newest',curFavOnly=false;
+let splashCfg=null;
+let _splashShown=false;
+let _reopenSplashLockUntil=0;
+let _splashCloseWheelCount=8;
+let _splashReopenWheelCount=3;
+let _closingSplash=false;
 let modelHintText = '🖱️ 左键旋转 · 滚轮缩放 · 右键平移';
 let modelHintPos = 'bottom';
 let modelHintBg = 'rgba(0,0,0,.52)';
@@ -482,8 +531,152 @@ function togglePicker(){document.getElementById('themePop').classList.toggle('op
 document.addEventListener('click',e=>{if(!e.target.closest('.theme-trigger')&&!e.target.closest('.theme-popup'))document.getElementById('themePop').classList.remove('open');});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')clearTimeout(autoT);else if(slideTotal>1)startAuto();});
 
+function _closeSplash(){
+  const el=document.getElementById('splashOverlay');
+  if(!el || !_splashShown) return;
+  el.style.display='none';
+  document.body.classList.remove('splash-active');
+  _splashShown=false;
+  if(splashCfg && splashCfg.skip_after_enter===true){
+    try{ localStorage.setItem('splash_skip_once_entered','1'); }catch(e){}
+  }
+  _reopenSplashLockUntil = Date.now() + 1200;
+  // 标记正在关闭，防止 scrollTo(0,0) 触发 scroll 监听器误开开屏
+  _closingSplash = true;
+  try{ window.scrollTo({top:0, behavior:'auto'}); }catch(e){ window.scrollTo(0,0); }
+  setTimeout(()=>{ _closingSplash = false; }, 200);
+}
+function closeSplashByButton(){
+  _closeSplash();
+}
+let _splashDownWheelCount=0;
+let _splashDownWheelTimer=null;
+let _splashDownLastTick=0;
+function _updateSplashProgress(){
+  const el=document.getElementById('splashOverlay');
+  const bar=document.getElementById('splashProgress');
+  if(!el||!bar) return;
+  const total=Math.max(1, el.scrollHeight - el.clientHeight);
+  const p=Math.max(0, Math.min(1, el.scrollTop / total));
+  bar.style.width=(p*100).toFixed(1)+'%';
+}
+function _renderSplash(cfg, forceOpen){
+  forceOpen = !!forceOpen;
+  const el=document.getElementById('splashOverlay');
+  if(!el) return;
+  splashCfg = cfg || {};
+  _splashCloseWheelCount = Math.max(1, Math.min(100, parseInt(splashCfg.close_wheel_count ?? 8, 10) || 8));
+  _splashReopenWheelCount = Math.max(1, Math.min(100, parseInt(splashCfg.reopen_wheel_count ?? 3, 10) || 3));
+  const cardWidth = Math.max(420, Math.min(2200, parseInt(splashCfg.card_width ?? 980, 10) || 980));
+  document.documentElement.style.setProperty('--splash-card-max-width', cardWidth + 'px');
+  const titleSize = Math.max(20, Math.min(120, parseInt(splashCfg.title_size ?? 52, 10) || 52));
+  document.documentElement.style.setProperty('--splash-title-size', titleSize + 'px');
+  if(!cfg || cfg.enabled===false){
+    el.style.display='none';
+    document.body.classList.remove('splash-active');
+    _splashShown=false;
+    return;
+  }
+  if(!forceOpen && cfg.skip_after_enter===true){
+    try{
+      if(localStorage.getItem('splash_skip_once_entered')==='1'){
+        el.style.display='none';
+        document.body.classList.remove('splash-active');
+        _splashShown=false;
+        return;
+      }
+    }catch(e){}
+  }
+  const bg=document.getElementById('splashBg');
+  const title=document.getElementById('splashTitle');
+  const sub=document.getElementById('splashSubtitle');
+  const media=document.getElementById('splashMedia');
+  const content=document.getElementById('splashContent');
+  const hint=document.getElementById('splashHint');
+  if(bg){
+    const bgt=(cfg.bg_type||'gradient');
+    if(bgt==='image' && cfg.bg_value){
+      bg.style.background=`url('${fileSrc(cfg.bg_value)}') center/cover no-repeat`;
+      bg.innerHTML='';
+    }else if(bgt==='video' && cfg.bg_value){
+      bg.style.background='#111';
+      bg.innerHTML=`<video src="${fileSrc(cfg.bg_value)}" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>`;
+    }else{
+      bg.style.background=(cfg.bg_value||'linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)');
+      bg.innerHTML='';
+    }
+  }
+  if(title) title.innerHTML=cfg.title||'';
+  if(sub) sub.textContent=cfg.subtitle||'';
+  if(content){
+    content.innerHTML=cfg.content||'';
+    const map=(cfg.hotspots_by_image&&typeof cfg.hotspots_by_image==='object')?cfg.hotspots_by_image:{};
+    const legacyImg=(cfg.hotspot_image||'').trim();
+    const legacyHs=(Array.isArray(cfg.hotspots)?cfg.hotspots:[]);
+    const allImgs=Array.from(content.querySelectorAll('img'));
+    allImgs.forEach((im)=>{
+      const raw=(im.getAttribute('src')||'').trim();
+      let key='';
+      try{
+        if(raw.startsWith('/static/uploads/')) key=raw.replace('/static/uploads/','');
+        else {
+          const u=new URL(raw, location.origin);
+          if(u.origin===location.origin && u.pathname.startsWith('/static/uploads/')) key=u.pathname.replace('/static/uploads/','');
+          else key=raw;
+        }
+      }catch(e){ key=raw; }
+      let hs = Array.isArray(map[key]) ? map[key] : [];
+      if(!hs.length && legacyImg && legacyHs.length){
+        const src=fileSrc(legacyImg);
+        if(raw===src || raw.endsWith('/'+legacyImg) || raw===legacyImg) hs=legacyHs;
+      }
+      if(!hs.length) return;
+      const wrap=document.createElement('div');
+      wrap.style.cssText='position:relative;width:100%;margin:0';
+      im.parentNode.insertBefore(wrap, im);
+      wrap.appendChild(im);
+      const layer=document.createElement('div');
+      layer.style.cssText='position:absolute;inset:0;pointer-events:none';
+      hs.forEach((h)=>{
+        const a=document.createElement('a');
+        a.href=h.href||'#';
+        a.target=h.target||'_self';
+        a.rel='noopener noreferrer';
+        a.title=h.title||'';
+        a.style.cssText=`position:absolute;left:${h.x}%;top:${h.y}%;width:${h.w}%;height:${h.h}%;display:block;pointer-events:auto;`;
+        layer.appendChild(a);
+      });
+      wrap.appendChild(layer);
+    });
+  }
+  if(hint) hint.style.display=cfg.auto_close===false?'none':'inline-block';
+  if(media){
+    const mt=(cfg.media_type||'none');
+    const mv=(cfg.media_value||'').trim();
+    if(mt==='image' && mv){
+      media.style.display='block';
+      media.innerHTML=`<img src="${fileSrc(mv)}" alt="" style="object-fit:${cfg.media_fit==='cover'?'cover':'contain'}">`;
+    }else if(mt==='video' && mv){
+      media.style.display='block';
+      media.innerHTML=`<video src="${fileSrc(mv)}" controls autoplay muted playsinline style="object-fit:${cfg.media_fit==='cover'?'cover':'contain'}"></video>`;
+    }else{
+      media.style.display='none';
+      media.innerHTML='';
+    }
+  }
+  el.style.display='block';
+  document.body.classList.add('splash-active');
+  _splashShown=true;
+  // 必须在下一帧再重置 scrollTop 并更新进度，
+  // 否则 scrollTop 赋值可能未生效，导致 p>=0.995 立即再次触发关闭
+  requestAnimationFrame(()=>{
+    el.scrollTop=0;
+    _updateSplashProgress();
+  });
+}
+
 async function init(){
-  const site=await fetch('/api/site').then(r=>r.json());
+  const site=await fetch('/api/site?_t='+Date.now()).then(r=>r.json());
   const t=localStorage.getItem('g_theme')||(site.theme||'warm');
   applyTheme(t);
   const b=site.site||{};
@@ -496,7 +689,6 @@ async function init(){
   modelHintFontSize = Number(b.model_hint_font_size) || 12;
   modelHintMaxWidth = Number(b.model_hint_max_width) || 900;
   modelHintRadius = Number(b.model_hint_radius) || 10;
-  // 读取炫酷效果开关
   const fxFlags = { particles: !!b.fx_particles, nodes: !!b.fx_nodes };
   renderNav(site.nav||{});
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
@@ -507,6 +699,12 @@ async function init(){
   openModalFromHash();
   setupFx(fxFlags);
   setupBgm(site.music||{});
+  const spCfg = site.splash||{};
+  const wantSplashFromHash = (location.hash||'').trim().toLowerCase()==='#splash';
+  _renderSplash(spCfg, wantSplashFromHash);
+  if(wantSplashFromHash && spCfg && spCfg.enabled!==false){
+    try{ window.scrollTo({top:0, behavior:'auto'}); }catch(e){ window.scrollTo(0,0); }
+  }
 }
 function openModalFromHash(){
   const hash=location.hash||'';
@@ -528,9 +726,24 @@ function openModalFromHash(){
   if(m&&_featuredMap[m[1]]){ openFv(_featuredMap[m[1]]); return; }
 }
 
+function _openSplashFromNav(e){
+  if(e){ e.preventDefault(); }
+  if(splashCfg && splashCfg.enabled!==false){
+    _renderSplash(splashCfg, true);
+  }
+  const links=document.getElementById('navLinks');
+  if(links) links.classList.remove('open');
+  try{ history.replaceState(history.state,'',location.pathname+location.search+'#splash'); }catch(err){}
+}
 function renderNav(nav){
   document.getElementById('navLogo').textContent=nav.logo||'GAL·LERY';
-  document.getElementById('navLinks').innerHTML=(nav.links||[]).map(l=>`<a href="${l.href}" target="${l.target||'_self'}">${l.label}</a>`).join('');
+  document.getElementById('navLinks').innerHTML=(nav.links||[])
+    .filter(l=>l && l.visible!==false)
+    .map(l=>{
+      const href=(l.href||'').trim();
+      if(href==='#splash') return `<a href="#splash" onclick="_openSplashFromNav(event)" target="${l.target||'_self'}">${l.label}</a>`;
+      return `<a href="${href}" target="${l.target||'_self'}">${l.label}</a>`;
+    }).join('');
 }
 
 function toggleNavMenu(){
@@ -1393,16 +1606,94 @@ if(_modalEl){
   _modalEl.addEventListener('touchstart', handleModalTouchStart, {passive:true});
   _modalEl.addEventListener('touchend', handleModalTouchEnd, {passive:true});
 }
-window.addEventListener('DOMContentLoaded', ()=>{
+function initDomBindings(){
+  if(window.__splashBindingsInited) return;
+  window.__splashBindingsInited=true;
+  const sp=document.getElementById('splashOverlay');
+  if(sp){
+    sp.addEventListener('scroll', _updateSplashProgress, {passive:true});
+    sp.addEventListener('touchmove', _updateSplashProgress, {passive:true});
+    sp.addEventListener('wheel', (e)=>{
+      _updateSplashProgress();
+      if(!splashCfg || splashCfg.auto_close===false) return;
+      if(!_splashShown) return;
+      if(e.deltaY <= 0) return;
+      const total=Math.max(1, sp.scrollHeight - sp.clientHeight);
+      const p=Math.max(0, Math.min(1, sp.scrollTop / total));
+      // 必须先滚动到开屏底部附近，再开始累计“几次滚轮”触发关闭
+      if(p < 0.985){ _splashDownWheelCount = 0; return; }
+      const now=Date.now();
+      if(now - _splashDownLastTick < 120) return;
+      _splashDownLastTick = now;
+      _splashDownWheelCount += 1;
+      clearTimeout(_splashDownWheelTimer);
+      _splashDownWheelTimer = setTimeout(()=>{ _splashDownWheelCount = 0; }, 1000);
+      if(_splashDownWheelCount >= _splashCloseWheelCount){
+        _splashDownWheelCount = 0;
+        _closeSplash();
+      }
+    }, {passive:true});
+  }
+  function _tryReopenSplashByUp(){
+    if(!splashCfg || splashCfg.enabled===false) return;
+    if(splashCfg.allow_reopen===false) return;
+    if(_splashShown) return;
+    if(_closingSplash) return;
+    if(Date.now() < _reopenSplashLockUntil) return;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    // 仅在首页滚动到顶部后，才允许累计“向上滚动次数”触发回开屏
+    if(y > 2) return;
+    const mod=document.getElementById('modal');
+    const fv=document.getElementById('fvOverlay');
+    const inModal=(mod&&mod.classList.contains('open'))||(fv&&fv.classList.contains('open'));
+    if(inModal) return;
+    _renderSplash(splashCfg, true);
+  }
+  // wheel 向上：仅在首页顶部按“滚动次数”触发回滚开屏
+  let _wheelUpCount = 0;
+  let _wheelUpTimer = null;
+  let _wheelUpLastTick = 0;
+  window.addEventListener('wheel', (e)=>{
+    if(e.deltaY >= 0){ _wheelUpCount = 0; return; }
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if(y > 2){ _wheelUpCount = 0; return; }
+    const now=Date.now();
+    if(now - _wheelUpLastTick < 120) return;
+    _wheelUpLastTick = now;
+    _wheelUpCount += 1;
+    clearTimeout(_wheelUpTimer);
+    _wheelUpTimer = setTimeout(()=>{ _wheelUpCount = 0; }, 1000);
+    if(_wheelUpCount >= _splashReopenWheelCount){
+      _wheelUpCount = 0;
+      _tryReopenSplashByUp();
+    }
+  }, {passive:true});
   const _fvEl = document.getElementById('fvOverlay');
   if(_fvEl){
     _fvEl.addEventListener('wheel', handleFvWheel, {passive:false});
     _fvEl.addEventListener('touchstart', handleFvTouchStart, {passive:true});
     _fvEl.addEventListener('touchend', handleFvTouchEnd, {passive:true});
   }
+}
+if(document.readyState==='loading'){
+  window.addEventListener('DOMContentLoaded', initDomBindings, {once:true});
+}else{
+  initDomBindings();
+}
+window.addEventListener('pageshow', function(){
+  if(!window.__splashBindReady){
+    window.__splashBindReady=true;
+    initDomBindings();
+  }
 });
 function showToast(msg,dur=3000){const t=document.getElementById("toast")||Object.assign(document.body.appendChild(document.createElement("div")),{id:"toast"});t.setAttribute('role','status');t.setAttribute('aria-live','polite');t.textContent=msg;t.style.cssText="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:9999;transition:opacity .3s";t.style.opacity=1;clearTimeout(t._t);t._t=setTimeout(()=>t.style.opacity=0,dur);}
-function fileSrc(f){return f&&(f.startsWith('http://')||f.startsWith('https://'))?f:'/static/uploads/'+f;}
+function fileSrc(f){
+  const s=String(f||'').trim();
+  if(!s) return '';
+  if(s.startsWith('http://')||s.startsWith('https://')||s.startsWith('data:')||s.startsWith('blob:')) return s;
+  if(s.startsWith('/static/uploads/')) return s;
+  return '/static/uploads/'+s.replace(/^\/+/, '');
+}
 function stripHtml(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||'';}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 // ── 炫酷鼠标/视觉效果 ──
 function setupFx(flags){
@@ -1742,6 +2033,7 @@ init();
 // 详情精选
 // ════════════════════════════════════════
 let _fvImages = [];
+let _fvMedia = [];
 let _fvContent = '';
 
 async function loadFeatured() {
@@ -1750,6 +2042,8 @@ async function loadFeatured() {
 
   const cfg = d.config;
   const pos = cfg.position || 'after_showcase';
+  const cwCfg = Math.max(420, Math.min(2200, parseInt(cfg.content_width||900,10) || 900));
+  document.documentElement.style.setProperty('--fv-content-width', cwCfg + 'px');
 
   // 填充标题
   const titleA = document.getElementById('featuredTitle');
@@ -1766,17 +2060,19 @@ async function loadFeatured() {
   _featuredMap = {};
   d.items.forEach(it=>{ if(it && it.id) _featuredMap[it.id]=it; });
   const html = d.items.map(item => {
-    const imgs  = item.images || [];
-    const first = item.cover || imgs[0];
+    const tmp = document.createElement('div');
+    tmp.innerHTML = item.content || '';
+    const imgs = Array.from(tmp.querySelectorAll('img')).map(im=>im.getAttribute('src')).filter(Boolean);
+    const first = item.cover || imgs[0] || '';
     const cover = first ? fileSrc(first) : '';
-    const cnt   = imgs.length;
+    const cnt = imgs.length;
     const titleHtml = item.title ? `<div class="featured-card-title">${esc(item.title)}</div>` : '';
     return `<div class="featured-card" onclick='openFv(${JSON.stringify(item).replace(/'/g,"&#39;")})'>
       ${cover ? `<img src="${cover}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : `<div style="height:280px;display:flex;align-items:center;justify-content:center;color:var(--mu)">🖼</div>`}
       ${cnt > 1 ? `<div class="featured-card-badge">共 ${cnt} 张</div>` : ''}
       <div class="featured-card-info">
         ${titleHtml}
-        <div class="featured-card-count">${cnt} 张图片</div>
+        <div class="featured-card-count">${cnt} 张缩图</div>
       </div>
     </div>`;
   }).join('');
@@ -1800,11 +2096,14 @@ async function loadFeatured() {
 
 function openFv(item) {
   _fvCurrentId = item.id || '';
-  _fvImages = item.images || [];
+  _fvImages = [];
+  _fvMedia = [];
   _fvContent = item.content || '';
   document.getElementById('fvTitle').textContent = item.title || '';
-  document.getElementById('fvCounter').textContent = _fvImages.length ? `共 ${_fvImages.length} 张` : '';
+  const iw = Math.max(420, Math.min(2200, parseInt(item.content_width||900,10) || 900));
+  document.documentElement.style.setProperty('--fv-content-width', iw + 'px');
   renderFvList();
+  document.getElementById('fvCounter').textContent = _fvMedia.length ? `共 ${_fvMedia.length} 个媒体` : '';
   renderFvThumbs();
   if(_fvCurrentId) trackVirtualPath('/#featured/'+_fvCurrentId);
   lockPageScroll();
@@ -1828,12 +2127,8 @@ function openFvByOffset(step){
 function handleFvWheel(e){
   const v=document.getElementById('fvOverlay');
   if(!v || !v.classList.contains('open')) return;
-  if(_fvNavLock) return;
-  if(Math.abs(e.deltaY) < 8) return;
-  e.preventDefault();
-  _fvNavLock = true;
-  openFvByOffset(e.deltaY > 0 ? 1 : -1);
-  setTimeout(()=>{ _fvNavLock = false; }, 180);
+  // 详情精选查看器：滚轮仅用于当前内容滚动，不再切换上一/下一条
+  // 不调用 preventDefault，保持浏览器原生滚动行为
 }
 
 function handleFvTouchStart(e){
@@ -1846,21 +2141,26 @@ function handleFvTouchStart(e){
 function handleFvTouchEnd(e){
   const v=document.getElementById('fvOverlay');
   if(!v || !v.classList.contains('open')) return;
-  if(_fvNavLock) return;
-  if(_fvTouchStartY == null) return;
-  const y = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : _fvTouchStartY;
-  const dy = y - _fvTouchStartY;
+  // 移动端同样不再通过滑动切换上下条，保留内容本身滚动
   _fvTouchStartY = null;
-  if(Math.abs(dy) < 36) return;
-  _fvNavLock = true;
-  openFvByOffset(dy < 0 ? 1 : -1);
-  setTimeout(()=>{ _fvNavLock = false; }, 220);
 }
 
 function closeFv(fromPopstate=false) {
-  document.getElementById('fvOverlay').classList.remove('open');
+  const ov=document.getElementById('fvOverlay');
+  ov.classList.remove('open');
+  try{
+    const wrap=document.getElementById('fvImgWrap');
+    wrap.querySelectorAll('video').forEach(v=>{ try{ v.pause(); v.currentTime=0; v.removeAttribute('autoplay'); v.src=''; v.load(); }catch(e){} });
+    wrap.querySelectorAll('iframe').forEach(fr=>{ try{ fr.setAttribute('src','about:blank'); }catch(e){} });
+    wrap.innerHTML='';
+    const aside=document.getElementById('fvAside');
+    if(aside) aside.innerHTML='';
+  }catch(e){}
   _fvCurrentId='';
   _fvTouchStartY=null;
+  _fvMedia=[];
+  _fvImages=[];
+  _fvContent='';
   unlockPageScroll();
   if(_fvHistoryPushed){
     if(!fromPopstate){
@@ -1873,16 +2173,43 @@ function closeFv(fromPopstate=false) {
 function renderFvList() {
   const wrap = document.getElementById('fvImgWrap');
   wrap.scrollTop = 0;
-  wrap.innerHTML = `<div class="fv-list">${_fvImages.map((fn,i) => {
-    const src = fileSrc(fn);
-    return `<img id="fv-img-${i}" src="${src}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
-  }).join('')}</div>`;
+  const tmp=document.createElement('div');
+  tmp.innerHTML=_fvContent||'';
+  _fvMedia = [];
+  let mediaIdx = 0;
+  Array.from(tmp.querySelectorAll('img,video,iframe,.ql-video')).forEach((el)=>{
+    const tag=(el.tagName||'').toLowerCase();
+    const src=(el.getAttribute('src')||'').trim();
+    if(!src) return;
+    const type=(tag==='img')?'image':'video';
+    el.setAttribute('data-fv-media-idx', String(mediaIdx));
+    _fvMedia.push({src, type, poster:(el.getAttribute('poster')||'').trim()});
+    mediaIdx += 1;
+  });
+  _fvImages = _fvMedia.filter(m=>m.type==='image').map(m=>m.src);
+  wrap.innerHTML = `<div class="fv-list">${tmp.innerHTML}</div>`;
   setTimeout(updateFvActiveThumb, 60);
 }
 
+function _fvThumbFallback(i){
+  const old=document.getElementById('fv-thumb-'+i);
+  if(!old) return;
+  const d=document.createElement('div');
+  d.className='fv-thumb';
+  d.id='fv-thumb-'+i;
+  d.onclick=function(){fvScrollTo(i);};
+  d.style.cssText='display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);color:#fff;font-size:20px';
+  d.textContent='▶';
+  old.replaceWith(d);
+}
 function renderFvThumbs(){
   const aside = document.getElementById('fvAside');
-  aside.innerHTML = `<div class="fv-thumb-grid">${_fvImages.map((fn,i)=>`<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(fn)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`).join('')}</div><div class="fv-content" id="fvContent">${_fvContent||''}</div><div class="fv-comments" id="fvComments"></div>`;
+  aside.innerHTML = `<div class="fv-thumb-grid">${_fvMedia.map((m,i)=> {
+    if(m.type==='image') return `<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(m.src)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`;
+    const p=(m.poster||'').trim();
+    if(p) return `<img class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(p)}" onclick="fvScrollTo(${i})" loading="lazy" referrerpolicy="no-referrer" onerror="_fvThumbFallback(${i})">`;
+    return `<video class="fv-thumb" id="fv-thumb-${i}" src="${fileSrc(m.src)}#t=0.1" onclick="fvScrollTo(${i})" muted preload="metadata" playsinline style="object-fit:cover" onerror="_fvThumbFallback(${i})"></video>`;
+  }).join('')}</div><div class="fv-comments" id="fvComments"></div>`;
   if(_fvCurrentId) loadFvComments(_fvCurrentId);
 }
 function loadFvComments(itemId){
@@ -1909,7 +2236,7 @@ function submitFvComment(){
 }
 
 function fvScrollTo(idx){
-  const el = document.getElementById('fv-img-'+idx);
+  const el = document.querySelector(`#fvImgWrap [data-fv-media-idx="${idx}"]`);
   if(!el) return;
   el.scrollIntoView({behavior:'smooth', block:'start'});
   setTimeout(()=>setFvActiveThumb(idx), 120);
@@ -1921,12 +2248,13 @@ function setFvActiveThumb(idx){
 
 function updateFvActiveThumb(){
   const wrap = document.getElementById('fvImgWrap');
-  const imgs = _fvImages.map((_,i)=>document.getElementById('fv-img-'+i)).filter(Boolean);
-  if(!imgs.length) return;
+  const medias = Array.from(wrap.querySelectorAll('[data-fv-media-idx]'));
+  if(!medias.length) return;
   const wrapTop = wrap.getBoundingClientRect().top;
   let bestIdx = 0, bestDist = Infinity;
-  imgs.forEach((img,i)=>{
-    const d = Math.abs(img.getBoundingClientRect().top - wrapTop - 20);
+  medias.forEach((el)=>{
+    const i = parseInt(el.getAttribute('data-fv-media-idx')||'0',10);
+    const d = Math.abs(el.getBoundingClientRect().top - wrapTop - 20);
     if(d < bestDist){ bestDist = d; bestIdx = i; }
   });
   setFvActiveThumb(bestIdx);
@@ -1934,10 +2262,14 @@ function updateFvActiveThumb(){
 
 // 键盘控制
 document.addEventListener('keydown', e => {
-  if (!document.getElementById('fvOverlay').classList.contains('open')) return;
+  const ov=document.getElementById('fvOverlay');
+  if (!ov || !ov.classList.contains('open')) return;
   if (e.key === 'Escape') closeFv();
 });
-document.getElementById('fvImgWrap').addEventListener('scroll', ()=>{ updateFvActiveThumb(); });
+const _fvWrapBind=document.getElementById('fvImgWrap');
+if(_fvWrapBind){
+  _fvWrapBind.addEventListener('scroll', ()=>{ updateFvActiveThumb(); });
+}
 </script>
 
 <!-- 详情精选查看器 -->

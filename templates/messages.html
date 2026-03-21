@@ -415,7 +415,12 @@ async function init(){
   if(b.title)document.title='留言板 · '+b.title;
   if(b.favicon)document.getElementById('faviconLink').href='/static/uploads/'+b.favicon;
   document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
-  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}" target="${l.target||'_self'}">${l.label}</a>`).join('');
+  document.getElementById('navLinks').innerHTML=(site.nav?.links||[])
+    .filter(l=>l && l.visible!==false)
+    .map(l=>{
+      const href=(l.href||'').trim()==='#splash' ? '/#splash' : (l.href||'');
+      return `<a href="${href}" target="${l.target||'_self'}">${l.label}</a>`;
+    }).join('');
   const mp=site.messages_page||{};
   // Hero background
   const heroBg=document.getElementById('msgHeroBg');

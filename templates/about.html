@@ -212,7 +212,12 @@ async function init(){
   if(basic.favicon)document.getElementById('faviconLink').href='/static/uploads/'+basic.favicon;
   if(basic.title)document.title='关于我 · '+basic.title;
   document.getElementById('navLogo').textContent=site.nav?.logo||'GAL·LERY';
-  document.getElementById('navLinks').innerHTML=(site.nav?.links||[]).map(l=>`<a href="${l.href}" target="${l.target||'_self'}">${l.label}</a>`).join('');
+  document.getElementById('navLinks').innerHTML=(site.nav?.links||[])
+    .filter(l=>l && l.visible!==false)
+    .map(l=>{
+      const href=(l.href||'').trim()==='#splash' ? '/#splash' : (l.href||'');
+      return `<a href="${href}" target="${l.target||'_self'}">${l.label}</a>`;
+    }).join('');
   const ab=site.about||{};
   const heroEl=document.getElementById('aboutHero');
   if(ab.heroHeight) heroEl.style.minHeight=ab.heroHeight+'px';

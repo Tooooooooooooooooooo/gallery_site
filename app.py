@@ -78,6 +78,7 @@ def make_thumb(src_filename, scale_pct=50):
 
 def allowed_file(f): return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 def allowed_img(f): return '.' in f and f.rsplit('.', 1)[1].lower() in IMG_EXTENSIONS
+def allowed_video(f): return '.' in f and f.rsplit('.', 1)[1].lower() in {'mp4', 'mov', 'webm'}
 def allowed_audio(f): return '.' in f and f.rsplit('.', 1)[1].lower() in AUDIO_EXTENSIONS
 def is_video(f):
     if not f or '.' not in f: return False
@@ -191,9 +192,10 @@ def get_default_site():
         "nav": {
             "logo": "GAL·LERY",
             "links": [
-                {"label": "分类", "href": "#gallery", "target": "_self"},
-                {"label": "关于我", "href": "/about", "target": "_self"},
-                {"label": "留言板", "href": "/messages", "target": "_self"}
+                {"label": "开屏页", "href": "#splash", "target": "_self", "visible": True},
+                {"label": "分类", "href": "#gallery", "target": "_self", "visible": True},
+                {"label": "关于我", "href": "/about", "target": "_self", "visible": True},
+                {"label": "留言板", "href": "/messages", "target": "_self", "visible": True}
             ]
         },
         "hero": {
@@ -237,6 +239,27 @@ def get_default_site():
             "defaultAvatar": "",
             "avatarPool": []
         },
+        "splash": {
+            "enabled": False,
+            "title": "欢迎来到我的画廊",
+            "subtitle": "向下滚动查看完整开屏内容",
+            "content": "",
+            "bg_type": "gradient",
+            "bg_value": "linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)",
+            "media_type": "none",
+            "media_value": "",
+            "media_fit": "contain",
+            "auto_close": True,
+            "allow_reopen": True,
+            "close_wheel_count": 8,
+            "reopen_wheel_count": 3,
+            "card_width": 980,
+            "title_size": 52,
+            "skip_after_enter": False,
+            "hotspot_image": "",
+            "hotspots": [],
+            "hotspots_by_image": {}
+        },
         "footer": {
             "brand": {"logo": "GAL·LERY", "desc": "记录生活之美，分享视觉灵感。\n每一帧都是独一无二的故事。"},
             "columns": [
@@ -258,6 +281,17 @@ def get_default_site():
             "tracks": []
         }
     }
+
+def _ensure_default_nav_splash_link(d):
+    nav = d.setdefault('nav', {})
+    links = nav.setdefault('links', []) or []
+    has = any((str((l or {}).get('href', '')).strip() == '#splash') for l in links if isinstance(l, dict))
+    if not has:
+        links.insert(0, {"label": "开屏页", "href": "#splash", "target": "_self", "visible": True})
+    for l in links:
+        if isinstance(l, dict) and 'visible' not in l:
+            l['visible'] = True
+    nav['links'] = links
 
 def load_site():
     d = load_json(SITE_FILE, None)
@@ -282,6 +316,13 @@ def load_site():
         dm.setdefault('tracks', default['music'].get('tracks', []))
         d['music'] = dm
     if 'messages_page' not in d: d['messages_page'] = default['messages_page']
+    if 'splash' not in d:
+        d['splash'] = default.get('splash', {})
+    else:
+        ds = d.get('splash') or {}
+        for k, v in (default.get('splash') or {}).items():
+            ds.setdefault(k, v)
+        d['splash'] = ds
     if 'footer' not in d: d['footer'] = default['footer']
     else:
         d['footer'].setdefault('brand', default['footer']['brand'])
@@ -293,6 +334,7 @@ def load_site():
     if 'theme' not in d: d['theme'] = 'warm'
     if 'thumb_scale' not in d: d['thumb_scale'] = 50
     if 'enabled' not in d.get('hero', {}): d['hero']['enabled'] = True
+    _ensure_default_nav_splash_link(d)
     return d
 
 def save_site(d): save_json(SITE_FILE, d)
@@ -716,7 +758,11 @@ def messages_page():
 
 @app.route('/api/site')
 def api_site():
-    return jsonify(load_site())
+    resp = jsonify(load_site())
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/api/items')
 def api_items():
@@ -1346,19 +1392,22 @@ def admin_item_comments_all():
         for item_id, list_ in comments.items():
             if not list_ or not isinstance(list_, list):
                 continue
-            sorted_comments = sorted(list_, key=lambda c: (c.get('approved') is not False, c.get('time') or ''), reverse=True)
+            # 评论级：未审核优先，且“最新未审核”置顶
+            sorted_comments = sorted(
+                list_,
+                key=lambda c: (c.get('approved') is False, c.get('time') or ''),
+                reverse=True
+            )
             out.append({
                 'item_id': item_id,
                 'item_title': id_to_title.get(item_id, item_id),
                 'comments': sorted_comments,
             })
-        # 条目级：有待审核的置顶，再按最新评论时间排序
+        # 条目级：先按最新评论时间排序，再稳定地将“有未审核评论”的条目置顶
         sort_order = (request.args.get('sort') or 'time_desc').lower()
         rev = sort_order != 'time_asc'
-        out.sort(key=lambda x: (
-            not any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']),
-            _comment_group_latest_time(x['comments']),
-        ), reverse=rev)
+        out.sort(key=lambda x: _comment_group_latest_time(x['comments']), reverse=rev)
+        out.sort(key=lambda x: any(isinstance(c, dict) and c.get('approved') is False for c in x['comments']), reverse=True)
         return jsonify({'items': out})
     except Exception as e:
         return jsonify({'error': str(e), 'items': []}), 500
@@ -1934,6 +1983,7 @@ def admin_nav():
     links = body.get('links', site['nav']['links']) or []
     for l in links:
         l.setdefault('target', '_self')
+        l['visible'] = bool(l.get('visible', True))
     site['nav']['links'] = links
     save_site(site)
     return jsonify({'success': True})
@@ -2048,6 +2098,123 @@ def admin_messages_page():
     site['messages_page'] = request.json
     save_site(site)
     return jsonify({'success': True})
+
+@app.route('/admin/site/splash', methods=['PUT'])
+@login_required
+def admin_site_splash():
+    site = load_site()
+    body = request.json or {}
+    splash = site.setdefault('splash', {})
+    app.logger.info('[splash] save request body keys=%s', list(body.keys()))
+    splash['enabled'] = bool(body.get('enabled', splash.get('enabled', False)))
+    splash['title'] = (body.get('title', splash.get('title', '')) or '').strip()
+    splash['subtitle'] = (body.get('subtitle', splash.get('subtitle', '')) or '').strip()
+    splash['content'] = body.get('content', splash.get('content', '')) or ''
+    bg_type = (body.get('bg_type', splash.get('bg_type', 'gradient')) or 'gradient').strip().lower()
+    if bg_type not in ('gradient', 'image', 'video'):
+        bg_type = 'gradient'
+    splash['bg_type'] = bg_type
+    splash['bg_value'] = (body.get('bg_value', splash.get('bg_value', '')) or '').strip()
+    media_type = (body.get('media_type', splash.get('media_type', 'none')) or 'none').strip().lower()
+    if media_type not in ('none', 'image', 'video'):
+        media_type = 'none'
+    splash['media_type'] = media_type
+    splash['media_value'] = (body.get('media_value', splash.get('media_value', '')) or '').strip()
+    media_fit = (body.get('media_fit', splash.get('media_fit', 'contain')) or 'contain').strip().lower()
+    if media_fit not in ('contain', 'cover'):
+        media_fit = 'contain'
+    splash['media_fit'] = media_fit
+    splash['auto_close'] = bool(body.get('auto_close', splash.get('auto_close', True)))
+    splash['allow_reopen'] = bool(body.get('allow_reopen', splash.get('allow_reopen', True)))
+    # 新版：按“滚轮滚动几次”控制灵敏度
+    try:
+        cwc = int(body.get('close_wheel_count', splash.get('close_wheel_count', 8)))
+    except Exception:
+        cwc = int(splash.get('close_wheel_count', 8))
+    splash['close_wheel_count'] = max(1, min(100, cwc))
+    try:
+        rwc = int(body.get('reopen_wheel_count', splash.get('reopen_wheel_count', 3)))
+    except Exception:
+        rwc = int(splash.get('reopen_wheel_count', 3))
+    splash['reopen_wheel_count'] = max(1, min(100, rwc))
+    try:
+        cw = int(body.get('card_width', splash.get('card_width', 980)))
+    except Exception:
+        cw = int(splash.get('card_width', 980))
+    splash['card_width'] = max(420, min(2200, cw))
+    try:
+        ts = int(body.get('title_size', splash.get('title_size', 52)))
+    except Exception:
+        ts = int(splash.get('title_size', 52))
+    splash['title_size'] = max(20, min(120, ts))
+    splash['skip_after_enter'] = bool(body.get('skip_after_enter', splash.get('skip_after_enter', False)))
+    splash['hotspot_image'] = (body.get('hotspot_image', splash.get('hotspot_image', '')) or '').strip()
+
+    def _clean_hotspot_list(arr):
+        if not isinstance(arr, list):
+            arr = []
+        cleaned = []
+        for h in arr[:120]:
+            if not isinstance(h, dict):
+                continue
+            try:
+                x = float(h.get('x', 0)); y = float(h.get('y', 0)); w = float(h.get('w', 0)); hh = float(h.get('h', 0))
+            except Exception:
+                continue
+            x = max(0.0, min(100.0, x)); y = max(0.0, min(100.0, y))
+            w = max(0.5, min(100.0, w)); hh = max(0.5, min(100.0, hh))
+            href = str(h.get('href', '') or '').strip()
+            title = str(h.get('title', '') or '').strip()
+            target = '_blank' if str(h.get('target', '_self')) == '_blank' else '_self'
+            cleaned.append({'x': x, 'y': y, 'w': w, 'h': hh, 'href': href, 'title': title, 'target': target})
+        return cleaned
+
+    hs = body.get('hotspots', splash.get('hotspots', []))
+    splash['hotspots'] = _clean_hotspot_list(hs)
+
+    by_img = body.get('hotspots_by_image', splash.get('hotspots_by_image', {}))
+    if not isinstance(by_img, dict):
+        by_img = {}
+    cleaned_map = {}
+    for k, v in list(by_img.items())[:200]:
+        key = str(k or '').strip()
+        if not key:
+            continue
+        cleaned_map[key] = _clean_hotspot_list(v)
+    splash['hotspots_by_image'] = cleaned_map
+    # 兼容旧字段：保留但不再作为主逻辑
+    splash['close_scroll_ratio'] = splash.get('close_scroll_ratio', 0.995)
+    splash['reopen_trigger_strength'] = splash.get('reopen_trigger_strength', 180)
+    save_site(site)
+    return jsonify({'success': True, 'splash': splash})
+
+@app.route('/admin/site/splash/upload-bg', methods=['POST'])
+@login_required
+def admin_site_splash_upload_bg():
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': '请选择文件'}), 400
+    if allowed_img(file.filename):
+        filename = save_upload(file, 'splash_bg_')
+        return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename, 'media_type': 'image'})
+    if allowed_video(file.filename):
+        filename = save_upload(file, 'splash_bg_')
+        return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename, 'media_type': 'video'})
+    return jsonify({'success': False, 'error': '仅支持图片或视频文件'}), 400
+
+@app.route('/admin/site/splash/upload-media', methods=['POST'])
+@login_required
+def admin_site_splash_upload_media():
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': '请选择文件'}), 400
+    if allowed_img(file.filename):
+        filename = save_upload(file, 'splash_media_')
+        return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename, 'media_type': 'image'})
+    if allowed_video(file.filename):
+        filename = save_upload(file, 'splash_media_')
+        return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename, 'media_type': 'video'})
+    return jsonify({'success': False, 'error': '仅支持图片或视频文件'}), 400
 
 @app.route('/admin/site/messages-page/upload-bg', methods=['POST'])
 @login_required
@@ -2270,8 +2437,10 @@ def load_featured():
     cfg.setdefault("title", "详情精选")
     cfg.setdefault("subtitle", "FEATURED")
     cfg.setdefault("position", "after_showcase")
+    cfg.setdefault("content_width", 900)
     for it in d.get('items', []) or []:
         it.setdefault('content', '')
+        it.setdefault('content_width', cfg.get('content_width', 900))
     return d
 
 def save_featured(d): save_json(FEATURED_FILE, d)
@@ -2801,6 +2970,11 @@ def admin_featured_config():
     cfg['title']    = body.get('title', cfg.get('title', '详情精选'))
     cfg['subtitle'] = body.get('subtitle', cfg.get('subtitle', 'FEATURED'))
     cfg['position'] = body.get('position', cfg.get('position', 'after_showcase'))
+    try:
+        cw = int(body.get('content_width', cfg.get('content_width', 900)))
+    except Exception:
+        cw = int(cfg.get('content_width', 900))
+    cfg['content_width'] = max(420, min(2200, cw))
     save_featured(data)
     return jsonify({'success': True, 'config': cfg})
 
@@ -2818,26 +2992,23 @@ def admin_featured_reorder():
 @login_required
 def admin_featured_upload():
     data = load_featured()
-    images = []
-    for f in request.files.getlist('images'):
-        if f and f.filename and allowed_img(f.filename):
-            images.append(save_upload(f))
-    for fn in request.form.getlist('existing_images'):
-        if fn: images.append(fn)
-    if not images:
-        return jsonify({'success': False, 'error': '至少需要一张图片'}), 400
-    cover = request.form.get('cover', '').strip()
+    cover = (request.form.get('cover', '') or '').strip()
     raw_id = (request.form.get('id') or '').strip()
     if raw_id and _valid_content_id(raw_id):
         existing_ids = {i['id'] for i in data['items']}
         item_id = raw_id if raw_id not in existing_ids else str(uuid.uuid4())
     else:
         item_id = str(uuid.uuid4())
+    try:
+        iw = int(request.form.get('content_width', data.get('config', {}).get('content_width', 900)))
+    except Exception:
+        iw = int(data.get('config', {}).get('content_width', 900))
     item = {
         'id': item_id,
         'title': request.form.get('title', '').strip(),
         'content': request.form.get('content', '').strip(),
-        'images': images,
+        'content_width': max(420, min(2200, iw)),
+        'images': [],
         'cover': cover,
         'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     }
@@ -2858,6 +3029,12 @@ def admin_featured_update(item_id):
         if 'content' in body: item['content'] = body['content']
         if 'images_order' in body: item['images'] = body['images_order']
         if 'cover' in body: item['cover'] = body['cover']
+        if 'content_width' in body:
+            try:
+                iw = int(body.get('content_width', item.get('content_width', data.get('config', {}).get('content_width', 900))))
+            except Exception:
+                iw = int(item.get('content_width', data.get('config', {}).get('content_width', 900)))
+            item['content_width'] = max(420, min(2200, iw))
         # 可编辑 ID（深链接）：评论随 ID 迁移到 fv_<new_id>
         new_id = (body.get('id') or '').strip()
         if new_id and _valid_content_id(new_id) and new_id != item_id:
@@ -2870,13 +3047,7 @@ def admin_featured_update(item_id):
                     save_item_comments(comments)
                 item['id'] = new_id
     else:
-        for f in request.files.getlist('images'):
-            if f and f.filename and allowed_img(f.filename):
-                item.setdefault('images', []).append(save_upload(f))
-        for fn in request.form.getlist('existing_images'):
-            if fn: item.setdefault('images', []).append(fn)
-        order = request.form.getlist('images_order')
-        if order: item['images'] = order
+        pass
     save_featured(data)
     return jsonify({'success': True, 'item': item})
 
