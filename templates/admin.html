@@ -4795,7 +4795,9 @@ async function saveSplash(){
   const d=await r.json().catch(()=>({}));
   if(r.ok && d.success){
     siteData.splash = d.splash || payload;
-    const verify = await fetch('/api/site?_t='+Date.now()).then(x=>x.json()).catch(()=>null);
+    // 清除前端 sessionStorage 缓存，确保前台立即看到最新配置
+    try{ sessionStorage.removeItem('site_cfg_cache'); sessionStorage.removeItem('site_cfg_cache_ts'); }catch(e){}
+    const verify = await fetch('/api/site').then(x=>x.json()).catch(()=>null);
     if(verify && verify.splash){
       siteData.splash = verify.splash;
       loadSplash();

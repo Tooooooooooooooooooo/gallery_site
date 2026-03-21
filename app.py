@@ -759,9 +759,8 @@ def messages_page():
 @app.route('/api/site')
 def api_site():
     resp = jsonify(load_site())
-    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    resp.headers['Pragma'] = 'no-cache'
-    resp.headers['Expires'] = '0'
+    # 允许浏览器缓存15秒，大幅降低重复访问延迟；管理员保存后前端 sessionStorage 会主动刷新
+    resp.headers['Cache-Control'] = 'public, max-age=15, stale-while-revalidate=60'
     return resp
 
 @app.route('/api/items')

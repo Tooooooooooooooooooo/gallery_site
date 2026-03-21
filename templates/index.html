@@ -596,6 +596,8 @@ function _renderSplash(cfg, forceOpen){
   if(bg){
     const bgt=(cfg.bg_type||'gradient');
     if(bgt==='image' && cfg.bg_value){
+      // 提前创建 Image 对象触发预加载，让背景图更快出现
+      const _preloadBg = new Image(); _preloadBg.src = fileSrc(cfg.bg_value);
       bg.style.background=`url('${fileSrc(cfg.bg_value)}') center/cover no-repeat`;
       bg.innerHTML='';
     }else if(bgt==='video' && cfg.bg_value){
@@ -676,7 +678,32 @@ function _renderSplash(cfg, forceOpen){
 }
 
 async function init(){
-  const site=await fetch('/api/site?_t='+Date.now()).then(r=>r.json());
+  // ── 第一步：立即从缓存或请求拿到站点配置，优先显示开屏，不阻塞 ──
+  let site;
+  const SITE_CACHE_KEY = 'site_cfg_cache';
+  const SITE_CACHE_TS_KEY = 'site_cfg_cache_ts';
+  const SITE_CACHE_TTL = 30000; // 缓存30秒，避免反复请求
+  try {
+    const cached = sessionStorage.getItem(SITE_CACHE_KEY);
+    const cachedTs = parseInt(sessionStorage.getItem(SITE_CACHE_TS_KEY)||'0', 10);
+    if(cached && Date.now() - cachedTs < SITE_CACHE_TTL){
+      site = JSON.parse(cached);
+    }
+  } catch(e) {}
+
+  // 无缓存时同步等待（只有第一次），有缓存时先用缓存立即渲染，后台刷新缓存
+  const siteFetch = fetch('/api/site').then(r=>r.json()).then(d=>{
+    try{
+      sessionStorage.setItem(SITE_CACHE_KEY, JSON.stringify(d));
+      sessionStorage.setItem(SITE_CACHE_TS_KEY, String(Date.now()));
+    }catch(e){}
+    return d;
+  });
+
+  if(!site) site = await siteFetch;
+  else siteFetch.catch(()=>{}); // 有缓存时后台静默刷新，不阻塞
+
+  // ── 第二步：拿到配置后立即处理主题和开屏，让用户第一时间看到内容 ──
   const t=localStorage.getItem('g_theme')||(site.theme||'warm');
   applyTheme(t);
   const b=site.site||{};
@@ -693,18 +720,23 @@ async function init(){
   renderNav(site.nav||{});
   if(site.hero?.enabled!==false) renderHero(site.hero||{});
   renderFooter(site.footer||{});
-  loadCats();
-  await Promise.all([loadShowcase(), loadFeatured()]);
-  await loadMore();
-  openModalFromHash();
-  setupFx(fxFlags);
-  setupBgm(site.music||{});
+
+  // ── 第三步：立即渲染开屏（不等内容加载）──
   const spCfg = site.splash||{};
   const wantSplashFromHash = (location.hash||'').trim().toLowerCase()==='#splash';
   _renderSplash(spCfg, wantSplashFromHash);
   if(wantSplashFromHash && spCfg && spCfg.enabled!==false){
     try{ window.scrollTo({top:0, behavior:'auto'}); }catch(e){ window.scrollTo(0,0); }
   }
+
+  // ── 第四步：后台并行加载其余内容，不阻塞开屏显示 ──
+  loadCats();
+  Promise.all([loadShowcase(), loadFeatured()]).then(()=>{}).catch(()=>{});
+  loadMore().then(()=>{
+    openModalFromHash();
+  }).catch(()=>{ openModalFromHash(); });
+  setupFx(fxFlags);
+  setupBgm(site.music||{});
 }
 function openModalFromHash(){
   const hash=location.hash||'';
