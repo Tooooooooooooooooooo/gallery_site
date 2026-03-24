@@ -645,6 +645,7 @@ function _renderSplash(cfg, forceOpen){
         a.target=h.target||'_self';
         a.rel='noopener noreferrer';
         a.title=h.title||'';
+        a.addEventListener('click', (ev)=>onDeepLinkAnchorClick(ev, a));
         a.style.cssText=`position:absolute;left:${h.x}%;top:${h.y}%;width:${h.w}%;height:${h.h}%;display:block;pointer-events:auto;`;
         layer.appendChild(a);
       });
@@ -753,9 +754,29 @@ function openModalFromHash(){
     return;
   }
   m=hash.match(/^#?showcase\/([^/]+)$/);
-  if(m&&scMap[m[1]]){ openScModal(m[1]); return; }
+  if(m){
+    const id=m[1];
+    if(scMap[id]){ openScModal(id); return; }
+    fetch('/api/showcase').then(r=>r.json()).then(d=>{
+      const items=(d&&d.items)||[];
+      items.forEach(it=>{ if(it&&it.id) scMap[it.id]=it; });
+      if(scMap[id]) openScModal(id);
+    }).catch(()=>{});
+    return;
+  }
   m=hash.match(/^#?featured\/([^/]+)$/);
-  if(m&&_featuredMap[m[1]]){ openFv(_featuredMap[m[1]]); return; }
+  if(m){
+    const id=m[1];
+    if(_featuredMap[id]){ openFv(_featuredMap[id]); return; }
+    fetch('/api/featured').then(r=>r.json()).then(d=>{
+      const items=(d&&d.items)||[];
+      _featuredOrder = items.map(it => it.id);
+      _featuredMap = {};
+      items.forEach(it=>{ if(it&&it.id) _featuredMap[it.id]=it; });
+      if(_featuredMap[id]) openFv(_featuredMap[id]);
+    }).catch(()=>{});
+    return;
+  }
 }
 
 function _openSplashFromNav(e){
@@ -794,15 +815,63 @@ function renderHero(hero){
     const bgStyle=s.bgType==='image'
       ?`background-image:url('${fileSrc(s.bgValue)}');background-size:cover;background-position:center`
       :`background:${s.bgValue}`;
+    const href=(s.btnHref||'#').trim();
     return `<div class="slide"><div class="slide-bg" style="${bgStyle}"></div>
       <div class="slide-content"><div class="slide-tag">${s.tag||''}</div>
       <h1 class="slide-title">${s.title||''}</h1>
       <p class="slide-sub">${s.subtitle||''}</p>
-      <a href="${s.btnHref||'#'}" class="slide-btn">${s.btnText||'查看'}</a></div></div>`;
+      <a href="${href||'#'}" class="slide-btn" onclick="return onHeroBtnClick(event,this)">${s.btnText||'查看'}</a></div></div>`;
   }).join('');
   const dots=document.getElementById('heroDots');dots.innerHTML='';
   for(let i=0;i<slideTotal;i++){const d=document.createElement('div');d.className='hero-dot'+(i===0?' active':'');d.onclick=()=>{clearTimeout(autoT);goSlide(i);startAuto();};dots.appendChild(d);}
   if(slideTotal>0){goSlide(0);startAuto();}
+}
+
+function resolveDeepLinkHash(href){
+  const v=String(href||'').trim();
+  if(!v) return '';
+  if(v.startsWith('#featured/')||v.startsWith('#gallery/')||v.startsWith('#showcase/')) return v;
+  try{
+    const u=new URL(v, location.origin);
+    if(u.origin!==location.origin) return '';
+    const h=(u.hash||'').trim();
+    if(h.startsWith('#featured/')||h.startsWith('#gallery/')||h.startsWith('#showcase/')) return h;
+  }catch(e){}
+  return '';
+}
+
+function routeToDeepLink(hash){
+  if(!hash) return false;
+  try{
+    if(location.hash===hash){
+      openModalFromHash();
+    }else{
+      location.hash=hash;
+      setTimeout(()=>openModalFromHash(), 0);
+    }
+    return true;
+  }catch(err){
+    location.hash=hash;
+    return true;
+  }
+}
+
+function onHeroBtnClick(e, a){
+  const href=((a&&a.getAttribute('href'))||'').trim();
+  const hash=resolveDeepLinkHash(href);
+  if(!hash) return true;
+  e.preventDefault();
+  routeToDeepLink(hash);
+  return false;
+}
+
+function onDeepLinkAnchorClick(e, a){
+  const href=((a&&a.getAttribute('href'))||'').trim();
+  const target=((a&&a.getAttribute('target'))||'_self').toLowerCase();
+  const hash=resolveDeepLinkHash(href);
+  if(!hash || target==='_blank') return;
+  e.preventDefault();
+  routeToDeepLink(hash);
 }
 function goSlide(n){curSlide=(n+slideTotal)%slideTotal;document.getElementById('slides').style.transform=`translateX(-${curSlide*100}%)`;document.querySelectorAll('.hero-dot').forEach((d,i)=>d.classList.toggle('active',i===curSlide));}
 function chSlide(d){clearTimeout(autoT);goSlide(curSlide+d);startAuto();}
@@ -1631,6 +1700,14 @@ window.addEventListener('popstate', ()=>{
   if(fv&&fv.classList.contains('open')){ closeFv(true); return; }
   const m=document.getElementById('modal');
   if(m&&m.classList.contains('open')){ closeModal(true); return; }
+});
+window.addEventListener('hashchange', ()=>{
+  const h=(location.hash||'').trim().toLowerCase();
+  if(h==='#splash'){
+    if(splashCfg && splashCfg.enabled!==false) _renderSplash(splashCfg, true);
+    return;
+  }
+  openModalFromHash();
 });
 const _modalEl = document.getElementById('modal');
 if(_modalEl){
