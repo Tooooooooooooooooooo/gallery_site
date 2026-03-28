@@ -24,10 +24,11 @@ body.splash-active{overflow:hidden}
 .splash{position:fixed;inset:0;z-index:1200;background:#111;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .splash-bg{position:fixed;inset:0;z-index:0;background:linear-gradient(135deg,#1a1208 0%,#3d2510 50%,#6b3d18 100%)}
 .splash-inner{position:relative;z-index:1;min-height:220vh;padding:5vh 14px 16vh;display:flex;justify-content:center}
-.splash-card{width:min(var(--splash-card-max-width,980px),94vw);margin:0 auto;background:rgba(0,0,0,.38);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:26px 22px;color:#fff;box-shadow:0 20px 80px rgba(0,0,0,.38)}
-.splash-badge{display:inline-flex;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.13);font-size:11px;letter-spacing:.12em;margin-bottom:10px}
-.splash-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4.5vw,var(--splash-title-size,52px));line-height:1.1;margin:6px 0 8px}
-.splash-sub{font-size:14px;color:rgba(255,255,255,.82);margin-bottom:14px}
+.splash-card{position:relative;width:min(var(--splash-card-max-width,980px),94vw);margin:0 auto;background:rgba(0,0,0,.38);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:26px 22px;color:#fff;box-shadow:0 20px 80px rgba(0,0,0,.38)}
+.splash-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:nowrap}
+.splash-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4.5vw,var(--splash-title-size,52px));line-height:1.1;margin:0;white-space:nowrap}
+.splash-sub{font-size:14px;color:rgba(255,255,255,.82);margin:0;opacity:.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.splash-skip-btn{border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.25);color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer;line-height:1;flex-shrink:0}
 .splash-media{width:100%;border-radius:12px;overflow:hidden;background:rgba(0,0,0,.4);min-height:120px;margin-bottom:14px}
 .splash-media img,.splash-media video{width:100%;max-height:68vh;display:block}
 .splash-content{font-size:15px;line-height:1.85;color:rgba(255,255,255,.92)}
@@ -76,7 +77,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .hero{position:relative;width:100%;overflow:hidden;background:var(--bg)}
 .slides{display:flex;height:100%;transition:transform .7s cubic-bezier(.4,0,.2,1)}
 .slide{min-width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
-.slide-bg{position:absolute;inset:0;background:#2a2a2a;background-size:cover;background-position:center;filter:brightness(.52)}
+.slide-bg{position:absolute;inset:0;background:#2a2a2a;background-size:cover;background-position:center;filter:brightness(calc(1 - var(--hero-overlay,.48)));overflow:hidden}
+.hero-bg-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .slide-content{position:relative;z-index:2;text-align:center;color:#fff;padding:0 40px}
 .slide-tag{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--ac);margin-bottom:14px}
 .slide-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,58px);font-weight:700;line-height:1.1;margin-bottom:14px}
@@ -89,6 +91,8 @@ nav{position:sticky;top:0;z-index:100;height:64px;background:var(--nav-bg);backd
 .hero-arr{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;backdrop-filter:blur(6px);transition:all .2s}
 .hero-arr:hover{background:rgba(255,255,255,.28)}
 .hero-arr.prev{left:20px}.hero-arr.next{right:20px}
+.hero-mute{position:absolute;right:20px;bottom:18px;z-index:6;height:34px;padding:0 12px;border-radius:17px;background:rgba(0,0,0,.38);border:1px solid rgba(255,255,255,.3);color:#fff;display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;backdrop-filter:blur(6px)}
+.hero-mute:hover{background:rgba(0,0,0,.52)}
 
 /* ── SHOWCASE ── */
 .showcase-section{padding:32px 0 8px;max-width:100%}
@@ -336,15 +340,13 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div class="splash-bg" id="splashBg"></div>
   <div class="splash-inner">
     <div class="splash-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div class="splash-badge">WELCOME</div>
-        <button onclick="closeSplashByButton()" style="border:1px solid rgba(255,255,255,.28);background:rgba(0,0,0,.25);color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;cursor:pointer">跳过</button>
+      <div class="splash-head">
+        <h1 class="splash-title" id="splashTitle"></h1>
+        <p class="splash-sub" id="splashSubtitle"></p>
+        <button class="splash-skip-btn" onclick="closeSplashByButton()">跳过</button>
       </div>
-      <h1 class="splash-title" id="splashTitle"></h1>
-      <p class="splash-sub" id="splashSubtitle"></p>
       <div class="splash-media" id="splashMedia"></div>
       <div class="splash-content" id="splashContent"></div>
-      <div class="splash-hint" id="splashHint">继续向下滚动查看完整开屏内容</div>
       <div class="splash-progress"><span id="splashProgress"></span></div>
     </div>
   </div>
@@ -373,6 +375,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
   <div class="slides" id="slides"></div>
   <button class="hero-arr prev" onclick="chSlide(-1)">&#8249;</button>
   <button class="hero-arr next" onclick="chSlide(1)">&#8250;</button>
+  <button class="hero-mute" id="heroMuteBtn" onclick="toggleHeroVideoMute()" style="display:none" aria-label="切换轮播视频静音">🔇 静音</button>
   <div class="hero-dots" id="heroDots"></div>
 </section>
 
@@ -471,6 +474,7 @@ footer ul li a:hover{color:rgba(255,255,255,.9)}
 const THEME_COLORS={warm:'#c8a97e',cool:'#4a90d9',dark:'#7c6af5',green:'#4a9460',rose:'#d4607a'};
 let curSlide=0,slideTotal=0,autoT;
 let curPage=1,loading=false,hasMore=true,curCats=[],curSort='newest',curFavOnly=false;
+let heroVideoMuted=true;
 let splashCfg=null;
 let _splashShown=false;
 let _reopenSplashLockUntil=0;
@@ -592,7 +596,6 @@ function _renderSplash(cfg, forceOpen){
   const sub=document.getElementById('splashSubtitle');
   const media=document.getElementById('splashMedia');
   const content=document.getElementById('splashContent');
-  const hint=document.getElementById('splashHint');
   if(bg){
     const bgt=(cfg.bg_type||'gradient');
     if(bgt==='image' && cfg.bg_value){
@@ -652,7 +655,6 @@ function _renderSplash(cfg, forceOpen){
       wrap.appendChild(layer);
     });
   }
-  if(hint) hint.style.display=cfg.auto_close===false?'none':'inline-block';
   if(media){
     const mt=(cfg.media_type||'none');
     const mv=(cfg.media_value||'').trim();
@@ -809,14 +811,22 @@ function renderHero(hero){
   const h=hero.height||540;
   const sec=document.getElementById('heroSec');
   sec.style.display='block';sec.style.height=h+'px';
+  const ov = (hero.overlay!=null) ? Math.max(0,Math.min(1,parseFloat(hero.overlay)||0)) : 0.48;
+  sec.style.setProperty('--hero-overlay', ov);
   const sl=document.getElementById('slides');sl.style.height=h+'px';
   slideTotal=(hero.slides||[]).length;
   sl.innerHTML=(hero.slides||[]).map(s=>{
-    const bgStyle=s.bgType==='image'
-      ?`background-image:url('${fileSrc(s.bgValue)}');background-size:cover;background-position:center`
-      :`background:${s.bgValue}`;
+    const isVideoBg = s.bgType==='video' || (s.bgType!=='image' && s.bgType!=='gradient' && isVideoByFile(s.bgValue));
+    const bgStyle = isVideoBg
+      ? ''
+      : (s.bgType==='image'
+        ? `background-image:url('${fileSrc(s.bgValue)}');background-size:cover;background-position:center`
+        : `background:${s.bgValue}`);
     const href=(s.btnHref||'#').trim();
-    return `<div class="slide"><div class="slide-bg" style="${bgStyle}"></div>
+    const bgInner = isVideoBg
+      ? `<video class="hero-bg-video" src="${fileSrc(s.bgValue)}" autoplay muted loop playsinline preload="metadata"></video>`
+      : '';
+    return `<div class="slide"><div class="slide-bg" style="${bgStyle}">${bgInner}</div>
       <div class="slide-content"><div class="slide-tag">${s.tag||''}</div>
       <h1 class="slide-title">${s.title||''}</h1>
       <p class="slide-sub">${s.subtitle||''}</p>
@@ -824,6 +834,7 @@ function renderHero(hero){
   }).join('');
   const dots=document.getElementById('heroDots');dots.innerHTML='';
   for(let i=0;i<slideTotal;i++){const d=document.createElement('div');d.className='hero-dot'+(i===0?' active':'');d.onclick=()=>{clearTimeout(autoT);goSlide(i);startAuto();};dots.appendChild(d);}
+  applyHeroVideoAudio();
   if(slideTotal>0){goSlide(0);startAuto();}
 }
 
@@ -873,7 +884,28 @@ function onDeepLinkAnchorClick(e, a){
   e.preventDefault();
   routeToDeepLink(hash);
 }
-function goSlide(n){curSlide=(n+slideTotal)%slideTotal;document.getElementById('slides').style.transform=`translateX(-${curSlide*100}%)`;document.querySelectorAll('.hero-dot').forEach((d,i)=>d.classList.toggle('active',i===curSlide));}
+function updateHeroVideoAudioUI(){
+  const btn=document.getElementById('heroMuteBtn');
+  if(!btn) return;
+  const hasVideo=document.querySelectorAll('.hero-bg-video').length>0;
+  btn.style.display=hasVideo?'flex':'none';
+  btn.textContent=heroVideoMuted?'🔇 静音':'🔊 有声';
+}
+function applyHeroVideoAudio(){
+  document.querySelectorAll('.hero-bg-video').forEach(v=>{ v.muted=heroVideoMuted; });
+  updateHeroVideoAudioUI();
+}
+function toggleHeroVideoMute(){
+  heroVideoMuted=!heroVideoMuted;
+  try{
+    const v=document.querySelector('.slide:nth-child('+(curSlide+1)+') .hero-bg-video');
+    if(v && !heroVideoMuted){
+      v.play && v.play().catch(()=>{});
+    }
+  }catch(e){}
+  applyHeroVideoAudio();
+}
+function goSlide(n){curSlide=(n+slideTotal)%slideTotal;document.getElementById('slides').style.transform=`translateX(-${curSlide*100}%)`;document.querySelectorAll('.hero-dot').forEach((d,i)=>d.classList.toggle('active',i===curSlide));applyHeroVideoAudio();}
 function chSlide(d){clearTimeout(autoT);goSlide(curSlide+d);startAuto();}
 function startAuto(){if(slideTotal>1&&document.visibilityState!=='hidden')autoT=setTimeout(()=>{goSlide(curSlide+1);startAuto();},5000);}
 

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工作流列表</title>
+  <style>
+    body{margin:0;background:#0b1326;color:#dae2fd;font-family:Inter,"Noto Sans SC",sans-serif}
+    .wrap{max-width:1000px;margin:0 auto;padding:40px 20px}
+    h1{margin:0 0 10px;font-size:34px}
+    p{margin:0 0 24px;color:#c7c4d7}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .card{background:rgba(23,31,51,.8);border:1px solid rgba(70,69,84,.4);border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .name{font-size:18px;font-weight:700;margin:0 0 8px}
+    .desc{font-size:13px;color:#c7c4d7;min-height:36px}
+    .actions{margin-top:14px;display:flex;justify-content:flex-end}
+    a.btn{display:inline-block;padding:8px 12px;border-radius:10px;background:#c0c1ff;color:#111b2f;text-decoration:none;font-weight:700;font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>工作流</h1>
+    <p>后台可配置多个工作流，每个工作流都有独立展示页面。</p>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <script>
+    async function init(){
+      const res = await fetch('/api/workflows');
+      const data = await res.json();
+      const grid = document.getElementById('grid');
+      const items = data.items || [];
+      if(!items.length){
+        grid.innerHTML = '<div class="card"><div class="name">暂无工作流</div><div class="desc">请先去后台创建。</div></div>';
+        return;
+      }
+      grid.innerHTML = items.map(w => `
+        <div class="card">
+          <div class="name">${escapeHtml(w.name || '')}</div>
+          <div class="desc">${escapeHtml(w.description || '')}</div>
+          <div class="actions"><a class="btn" href="/workflow/${encodeURIComponent(w.slug)}">打开页面</a></div>
+        </div>
+      `).join('');
+    }
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    init();
+  </script>
+</body>
+</html>

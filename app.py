@@ -34,6 +34,7 @@ AUTH_FILE     = os.path.join(_BASE, 'data', 'auth.json')
 SMTP_FILE     = os.path.join(_BASE, 'data', 'smtp.json')
 ITEM_COMMENTS_FILE = os.path.join(_BASE, 'data', 'item_comments.json')
 SHOWCASE_FILE    = os.path.join(_BASE, 'data', 'showcase.json')
+WORKFLOWS_FILE   = os.path.join(_BASE, 'data', 'workflows.json')
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
@@ -756,6 +757,20 @@ def messages_page():
     record_visitor()
     return render_template('messages.html')
 
+@app.route('/workflows')
+def workflows_page():
+    record_visitor()
+    return render_template('workflows.html')
+
+@app.route('/workflow/<slug>')
+def workflow_view_page(slug):
+    record_visitor()
+    workflows = load_workflows().get('items', [])
+    wf = next((w for w in workflows if w.get('slug') == slug and w.get('enabled', True)), None)
+    if not wf:
+        return render_template('workflow.html', workflow=None, workflow_slug=slug), 404
+    return render_template('workflow.html', workflow=wf, workflow_slug=slug)
+
 @app.route('/api/site')
 def api_site():
     resp = jsonify(load_site())
@@ -1088,6 +1103,107 @@ def api_liked_status():
 @login_required
 def admin():
     return render_template('admin.html')
+
+@app.route('/api/workflows')
+def api_workflows_public():
+    d = load_workflows()
+    items = [
+        {
+            'id': w.get('id'),
+            'slug': w.get('slug'),
+            'name': w.get('name'),
+            'description': w.get('description', ''),
+            'enabled': bool(w.get('enabled', True)),
+        }
+        for w in d.get('items', [])
+        if bool(w.get('enabled', True))
+    ]
+    return jsonify({'items': items})
+
+@app.route('/api/workflows/<slug>')
+def api_workflow_public(slug):
+    d = load_workflows()
+    wf = next((w for w in d.get('items', []) if w.get('slug') == slug and bool(w.get('enabled', True))), None)
+    if not wf:
+        return jsonify({'success': False, 'error': 'workflow not found'}), 404
+    return jsonify({'success': True, 'item': wf})
+
+@app.route('/admin/workflows-page')
+@login_required
+def admin_workflows_page():
+    return render_template('admin_workflows.html')
+
+@app.route('/admin/workflows', methods=['GET'])
+@login_required
+def admin_workflows_list():
+    return jsonify(load_workflows())
+
+@app.route('/admin/workflows', methods=['POST'])
+@login_required
+def admin_workflow_create():
+    body = request.json or {}
+    d = load_workflows()
+    items = d.get('items', [])
+    wf = _normalize_workflow_item({
+        'id': str(uuid.uuid4()),
+        'slug': body.get('slug') or body.get('name') or ('wf-' + str(uuid.uuid4())[:8]),
+        'name': body.get('name') or 'Untitled Workflow',
+        'description': body.get('description') or '',
+        'enabled': body.get('enabled', True),
+        'nodes': body.get('nodes') or [],
+        'connections': body.get('connections') or [],
+    })
+    if any(i.get('slug') == wf['slug'] for i in items):
+        return jsonify({'success': False, 'error': 'slug 已存在'}), 400
+    items.insert(0, wf)
+    d['items'] = items
+    save_workflows(d)
+    return jsonify({'success': True, 'item': wf})
+
+@app.route('/admin/workflows/<workflow_id>', methods=['PUT'])
+@login_required
+def admin_workflow_update(workflow_id):
+    body = request.json or {}
+    d = load_workflows()
+    items = d.get('items', [])
+    idx = next((i for i, w in enumerate(items) if w.get('id') == workflow_id), None)
+    if idx is None:
+        return jsonify({'success': False, 'error': 'workflow not found'}), 404
+    cur = dict(items[idx])
+    if 'name' in body:
+        cur['name'] = str(body.get('name') or '').strip() or cur.get('name') or 'Untitled Workflow'
+    if 'description' in body:
+        cur['description'] = str(body.get('description') or '').strip()
+    if 'enabled' in body:
+        cur['enabled'] = bool(body.get('enabled'))
+    if 'slug' in body:
+        new_slug = normalize_slug(body.get('slug'))
+        if not new_slug:
+            return jsonify({'success': False, 'error': 'slug 无效'}), 400
+        if any(w.get('id') != workflow_id and w.get('slug') == new_slug for w in items):
+            return jsonify({'success': False, 'error': 'slug 已存在'}), 400
+        cur['slug'] = new_slug
+    if 'nodes' in body and isinstance(body.get('nodes'), list):
+        cur['nodes'] = body.get('nodes')
+    if 'connections' in body and isinstance(body.get('connections'), list):
+        cur['connections'] = body.get('connections')
+    items[idx] = _normalize_workflow_item(cur)
+    d['items'] = items
+    save_workflows(d)
+    return jsonify({'success': True, 'item': items[idx]})
+
+@app.route('/admin/workflows/<workflow_id>', methods=['DELETE'])
+@login_required
+def admin_workflow_delete(workflow_id):
+    d = load_workflows()
+    items = d.get('items', [])
+    before = len(items)
+    items = [w for w in items if w.get('id') != workflow_id]
+    if len(items) == before:
+        return jsonify({'success': False, 'error': 'workflow not found'}), 404
+    d['items'] = items
+    save_workflows(d)
+    return jsonify({'success': True})
 
 @app.route('/admin/api/items')
 @login_required
@@ -1961,6 +2077,11 @@ def admin_hero():
     body = request.json
     site['hero']['height'] = int(body.get('height', site['hero']['height']))
     site['hero']['enabled'] = body.get('enabled', site['hero'].get('enabled', True))
+    try:
+        ov = float(body.get('overlay', site['hero'].get('overlay', 0.48)))
+    except Exception:
+        ov = float(site['hero'].get('overlay', 0.48) or 0.48)
+    site['hero']['overlay'] = max(0.0, min(1.0, ov))
     site['hero']['slides'] = body.get('slides', site['hero']['slides'])
     save_site(site)
     return jsonify({'success': True})
@@ -1969,7 +2090,8 @@ def admin_hero():
 @login_required
 def admin_hero_upload_bg():
     file = request.files.get('file')
-    if not file or not allowed_img(file.filename): return jsonify({'success': False, 'error': '无效文件'}), 400
+    if not file or not allowed_file(file.filename):
+        return jsonify({'success': False, 'error': '无效文件'}), 400
     filename = save_upload(file, 'hero_')
     return jsonify({'success': True, 'filename': filename, 'url': '/static/uploads/' + filename})
 
@@ -2109,6 +2231,11 @@ def admin_site_splash():
     splash['title'] = (body.get('title', splash.get('title', '')) or '').strip()
     splash['subtitle'] = (body.get('subtitle', splash.get('subtitle', '')) or '').strip()
     splash['content'] = body.get('content', splash.get('content', '')) or ''
+    try:
+        eh = int(body.get('editor_height', splash.get('editor_height', 1000)))
+    except Exception:
+        eh = int(splash.get('editor_height', 1000) or 1000)
+    splash['editor_height'] = max(220, min(5000, eh))
     bg_type = (body.get('bg_type', splash.get('bg_type', 'gradient')) or 'gradient').strip().lower()
     if bg_type not in ('gradient', 'image', 'video'):
         bg_type = 'gradient'
@@ -2795,6 +2922,7 @@ DATA_TYPES = {
     'muyu':      MUYU_FILE,
     'showcase':  SHOWCASE_FILE,
     'item_comments': ITEM_COMMENTS_FILE,
+    'workflows': WORKFLOWS_FILE,
 }
 
 
@@ -3072,6 +3200,115 @@ def load_showcase():
 
 def save_showcase(d):
     save_json(SHOWCASE_FILE, d)
+
+def get_default_workflows():
+    return {
+        "items": [
+            {
+                "id": "main-flow",
+                "slug": "main-flow",
+                "name": "Main Flow",
+                "description": "默认工作流页面",
+                "enabled": True,
+                "nodes": [
+                    {
+                        "id": "node-1",
+                        "type": "trigger",
+                        "title": "User Auth Request",
+                        "description": "Incoming authentication packet from primary mobile client.",
+                        "image": "https://picsum.photos/seed/auth/400/225",
+                        "position": {"x": 100, "y": 300}
+                    },
+                    {
+                        "id": "node-2",
+                        "type": "processing",
+                        "title": "Main Processing",
+                        "metrics": [
+                            {"label": "Latencies", "value": "0.04ms", "color": "text-emerald-400"},
+                            {"label": "Concurrency", "value": "12k/s", "color": "text-indigo-400"}
+                        ],
+                        "status": "active",
+                        "position": {"x": 500, "y": 320}
+                    },
+                    {
+                        "id": "node-3",
+                        "type": "storage",
+                        "title": "Storage",
+                        "metrics": [
+                            {"label": "Efficiency", "value": "98.2%", "color": "text-orange-400"}
+                        ],
+                        "position": {"x": 950, "y": 220}
+                    },
+                    {
+                        "id": "node-4",
+                        "type": "analytics",
+                        "title": "Analytics",
+                        "description": "Telemetry sink for real-time visualization pipelines.",
+                        "position": {"x": 550, "y": 650}
+                    }
+                ],
+                "connections": [
+                    {"id": "c1", "sourceId": "node-1", "sourceHandle": "right", "targetId": "node-2", "targetHandle": "left"},
+                    {"id": "c2", "sourceId": "node-2", "sourceHandle": "right", "targetId": "node-3", "targetHandle": "left"},
+                    {"id": "c3", "sourceId": "node-2", "sourceHandle": "bottom", "targetId": "node-4", "targetHandle": "top"}
+                ]
+            }
+        ]
+    }
+
+def normalize_slug(v):
+    s = (v or '').strip().lower()
+    out = []
+    prev_dash = False
+    for ch in s:
+        if ch.isalnum():
+            out.append(ch)
+            prev_dash = False
+        elif ch in ('-', '_', ' '):
+            if not prev_dash:
+                out.append('-')
+                prev_dash = True
+    slug = ''.join(out).strip('-')
+    return slug[:64]
+
+def _normalize_workflow_item(item):
+    item = item or {}
+    wid = str(item.get('id') or uuid.uuid4())
+    slug = normalize_slug(item.get('slug') or item.get('name') or wid) or ('wf-' + wid[:8])
+    return {
+        'id': wid,
+        'slug': slug,
+        'name': str(item.get('name') or 'Untitled Workflow').strip() or 'Untitled Workflow',
+        'description': str(item.get('description') or '').strip(),
+        'enabled': bool(item.get('enabled', True)),
+        'nodes': item.get('nodes') if isinstance(item.get('nodes'), list) else [],
+        'connections': item.get('connections') if isinstance(item.get('connections'), list) else [],
+    }
+
+def load_workflows():
+    d = load_json(WORKFLOWS_FILE, None)
+    if d is None:
+        return get_default_workflows()
+    if not isinstance(d, dict):
+        d = {'items': []}
+    items = d.get('items') if isinstance(d.get('items'), list) else []
+    normalized = []
+    used_slugs = set()
+    for item in items:
+        wf = _normalize_workflow_item(item)
+        base = wf['slug']
+        i = 2
+        while wf['slug'] in used_slugs:
+            wf['slug'] = f"{base}-{i}"
+            i += 1
+        used_slugs.add(wf['slug'])
+        normalized.append(wf)
+    if not normalized:
+        normalized = get_default_workflows()['items']
+    return {'items': normalized}
+
+def save_workflows(d):
+    save_json(WORKFLOWS_FILE, d)
 
 @app.route('/api/showcase')
 def api_showcase():
@@ -3455,6 +3692,8 @@ def init_app():
         save_emoji({"items": []})
     if not os.path.exists(MUYU_FILE):
         save_muyu(load_muyu())
+    if not os.path.exists(WORKFLOWS_FILE):
+        save_workflows(get_default_workflows())
     if not os.path.exists(AUTH_FILE):
         save_json(AUTH_FILE, {"username": "admin", "password": hash_pw("admin123")})
 
